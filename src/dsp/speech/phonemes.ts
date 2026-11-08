@@ -47,6 +47,8 @@ export interface Phoneme {
   airstream?: 'ejective' | 'implosive' | 'click';
   /** taps and trills: the articulator that strikes, and a value of it past the contact */
   flick?: { key: FlickKey; contact: number };
+  /** a lateral click: released by lowering the sides of the tongue (ǁ) */
+  lateralRelease?: boolean;
   /** a stop held without an audible release (̚) */
   unreleased?: boolean;
   /** a consonant that is the nucleus of its syllable (n̩), or a vowel that is not (ɪ̯) */

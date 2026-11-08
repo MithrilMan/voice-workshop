@@ -196,6 +196,8 @@ export interface ScoreFrame {
    * it open
    */
   trill?: number;
+  /** a click (0..1): how far the tongue body has rarefied the air between its two closures */
+  click?: number;
   trillKey?: 'tipY' | 'lipOpen' | 'tongueX';
   trillAt?: number;
   /** change of the LF shape parameter Rd (breathier phrase ends, tenser accents) */

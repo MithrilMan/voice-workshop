@@ -143,6 +143,11 @@ function measure(a: Articulators, win?: [number, number]): { min: number; at: nu
 }
 
 /** where the narrowest passage of a posture is, cm from the lips */
+/** narrowest passage of a posture between `win[0]` and `win[1]` cm from the lips */
+export function passageIn(a: Partial<Articulators>, win: [number, number]): number {
+  return measure(baseArt(a), win).inWindow;
+}
+
 export function constrictionOf(a: Partial<Articulators>): { area: number; fromLips: number } {
   const m = measure(baseArt(a));
   return { area: m.min, fromLips: m.at };
@@ -267,10 +272,15 @@ function consonantFromChart(sym: string, k: ChartConsonant): Built | null {
   // an implosive lowers the larynx through its closure with the folds vibrating
   if (k.manner === 'implosive') { extra.airstream = 'implosive'; a.larynx = -1.5; }
   if (k.manner === 'click') {
-    // a click: the front closure and a velar one at once (the release inward comes from the airstream model)
+    // a click: the front closure and a velar one at once; the tongue body
+    // rarefies the air between them, and the front opens first (the sequencer
+    // and the engine do that). A lateral click keeps its sides shut through
+    // the closure and opens them to release it. The model's tongue is one
+    // body: it cannot make the palatal closure of ǂ and the velar one at once
     extra.airstream = 'click';
     a = { ...without(RECIPES.velar.closure!, 'tipY', 'groove'), ...a };
-    if (k.lateral) a.tongueSides = 1;
+    if (k.lateral) { a.tongueSides = 0; extra.lateralRelease = true; }
+    if (DORSAL.has(place)) extra.approx = 'click';
   }
   // taps and trills: the articulator that strikes, and where it touches
   if (k.manner === 'trill' || k.manner === 'tap' || k.manner === 'lateralTap') {
@@ -548,15 +558,13 @@ export function notesForIpa(ipa: string): SoundNote[] {
     if (!ph) out.push({ symbol: p.ipa, kind: 'unknown' });
     else {
       const parts = ph.parts?.map((s) => phonemeFor(s)) ?? [];
-      const code = ph.approx ?? parts.find((q) => q?.approx)?.approx ?? AIRSTREAM_NOTE[ph.airstream ?? ''];
+      const code = ph.approx ?? parts.find((q) => q?.approx)?.approx;
       if (code) out.push({ symbol: p.ipa, kind: 'approximate', code });
     }
   }
   return out;
 }
 
-/** airstreams the engine does not drive yet (the larynx of ejectives and implosives it does) */
-const AIRSTREAM_NOTE: Record<string, ApproxCode> = { click: 'click' };
 
 /** Every symbol of the chart, with the phoneme the model makes of it. */
 export function chartPhonemes(): Phoneme[] {

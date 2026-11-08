@@ -17,7 +17,7 @@ const APPROX: Record<ApproxCode, Bi> = {
   epiglottalFricative: { it: 'fatta dalla radice della lingua in basso nella faringe, sopra la laringe: il modello non ha le pieghe ariepiglottiche', en: 'made by the tongue root low in the pharynx, above the larynx: the model has no aryepiglottic folds' },
   doubleFricative: { it: 'fatta come fricativa velare arrotondata', en: 'made as a rounded velar fricative' },
   degree: { it: 'il modello non riesce a stringere questo punto quanto chiede il simbolo', en: 'the model cannot narrow this place as much as the symbol asks' },
-  click: { it: 'clic: due chiusure, ma senza l’aria rarefatta tra loro; si sente come un’occlusiva', en: 'click: two closures, but without the rarefied air between them; it sounds like a stop' },
+  click: { it: 'clic palatale: la lingua del modello è un corpo solo e non fa insieme la chiusura palatale e quella velare, quindi ne fa una e non rarefà l’aria', en: 'palatal click: the model’s tongue is one body and cannot make the palatal and the velar closure at once, so it makes one and rarefies no air' },
 };
 
 const noteText = (n: SoundNote): Bi =>

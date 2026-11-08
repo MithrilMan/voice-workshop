@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 154 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 155 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -321,6 +321,17 @@ The sequencer finds the moment the mouth is shut by running the engine's
 target dynamics and measuring the passage they leave (from a few to 70 ms
 into the closure: the lips close fast, the dorsum leaving an open vowel is
 slow), and starts the piston there.
+
+A click (ʘ ǀ ǃ ǁ) has a second cavity, between its velar closure and its
+front one, shut off from the lungs. Once both closures are made, the
+tongue body enlarges it by 0.6 cm³ against stiff walls (the tongue pulled
+taut against the palate, 3e-5 cm^5/dyn, plus its air), so its pressure
+falls to about -19 cmH2O; the front then opens first (the back closure, and
+the tip of a lateral click, hold on 25 ms longer; a lateral click keeps its
+sides shut and releases by lowering them), the air rushes in (300 to
+850 cm³/s inward for 2-3 ms) and that inflow, injected at the front
+passage, is the pop. The lungs meanwhile press against the back closure,
+which bursts as a plosive a moment later.
 Below the speaking pressure (8 cmH2O) the vibration amplitude falls almost in
 proportion to the transglottal pressure, so that, with the jet speed, the
 voice loses 8-9 dB per halving of the pressure, as measured (Titze & Sundberg
@@ -867,6 +878,7 @@ in brackets are the adult male targets described under Speech.
 | Velar lateral | ʟ: midline closed by the dorsum, lateral channels over 10 grid lines, 7.0-9.6 cm from the lips; /l/ F3 still 2421 Hz |
 | Uvular nasal | murmur against the vowel: [ŋ] -4.4 dB, [ɴ] -7.9 dB (-19.3 dB with the nose joined at the velum, in front of the closure) |
 | Epiglottal fricative | ʜ 0.10 cm² at 13.1 cm from the lips, ħ at 12.3 cm |
+| Clicks | cavity between the closures: [ʘ] -19.4 cmH2O, [ǀ] -18.5, [ǃ] -18.7, [ǁ] -17.9; inflow at the front release 848, 294, 297, 227 cm³/s with the back closure still shut |
 | Aeroelastic trills | lungs at 8 cmH2O: [arːa] 4 closures every 34 ms, [aʙːa] 6 every 31 ms, [aʀːa] 6 every 28 ms; at 0.5 cmH2O 1, 1 and 2 |
 | Written aspiration | VOT [p] 10 ms, [pʰ] 66 ms, [kʰ] 73 ms |
 | Ejective | [kʼ] 9.5 cmH2O behind the shut glottis (lungs 8), larynx up 0.88 cm, no flow from the lungs; mouth flow in the 30 ms after the burst 129 cm³/s against 777 for [k] |
@@ -926,8 +938,12 @@ in brackets are the adult male targets described under Speech.
   recordings. A few symbols are approximated, and the interface says so
   under the text: ʜ ʢ are made by the tongue root as low in the pharynx as
   a passage stays open, 0.8 cm below ħ (the model has no aryepiglottic
-  folds), ɧ as a rounded velar fricative. Clicks make both closures without
-  the rarefied air between them.
+  folds), ɧ as a rounded velar fricative, the palatal click ǂ with one
+  closure (the model's tongue is one body: it cannot make the palatal and
+  the velar closure at once), so it rarefies no air.
+- The pop of a click is the inflow into a small cavity (about 1 cm³ of air
+  to refill): 10 dB or more below the burst of [t], where real clicks are
+  among the loudest consonants. Its inward jet makes no turbulence noise.
 - The velum has no uvula: the uvular closures (q, ɴ, χ) are made by the
   dorsum against the pharynx just below the velum, and the uvular trill ʀ
   is a trill of the dorsum, not of the uvula. The sublingual cavity of a

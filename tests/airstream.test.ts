@@ -5,6 +5,7 @@ import { VoiceEngine } from '../src/dsp/engine/engine';
 import { defaultParams } from '../src/dsp/engine/params';
 import { textToPhones } from '../src/dsp/speech/g2p';
 import { buildScore } from '../src/dsp/speech/sequencer';
+import { notesForIpa } from '../src/dsp/speech/derive';
 import { note } from './helpers';
 
 const fs = 48000;
@@ -119,5 +120,50 @@ describe('aeroelastic trills', () => {
       expect(weak.n).toBeLessThanOrEqual(2);
     }
     note('aeroelastic trills', rows.join('; '));
+  });
+});
+
+/** a click, millisecond by millisecond: output peak, back closure, its cavity, the tongue */
+function clickRun(text: string) {
+  const score = buildScore(textToPhones(text, 'it'), { lang: 'it' });
+  const ph = score.phones.find((q) => q.ipa !== 'a')!;
+  const e = new VoiceEngine(fs, defaultParams());
+  e.snapArticulators(); e.snapPressure(); e.playScore(score);
+  const buf = new Float32Array(48);
+  const rows: { t: number; peak: number; back: number; pc: number; uc: number; tip: number; sides: number }[] = [];
+  for (let t = 0; t < ph.t1 + 0.06; t += 48 / fs) {
+    e.process(buf, 48);
+    let peak = 0;
+    for (const v of buf) peak = Math.max(peak, Math.abs(v));
+    const x = e.telemetry();
+    rows.push({ t, peak, back: x.constrictionArea, pc: x.clickPo / CMH2O, uc: x.uClick, tip: x.articulators.tipY, sides: x.articulators.tongueSides });
+  }
+  const pop = rows.reduce((m, r) => (r.uc < m.uc ? r : m), rows[0]);
+  const db = (rs: typeof rows) => 20 * Math.log10(Math.max(...rs.map((r) => r.peak)) + 1e-12);
+  return {
+    low: Math.min(...rows.map((r) => r.pc)), pop,
+    loud: db(rows.filter((r) => r.t >= pop.t - 0.002 && r.t < pop.t + 0.008)),
+    before: db(rows.filter((r) => r.t >= pop.t - 0.025 && r.t < pop.t - 0.008)),
+  };
+}
+
+describe('clicks', () => {
+  it('the tongue rarefies the air between the two closures, and it rushes in when the front opens, before the back', () => {
+    const rows: string[] = [];
+    for (const text of ['[aˈʘa]', '[aˈǀa]', '[aˈǃa]', '[aˈǁa]']) {
+      const c = clickRun(text);
+      rows.push(`${text} ${c.low.toFixed(1)} cmH₂O, inflow ${c.pop.uc.toFixed(0)} cm³/s, pop ${(c.loud - c.before).toFixed(0)} dB over the closure`);
+      expect(c.low).toBeLessThan(-10);
+      expect(c.pop.uc).toBeLessThan(-100);
+      // the back (velar) closure is still shut: the air comes from outside, not from the lungs
+      expect(c.pop.back).toBeLessThan(0.004);
+      expect(c.loud - c.before).toBeGreaterThan(20);
+      // a lateral click opens at the sides, the tip still up
+      if (text.includes('ǁ')) { expect(c.pop.tip).toBeGreaterThan(1.5); expect(c.pop.sides).toBeGreaterThan(0.1); }
+    }
+    note('clicks', rows.join('; '));
+    expect(notesForIpa('ǃ')).toEqual([]);
+    // one tongue body cannot make the palatal closure of ǂ and the velar one at once
+    expect(notesForIpa('ǂ').map((n) => n.code)).toEqual(['click']);
   });
 });

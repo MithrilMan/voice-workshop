@@ -47,6 +47,12 @@ const TRILL: Record<TrillKey, { f: number; zeta: number; kp: number; press: numb
 };
 /** stiffness of the tissue pressed against the other side, times the spring */
 const TRILL_CONTACT = 2;
+/**
+ * The air between the two closures of a click: the compliance of its walls
+ * (the tongue pulled taut against the palate, stiff: cm^5/dyn) and how much
+ * the tongue body, drawn down and back, enlarges it (cm^3).
+ */
+const CLICK = { walls: 3e-5, dv: 0.6 };
 
 /** Volume of an area function from the glottis to s cm (cm^3). */
 function volumeTo(areas: ArrayLike<number>, dx: number, s: number): number {
@@ -107,6 +113,9 @@ export interface Telemetry {
   uMouth: number;
   uNose: number;
   constrictionIndex: number;
+  /** the cavity of a click: its pressure (dyn/cm^2) and the flow through its front (cm^3/s, inward negative) */
+  clickPo: number;
+  uClick: number;
   constrictionArea: number;
   jet: JetInfo;
   glottalRe: number;
@@ -178,6 +187,20 @@ export class VoiceEngine {
   private trillV = 0;
   /** where the trilling articulator meets the other side, as the geometry shows it */
   private trillContact = 0;
+  /**
+   * a click: the cavity between its closures (pressure and inflow), how far
+   * the tongue has rarefied it, its front passage and the air it holds
+   */
+  private clickAero = new Aero();
+  private click = 0;
+  private clickDelta = 0;
+  private clickOn = false;
+  private clickFrontArea = 1;
+  private clickFrontIndex = -1;
+  private clickVolume = 0;
+  private rClick = new Ramp(0);
+  private clickNow = 0;
+  private clickSlow = 0;
   private wallJunction = 0;
   private aspJunction = 1;
 
@@ -280,7 +303,7 @@ export class VoiceEngine {
 
   // ------------------------------------------------------------ control
 
-  private targetFrame(): { art: Articulators | null; abduction: number; f0: number; ps: number; tip: number; lips: number; dorsum: number; rd: number; gate: number; tense: number; trill: number; trillKey?: TrillKey; trillAt: number } | null {
+  private targetFrame(): { art: Articulators | null; abduction: number; f0: number; ps: number; tip: number; lips: number; dorsum: number; rd: number; gate: number; tense: number; trill: number; trillKey?: TrillKey; trillAt: number; click: number } | null {
     const sc = this.score;
     if (!sc) return null;
     if (this.scoreTime > sc.duration + this.scoreHold) { this.score = null; this.tam.f0.tau = TAM_TAU.f0; return null; }
@@ -299,6 +322,7 @@ export class VoiceEngine {
       tip: mix(a.tip ?? 0, b.tip ?? 0), lips: mix(a.lips ?? 0, b.lips ?? 0), dorsum: mix(a.dorsum ?? 0, b.dorsum ?? 0),
       rd: mix(a.rd ?? 0, b.rd ?? 0), gate: mix(a.gate ?? 1, b.gate ?? 1), tense: mix(a.tense ?? 0, b.tense ?? 0),
       trill: mix(a.trill ?? 0, b.trill ?? 0), trillKey: a.trillKey ?? b.trillKey, trillAt: a.trillAt ?? b.trillAt ?? 0,
+      click: mix(a.click ?? 0, b.click ?? 0),
     };
   }
 
@@ -316,6 +340,9 @@ export class VoiceEngine {
     if (fr && fr.lips) this.art.lipOpen += fr.lips;
     if (fr && fr.dorsum) this.art.tongueX += fr.dorsum;
     this.trillStep(fr, tk, dt);
+    const ck = fr ? fr.click : 0;
+    this.clickDelta = ck - this.click;
+    this.click = ck;
     this.rdOffset = fr ? fr.rd : 0;
     // a glottal stop closes within a few milliseconds
     this.gate += ((fr ? fr.gate : 1) - this.gate) * (1 - Math.exp(-dt / 0.006));
@@ -344,6 +371,7 @@ export class VoiceEngine {
     this.rPo.set(this.aero.po);
     this.rMouth.set(this.aero.uMouth);
     this.rUg.set(this.aero.ug);
+    this.rClick.set(this.clickAero.uMouth);
     this.rWall.set(this.wallAmp);
     this.rObs.set(this.obsAmp);
     this.ctrlPhase = 0;
@@ -490,6 +518,25 @@ export class VoiceEngine {
       if (this.fineMinArea < 0.004) { if (P.dir * (x - this.trillContact) < 0) this.trillContact = x; }
       else if (this.fineMinArea < 0.3) this.trillContact = x + (P.dir * this.fineMinArea) / P.slope;
     }
+    // a click: the passage in front of its back closure (the narrowest, and
+    // as long as the dorsum's contact), and the air between the two
+    this.clickOn = this.click > 0 || this.clickAero.po < -10;
+    if (this.clickOn && this.geom) {
+      const g = this.geom;
+      let i0 = 0;
+      while (i0 < g.lastRay && g.s[i0] < this.fineMinS) i0++;
+      while (i0 < g.lastRay && g.hits[i0].area < 0.004) i0++;
+      const from = g.s[i0] + 0.3 * p.anatomy.scale;
+      let m = Infinity, ms = from;
+      for (let i = i0; i <= g.lastRay; i++) {
+        if (g.s[i] <= from) continue;
+        if (g.hits[i].area < m) { m = g.hits[i].area; ms = g.s[i]; }
+      }
+      if (g.slit.area < m && g.teethPos > from) { m = g.slit.area; ms = g.teethPos; }
+      this.clickFrontArea = Number.isFinite(m) ? m : 1;
+      this.clickFrontIndex = Math.min(n - 2, Math.max(0, Math.floor(ms / dx)));
+      this.clickVolume = Math.max(0, volumeTo(af.areas, dx, ms) - volumeTo(af.areas, dx, this.fineMinS));
+    } else this.clickFrontIndex = -1;
     // exit of the constriction: first section downstream that opens up
     let exit = ci;
     const ac = Math.max(af.areas[ci], 1e-3);
@@ -551,6 +598,13 @@ export class VoiceEngine {
         compliance, dVdt: take / dt,
       });
     }
+    // the cavity of a click, shut off from the lungs by its back closure: the
+    // tongue enlarges it, and the air rushes in when the front opens
+    if (this.clickOn) {
+      const c = CLICK.walls * scale * scale * scale + this.clickVolume / (RHO * C_SOUND * C_SOUND);
+      const q = (CLICK.dv * scale * scale * scale * this.clickDelta) / dt;
+      for (let i = 0; i < sub; i++) this.clickAero.step(dt / sub, { ps: 0, glottalArea: 0, oralArea: this.clickFrontArea, nasalArea: 0, compliance: c, dVdt: q });
+    } else this.clickAero.reset();
     // voicing needs transglottal pressure and adducted folds. Below the
     // speaking pressure (8 cmH2O) the vibration amplitude falls almost in
     // proportion, so that with the jet speed (sqrt of the pressure) the voice
@@ -729,6 +783,13 @@ export class VoiceEngine {
       wg.monoJunction = Math.min(N_SECTIONS - 2, this.constrictionIndex);
       wg.monoValue = NOISE_K.burst * (this.mouthNow - this.mouthSlow);
     } else wg.monoJunction = -1;
+    // a click: the air rushing into its rarefied cavity as the front opens
+    this.clickNow += (this.rClick.at(ph) - this.clickNow) * this.mouthCoef;
+    this.clickSlow += (this.clickNow - this.clickSlow) * this.slowCoef;
+    if (n.burstOn && this.clickFrontIndex >= 0) {
+      wg.monoJunction = Math.min(N_SECTIONS - 2, this.clickFrontIndex);
+      wg.monoValue = NOISE_K.burst * (this.clickNow - this.clickSlow);
+    }
 
     wg.step();
     const uOut = wg.lipFlow + wg.nosFlow;
@@ -847,6 +908,8 @@ export class VoiceEngine {
       uMouth: this.aero.uMouth,
       uNose: this.aero.uNose,
       constrictionIndex: this.constrictionIndex,
+      clickPo: this.clickAero.po,
+      uClick: this.clickAero.uMouth,
       constrictionArea: this.fineMinArea,
       jet: { ...this.jet },
       glottalRe: this.glottalRe,

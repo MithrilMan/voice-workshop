@@ -3,7 +3,7 @@ import { PHONEMES, Phoneme, FlickKey } from './phonemes';
 import { Phone, Lang } from './g2p';
 import { Score, ScoreFrame, ScorePhone } from '../engine/params';
 import { TamChannel, TAM_TAU } from './tam';
-import { phonemeFor, constrictionOf, contactPoint } from './derive';
+import { phonemeFor, constrictionOf, contactPoint, passageIn } from './derive';
 import { IPA_CONSONANTS, IPA_VOWELS, Place } from './ipa';
 import { normalizeIpa } from './ipaReader';
 
@@ -124,6 +124,11 @@ const RELEASE_LEAD = 0.012;
  *  their time constants before that middle a consonant may claim them */
 const PROTECTED = new Set<string>(['tipX', 'tipY', 'tongueX', 'tongueY', 'velum']);
 const CORE = 0.75;
+/** a click: how long its back closure outlasts the front one (s), the keys that make it, and where each closure lies (cm from the lips) */
+const CLICK_LAG = 0.025;
+const CLICK_BACK = new Set<string>(['tongueX', 'tongueY', 'tongueRoot', 'jaw']);
+const CLICK_FRONT: [number, number] = [0, 6];
+const CLICK_BACK_WINDOW: [number, number] = [6.2, 12];
 const trillContacts = new Map<string, number>();
 /** where the trilling articulator of a phoneme meets the other side (cached: it takes a dozen geometries) */
 function trillContact(ph: Phoneme, key: FlickKey, toward: number): number {
@@ -525,6 +530,13 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
         if (prev && (prev.t1 > t0 || piston)) prev.t1 = Math.max(prev.t0, t0);
         const release = (m === 'fricative' ? 2 : 1) * RELEASE_LEAD * (TAM_TAU[k] / TAM_TAU.tipY);
         anchors[k].push({ t0: Math.max(t0, prev ? prev.t1 : -Infinity), t1: piston ? s.t1 : Math.max(t0 + 0.01, s.t1 - release), v, cons: true, ...(piston ? { piston: s } : {}) });
+        // a click opens its front first: the back closure (and the tip of a
+        // lateral click) holds on a little longer, while the sides of a
+        // lateral click open
+        if (s.ph.airstream === 'click' && s.part === 'closure') {
+          if (CLICK_BACK.has(k) || (s.ph.lateralRelease && k === 'tipY')) anchors[k][anchors[k].length - 1].t1 = s.t1 + CLICK_LAG;
+          if (s.ph.lateralRelease && k === 'tongueSides') anchors[k].push({ t0: s.t1 - 0.004, t1: s.t1 + CLICK_LAG, v: 1, cons: true });
+        }
       } else anchors[k].push({ t0: s.t0 - lead, t1: s.t1 - lead, v, mid: 0.5 * (s.t0 + s.t1) });
     }
   }
@@ -598,6 +610,35 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       p++;
     }
   }
+
+  // the tongue body of a click rarefies the air between its closures once
+  // both are made, until the front one opens: the moment is found as for
+  // the piston above (a palatal click, with one closure, has nothing to rarefy)
+  const clickSegs = segs.filter((s) => s.part === 'closure' && s.ph.airstream === 'click' && s.ph.approx !== 'click');
+  const clicks: { t0: number; t1: number; end: number }[] = [];
+  if (clickSegs.length) {
+    const trs = {} as Record<keyof Articulators, TamChannel>;
+    for (const k of ARTICULATOR_KEYS) trs[k] = new TamChannel(valueAt(k, 0), TAM_TAU[k]);
+    const art = { ...DEFAULT_ARTICULATORS };
+    let p = 0;
+    for (let i = 0; i * FRAME <= duration && p < clickSegs.length; i++) {
+      const time = i * FRAME;
+      for (const k of ARTICULATOR_KEYS) art[k] = trs[k].step(valueAt(k, time), FRAME);
+      const s = clickSegs[p];
+      if (time < s.t0) continue;
+      if (time >= s.t1) { p++; continue; }
+      if (passageIn(art, CLICK_FRONT) > 0.004 || passageIn(art, CLICK_BACK_WINDOW) > 0.004) continue;
+      clicks.push({ t0: time, t1: s.t1, end: s.t1 + CLICK_LAG + 0.03 });
+      p++;
+    }
+  }
+  const clickAt = (time: number): number => {
+    for (const c of clicks) {
+      if (time < c.t0 || time >= c.end) continue;
+      return time >= c.t1 ? 1 : 0.5 - 0.5 * Math.cos((Math.PI * (time - c.t0)) / (c.t1 - c.t0));
+    }
+    return 0;
+  };
 
   // contacts of taps (raised-cosine flicks up to the contact: the tongue tip
   // to the ridge, the lips to the teeth). Their size is measured from where
@@ -917,6 +958,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     frames.push({
       t: time, art, abduction: abd, f0: f0At(time), ps, tip, ...(lips ? { lips } : {}), ...(dorsum ? { dorsum } : {}), rd, gate, ...(tense ? { tense } : {}),
       ...(tr ? { trill: 1, trillKey: tr.key, trillAt: tr.at } : {}),
+      ...(clickAt(time) > 0 ? { click: clickAt(time) } : {}),
     });
   }
   const sp: ScorePhone[] = [];
