@@ -8,6 +8,7 @@ import { IPA_CONSONANTS, IPA_VOWELS, Place } from './ipa';
 import { normalizeIpa } from './ipaReader';
 import { ProsodyStyle, styleOf, lengthen, ST } from './style';
 import { Setting, settingOf, isNeutral, adjust, nasalizable } from '../voice/setting';
+import { LanguageProsody, prosodyOf } from './languages';
 
 /**
  * Turns phones into a gestural score: piecewise targets for every articulator
@@ -412,20 +413,24 @@ function italianDuration(u: Unit, next: Unit | undefined, prev: Unit | undefined
  * closed syllable or in a cluster. Syllabic consonants last about as long as
  * a short vowel.
  */
-function neutralDuration(u: Unit, next: Unit | undefined, prev: Unit | undefined, st: ProsodyStyle): number {
+function neutralDuration(u: Unit, next: Unit | undefined, prev: Unit | undefined, st: ProsodyStyle, lp?: LanguageProsody): number {
   let d = u.ph.dur;
+  const final = (f: number) => lengthen(Math.pow(f, lp?.final ?? 1), st);
   if (u.vowel) {
     if (u.ph.manner !== 'vowel') d *= 1.6;
-    if (u.p.stress) d *= 1.25; else if (!u.p.stress2) d *= 0.85;
-    if (u.phraseFinal) d *= lengthen(u.boundary === 'comma' ? 1.2 : 1.4, st);
+    const rhythm = lp?.rhythm;
+    // stress feet squeeze the unstressed vowels; morae leave the stress out of the length
+    if (rhythm === 'stress') { if (u.p.stress) d *= 1.35; else if (!u.p.stress2) d *= u.p.func ? 0.5 : 0.62; }
+    else if (rhythm !== 'mora') { if (u.p.stress) d *= rhythm ? 1.15 : 1.25; else if (!u.p.stress2) d *= rhythm ? 0.9 : 0.85; }
+    if (u.phraseFinal) d *= final(u.boundary === 'comma' ? 1.2 : 1.4);
     const nx = next && next.word === u.word ? next : undefined;
-    if (nx && !nx.vowel && (nx.coda || nx.p.long)) d *= 0.85;
-    if (u.p.long) d *= 1.7;
+    if (rhythm !== 'mora' && nx && !nx.vowel && (nx.coda || nx.p.long)) d *= 0.85;
+    if (u.p.long) d *= rhythm === 'mora' ? 2 : 1.7;
   } else {
     const pc = isCons(prev) && prev!.word === u.word, nc = isCons(next) && next!.word === u.word;
     if (pc || nc) d *= 0.85;
-    if (u.phraseFinal && u.coda) d *= lengthen(1.25, st);
-    if (u.p.long) d *= 1.85;
+    if (u.phraseFinal && u.coda) d *= final(1.25);
+    if (u.p.long) d *= lp?.rhythm === 'mora' ? 2.2 : 1.85;
   }
   return d;
 }
@@ -448,6 +453,8 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   const rate = Math.max(0.3, o.rate);
   const literal = o.literal ?? (phones.length > 0 && phones.every((p) => p.literal));
   const en = !literal && o.lang === 'en';
+  // a language read by the phonemizer: its rhythm, accents and questions
+  const lp = literal ? prosodyOf(o.lang) : undefined;
   // the shape of the speaker's mouth, if it is not the drawing's: the sounds are aimed for it
   const shape = shapeOf(o.head);
   const units = analyse(phones, literal, shape);
@@ -455,7 +462,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // durations
   for (let i = 0; i < units.length; i++) {
     const u = units[i];
-    if (nat.timing) u.dur = (literal ? neutralDuration : en ? englishDuration : italianDuration)(u, units[i + 1], units[i - 1], st);
+    if (nat.timing) u.dur = (literal ? neutralDuration : en ? englishDuration : italianDuration)(u, units[i + 1], units[i - 1], st, lp);
     else u.dur = u.ph.dur * (u.p.long && !u.vowel ? 1.9 : 1);
     if (u.p.halfLong) u.dur *= 1.3;
     if (u.p.extraShort) u.dur *= 0.55;
@@ -879,9 +886,16 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       // accents on the stressed vowels of content words
       const acc: number[] = [];
       // (in a tone language the tones take the place of the pitch accents)
-      if (!toned) for (let j = phraseStart; j <= i; j++) if (units[j].vowel && units[j].p.stress && !units[j].p.func) acc.push(j);
+      if (!toned && lp?.accents !== 'none') for (let j = phraseStart; j <= i; j++) if (units[j].vowel && units[j].p.stress && !units[j].p.func) acc.push(j);
       const boundary = u.boundary;
       const yesNo = boundary === 'question';
+      // an accent of the phrase, not of the word (French): only on its last syllable
+      if (lp?.accents === 'phrase') {
+        acc.length = 0;
+        for (let j = i; j >= phraseStart; j--) if (units[j].vowel) { acc.push(j); break; }
+      }
+      // a question that rises on its last stress and falls after it
+      const riseFall = yesNo && lp?.question === 'riseFall';
       const lastV = (() => { for (let j = i; j >= phraseStart; j--) if (units[j].vowel) return j; return -1; })();
       let height = o.accent * ST;
       acc.forEach((j, n) => {
@@ -890,8 +904,8 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
         const nuclear = n === acc.length - 1;
         let a = height;
         // a yes/no question has a low nuclear accent before its final rise
-        if (nuclear && yesNo) a = 0;
-        if (en) {
+        if (nuclear && yesNo) a = riseFall ? a * 1.3 : 0;
+        if (en || lp?.peak === 'early' || riseFall && nuclear) {
           // English H*: rise through the stressed syllable, peak inside its vowel
           const t2 = vs.t1 - 0.03;
           if (a > 0) accentCmds.push({ t1: Math.min(sylStart(j) - 0.03, t2 - 0.17), t2, a, beta: betaAcc });
@@ -911,7 +925,8 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       const lv = lastV >= 0 ? vowelSeg(lastV) : undefined;
       const endT = segs.filter((s) => s.unit <= i).reduce((m, s) => Math.max(m, s.t1), 0);
       if (lv) {
-        if (yesNo) accentCmds.push({ t1: lv.t0 - 0.1, t2: endT + 0.2, a: st.questionRise * ST, beta: 16 });
+        if (riseFall) accentCmds.push({ t1: lv.t0 + 0.02, t2: endT + 0.2, a: -st.finalFall * ST, beta: 12 });
+        else if (yesNo) accentCmds.push({ t1: lv.t0 - 0.1, t2: endT + 0.2, a: st.questionRise * ST, beta: 16 });
         else if (boundary === 'comma') accentCmds.push({ t1: lv.t0, t2: endT + 0.1, a: st.continuation * ST, beta: 16 });
         else accentCmds.push({ t1: lv.t0 - 0.02, t2: endT + 0.2, a: -st.finalFall * ST, beta: 12 }); // final lowering
       }

@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 200 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 205 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -681,6 +681,25 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   Malay, Swahili; the last in French, Armenian, Persian and the Turkic
   languages. The model's German r, often a tap, becomes the uvular one of
   the standard.
+- **Each language's prosody** (src/dsp/speech/languages.ts,
+  LanguageProsody): a language read by the phonemizer is timed and
+  intoned by a profile of its own. Its rhythm: by stress feet (German and
+  the other Germanic languages, Russian, Ukrainian, Belarusian, Bulgarian,
+  European Portuguese, Arabic: a stressed vowel x1.35, an unstressed one
+  x0.62, a function word's x0.5), by syllables (the rest: x1.15 and x0.9)
+  or by morae (Japanese: no stress in the length, a long vowel twice a
+  short one, a geminate x2.2) (Pike 1945; Dauer 1983; Ramus, Nespor &
+  Mehler 1999). Its accents: on every stressed word, only on the last
+  syllable of each phrase (French, Korean, Japanese), or none where the
+  tones do it (Chinese, Cantonese, Vietnamese, Thai). Where its peaks fall:
+  early in the vowel (Germanic, Finnish, Estonian, Hungarian, Czech,
+  Slovak) or late (Romance, Greek...). How it asks: a yes/no question rises
+  at the end, or in Hungarian, Romanian, Greek and the East Slavic
+  languages rises on its last stress and falls after it (Ladd 2008). And
+  how much it lengthens the end of a phrase: more in French, less where
+  length is a phoneme (Finnish, Estonian, Hungarian, Japanese). The voice
+  keeps its own body, habits and style in every language; the language
+  brings its rhythm and its tunes.
 - **IPA** (src/dsp/speech/ipaReader.ts): every symbol of the IPA chart
   (2020), pulmonic and non-pulmonic, with its diacritics and modifier
   letters (voicing, aspiration, breathy and creaky voice, secondary
@@ -1031,6 +1050,7 @@ in brackets are the adult male targets described under Speech.
 | Stops close | "papa tata kaka gaga": every closure builds its pressure (/g/ after /a/ did not close before) |
 | Head shapes | 120 sounds on 13 heads (vault 0.6 and 1.45, arch 0.8 and 1.25, pharynx 0.7 and 1.4, tongue 0.92 and 1.08, frenulum 0.6, mouth 0.8 and 1.2, lips 0.7 and 1.4): every stop, nasal and click closes, every other consonant keeps its passage within 0.8-1.15, no vowel narrows below 0.25 cm²; only the laterals closed by the dorsum (ʎ ʟ) under the lowest vault or the biggest tongue are approximate. On a vault of 0.6 "kaka gaga tata cece" builds 42-100 % of the lungs' pressure behind each closure |
 | Palate and arch | F2 of /i/ 2192 Hz: 2036 with a vault of 1.3, 2258 with 0.7; 2140 with an arch of 1.2, 2237 with 0.85 |
+| Language prosody | unstressed against stressed vowels: German 0.46, Spanish 0.78, Japanese 1.00; a long vowel in Japanese 2.0 times a short one (Spanish 1.7); the same four words, Spanish accents the first 4.5 st above French, which accents only the last (3.7 st above the one before); a yes/no question: Spanish rises to the end (112 -> 163 Hz), Hungarian and Greek peak on the last stress and fall (152 -> 98 Hz) |
 | Fold length | folds 0.7 as long open a glottis 0.70 as wide at its peak; two-mass folds 0.6 as long still follow a 220 Hz target (220 Hz) |
 | Lips | F2 of /u/ 873 Hz: 817 with lips 1.4 times as thick (the tract 0.7 cm longer), 931 with 0.7; 898 with a mouth 1.2 times as wide, 851 with 0.8 |
 | Tongue | F2 of /a/ 1297 Hz: 1228 with a tongue of 1.08, 1412 with 0.92; with a frenulum of 0.6 /t d n/ close with the jaw raised and the tip of /r/ no longer reaches its contact |
@@ -1143,12 +1163,14 @@ in brackets are the adult male targets described under Speech.
   ɪprʲɪvʲet, with a vowel in front; German geht with a short e). Lexical
   stress is only where the source writes it (the Russian and Greek
   transcriptions have none), Japanese pitch accent is not marked, numbers
-  are read out only in Italian and English, and the prosody is the neutral
-  one of [IPA]: no language's own durations or intonation. The first use of
+  are read out only in Italian and English, and the prosody is a profile per
+  language (rhythm, accents, peaks, questions, final lengthening), not the
+  full intonation grammar of each. The first use of
   a language needs the network.
 - Tones are said as they are written: a transcription carries the tones of
-  the surface, so there are no tone sandhi rules; a [phonetic] transcription
-  of another language gets neutral durations, not that language's rhythm.
+  the surface, so there are no tone sandhi rules. A [phonetic] transcription
+  gets the profile of the language chosen for it, or neutral rules if that
+  is Italian or English.
 - The machine-voice tab describes only the excitation as the paper Teacher in
   the Loop presents it; it does not model any trained network.
 - The colourful field and particle visualisations are illustrative (the
@@ -1207,6 +1229,10 @@ in brackets are the adult male targets described under Speech.
 - Lindblom, B. (1963). Spectrographic study of vowel reduction. JASA 35.
 - Klatt, D. H. & Klatt, L. C. (1990). Analysis, synthesis, and perception of voice quality variations among female and male talkers. JASA 87.
 - Lisker, L. & Abramson, A. S. (1964). A cross-language study of voicing in initial stops: acoustical measurements. Word 20.
+- Dauer, R. M. (1983). Stress-timing and syllable-timing reanalyzed. J. Phonetics 11.
+- Ramus, F., Nespor, M. & Mehler, J. (1999). Correlates of linguistic rhythm in the speech signal. Cognition 73.
+- Ladd, D. R. (2008). Intonational Phonology (2nd ed.). Cambridge University Press.
+- Pike, K. L. (1945). The Intonation of American English. University of Michigan Press.
 - Perkell, J. S., Matthies, M. L., Svirsky, M. A. & Jordan, M. I. (1993). Trading relations between tongue-body raising and lip rounding in production of the vowel /u/: a pilot "motor equivalence" study. JASA 93.
 - Laver, J. (1980). The Phonetic Description of Voice Quality. Cambridge University Press.
 - Laver, J., Wirz, S., Mackenzie, J. & Hiller, S. M. (1981). A perceptual protocol for the analysis of vocal profiles. Edinburgh University Department of Linguistics, Work in Progress 14.

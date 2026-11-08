@@ -22,6 +22,57 @@ export interface SpeechLanguage {
   fix?: [string, string][];
 }
 
+/**
+ * How a language is spoken beyond its sounds, as the planner reads it:
+ * - rhythm: by stress feet (unstressed vowels short and reduced: German,
+ *   Russian, European Portuguese), by syllables (all about even: Spanish,
+ *   French, Turkish) or by morae (a long vowel or a geminate is two:
+ *   Japanese) (Pike 1945; Abercrombie 1967; Dauer 1983; Ramus, Nespor &
+ *   Mehler 1999);
+ * - accents: a pitch accent on every stressed word, one at the end of each
+ *   phrase only (French, whose accent is the phrase's, not the word's;
+ *   Korean and Japanese accentual phrases), or none where tones do it;
+ * - peak: the peak of an accent early in its vowel (Germanic, Finnic,
+ *   Hungarian) or late, at its end (Romance, Greek: L+H*);
+ * - question: a yes/no question rises at the end, or rises on its last
+ *   stressed syllable and falls after it (Hungarian, Romanian, Greek,
+ *   Russian: Ladd 2008);
+ * - final: the lengthening of the last syllable of a phrase against the
+ *   planner's (strong in French, weak where length is a phoneme: Finnish,
+ *   Estonian, Hungarian, Japanese).
+ */
+export interface LanguageProsody {
+  rhythm: 'stress' | 'syllable' | 'mora';
+  accents: 'word' | 'phrase' | 'none';
+  peak: 'early' | 'late';
+  question: 'rise' | 'riseFall';
+  final: number;
+}
+
+/** what a language without a profile gets: even syllables, an accent on each stressed word, peaks late, questions rising */
+export const NEUTRAL_PROSODY: LanguageProsody = { rhythm: 'syllable', accents: 'word', peak: 'late', question: 'rise', final: 1 };
+
+const GERMANIC: Partial<LanguageProsody> = { rhythm: 'stress', peak: 'early' };
+const EAST_SLAVIC: Partial<LanguageProsody> = { rhythm: 'stress', question: 'riseFall' };
+const QUANTITY: Partial<LanguageProsody> = { peak: 'early', final: 0.7 };
+const TONES: Partial<LanguageProsody> = { accents: 'none' };
+const PROFILES: Record<string, Partial<LanguageProsody>> = {
+  de: GERMANIC, nl: GERMANIC, af: GERMANIC, lb: GERMANIC, sv: GERMANIC, nb: GERMANIC, da: GERMANIC, is: GERMANIC,
+  cy: GERMANIC, ga: GERMANIC,
+  ru: EAST_SLAVIC, uk: EAST_SLAVIC, be: EAST_SLAVIC, bg: { rhythm: 'stress' }, 'pt-PT': { rhythm: 'stress' }, ar: { rhythm: 'stress' },
+  fr: { accents: 'phrase', final: 1.3 }, 'fr-CA': { accents: 'phrase', final: 1.3 },
+  ro: { question: 'riseFall' }, el: { question: 'riseFall' }, grc: { question: 'riseFall' },
+  hu: { ...QUANTITY, question: 'riseFall' }, fi: QUANTITY, et: QUANTITY, cs: { peak: 'early' }, sk: { peak: 'early' },
+  ja: { rhythm: 'mora', accents: 'phrase', final: 0.8 }, ko: { accents: 'phrase' },
+  zh: TONES, 'zh-TW': TONES, yue: TONES, vi: TONES, th: { ...TONES, rhythm: 'stress' },
+};
+
+/** The prosody of a language read by the phonemizer; undefined for those with rules of their own and for unknown codes. */
+export function prosodyOf(code: string): LanguageProsody | undefined {
+  if (!SPEECH_LANGUAGES.some((l) => l.code === code)) return undefined;
+  return { ...NEUTRAL_PROSODY, ...PROFILES[code] };
+}
+
 /** Italian and English: rules of their own, no download. */
 export const OWN_RULES = ['it', 'en'] as const;
 
