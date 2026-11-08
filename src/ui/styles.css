@@ -500,3 +500,5 @@ input[type='range'] { accent-color: var(--amber); width: 100%; }
   .studio { grid-template-columns: minmax(0, 1fr); padding: 10px; }
   .studio-lib { position: static; max-height: none; }
 }
+.speaks-as { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 8px 0 0; color: var(--muted); }
+.speaks-as b { color: var(--text); }

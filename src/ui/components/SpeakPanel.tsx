@@ -12,6 +12,7 @@ import type { ApproxCode } from '../../dsp/speech/phonemes';
 import { SPEECH_LANGUAGES, speechLanguage, SpeechLanguage } from '../../dsp/speech/languages';
 import { phonemize, dictionaryFailed, Phonemized } from '../../dsp/speech/phonemizer';
 import type { UiState } from '../store';
+import { SpeaksAs } from './SpeaksAs';
 
 type Bi = { it: string; en: string };
 
@@ -192,7 +193,8 @@ export function SpeakPanel() {
         </div>
         <Slider label={L({ it: 'Velocità', en: 'Rate' })} value={rate} min={0.4} max={1.8} onChange={(v) => store.setSpeech({ rate: v })} format={(v) => `×${v.toFixed(2)}`} />
         <Slider label={L({ it: 'Accento melodico', en: 'Pitch accent' })} value={accent} min={0} max={8} step={0.5} onChange={(v) => store.setSpeech({ accent: v })} format={(v) => `${v.toFixed(1)} st`} />
-        <p className="small muted">{L({ it: 'La nota di base è quella della scheda «Sorgente»; la voce (uomo, donna, bambino…) resta quella scelta.', en: 'The base pitch comes from the “Source” tab; the voice (man, woman, child…) stays as chosen.' })}</p>
+        <SpeaksAs />
+        <p className="small muted">{L({ it: 'La voce parla con le sue abitudini e la sua melodia; la nota di base e la pressione dei polmoni sono quelle della scheda «Sorgente».', en: 'The voice speaks with its habits and its melody; the base pitch and the lung pressure come from the “Source” tab.' })}</p>
       </Section>
       <Section title={L({ it: 'Cosa la rende naturale', en: 'What makes it sound natural' })} accent={C.teal}
         info={L({

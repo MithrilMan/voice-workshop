@@ -5,6 +5,7 @@ import { store, useUi, PlayActivity, ViewTab } from '../store';
 import { useLanes, useVoice } from '../voice/hooks';
 import { ViewFrame } from './views';
 import { PhonemeButtons, SayBox, VoiceTiles } from './quick';
+import { SpeaksAs } from '../components/SpeaksAs';
 
 type Bi = { it: string; en: string };
 
@@ -40,7 +41,7 @@ function Holding() {
 /** The controls of one activity, and nothing else. */
 function Controls({ id }: { id: PlayActivity }) {
   const L = useL();
-  if (id === 'speak') return <SayBox />;
+  if (id === 'speak') return <><SayBox /><SpeaksAs /></>;
   if (id === 'sounds') return (
     <>
       <PhonemeButtons list={VOWELS} label={{ it: 'Vocali', en: 'Vowels' }} />
@@ -51,6 +52,7 @@ function Controls({ id }: { id: PlayActivity }) {
     <>
       <VoiceTiles />
       <PhonemeButtons list={VOWELS} size="small" label={{ it: 'Ascoltala su', en: 'Hear it on' }} />
+      <SpeaksAs />
     </>
   );
   return (
