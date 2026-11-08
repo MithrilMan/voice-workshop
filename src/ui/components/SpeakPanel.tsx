@@ -14,9 +14,7 @@ type Bi = { it: string; en: string };
 
 /** What each approximation of a sound made from the IPA chart means. */
 const APPROX: Record<ApproxCode, Bi> = {
-  uvularNasal: { it: 'fatta come nasale velare: il naso si innesta sul tubo in un punto fisso, davanti a una chiusura uvulare', en: 'made as a velar nasal: the nose joins the tube at a fixed place, in front of a uvular closure' },
-  velarLateral: { it: 'fatta come approssimante velare: i lati della lingua si aprono solo davanti al velo', en: 'made as a velar approximant: the sides of the tongue open only in front of the velum' },
-  epiglottalFricative: { it: 'fatta come fricativa faringale: il modello non ha l’epiglottide', en: 'made as a pharyngeal fricative: the model has no epiglottis' },
+  epiglottalFricative: { it: 'fatta dalla radice della lingua in basso nella faringe, sopra la laringe: il modello non ha le pieghe ariepiglottiche', en: 'made by the tongue root low in the pharynx, above the larynx: the model has no aryepiglottic folds' },
   doubleFricative: { it: 'fatta come fricativa velare arrotondata', en: 'made as a rounded velar fricative' },
   degree: { it: 'il modello non riesce a stringere questo punto quanto chiede il simbolo', en: 'the model cannot narrow this place as much as the symbol asks' },
   click: { it: 'clic: due chiusure, ma senza l’aria rarefatta tra loro; si sente come un’occlusiva', en: 'click: two closures, but without the rarefied air between them; it sounds like a stop' },

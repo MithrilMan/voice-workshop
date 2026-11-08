@@ -119,6 +119,9 @@ const RECIPES: Record<Place, Recipe> = {
   glottal: { art: {}, key: 'jaw', open: 0, closed: 0, window: [0, 30], overshoot: 0 },
 };
 
+/** the tongue body a little forward, so that the root narrows the pharynx just above the larynx, not in its middle */
+const EPIGLOTTAL_FRICATIVE: Recipe = { ...RECIPES.epiglottal, art: { ...RECIPES.epiglottal.art, tongueX: -0.7 }, open: 1.2, window: [12.9, 16.6] };
+
 const CORONAL = new Set<Place>(['dental', 'alveolar', 'postalveolar', 'retroflex']);
 const DORSAL = new Set<Place>(['alveolopalatal', 'palatal', 'velar', 'uvular']);
 
@@ -224,24 +227,23 @@ const clampKey = (k: keyof Articulators, v: number) => Math.max(ARTICULATOR_RANG
 
 function consonantFromChart(sym: string, k: ChartConsonant): Built | null {
   const manner = MANNER_OF[k.manner];
-  let place: Place = k.place;
+  const place: Place = k.place;
   let approx: ApproxCode | undefined;
-  // places the model cannot make yet fall back to the nearest one it can
-  if (sym === 'ɴ') { place = 'velar'; approx = 'uvularNasal'; }
-  if (k.manner === 'lateralApproximant' && place === 'velar') approx = 'velarLateral';
-  if (place === 'epiglottal' && k.manner !== 'plosive') { place = 'pharyngeal'; approx = 'epiglottalFricative'; }
+  // the model has no aryepiglottic folds: an epiglottal fricative is made by
+  // the root, as low in the pharynx as a passage stays open (below ħ)
+  if (place === 'epiglottal' && k.manner !== 'plosive') approx = 'epiglottalFricative';
   if (place === 'glottal') {
     if (k.manner === 'plosive') return { ph: PHONEMES['ʔ'] };
     return { ph: make(sym, 'glottal', k.voiced, {}, { place }) };
   }
   // a voiceless /w/: the hiss is at the rounded lips
   if (sym === 'ʍ') return { ph: make(sym, 'fricative', false, { ...PHONEMES.w.art }, { place: 'velar' }), place: 'velar' };
-  const r = RECIPES[place];
+  const r = approx === 'epiglottalFricative' ? EPIGLOTTAL_FRICATIVE : RECIPES[place];
   let degree = degreeOf(k.manner);
   const lateral = k.manner === 'lateralApproximant' || k.manner === 'lateralFricative' || k.manner === 'lateralTap';
   let a: Partial<Articulators>;
   let solved = true;
-  if (lateral && approx !== 'velarLateral') {
+  if (lateral) {
     // a central closure with the sides of the tongue lowered: the sides set the degree
     const c = r.closure ?? { ...r.art, [r.key]: solveDegree(r.art, r, 'closed', r.window).value };
     const side: Recipe = { art: c, key: 'tongueSides', open: 1, closed: 0, window: [0, 30], overshoot: 0 };
@@ -251,12 +253,11 @@ function consonantFromChart(sym: string, k: ChartConsonant): Built | null {
     if (k.manner === 'lateralTap') { a.tipY = 1.2; degree = APPROXIMANT; }
   } else if (degree === 'closed' && r.closure) a = { ...r.closure };
   else {
-    const d = approx === 'velarLateral' ? APPROXIMANT : degree;
-    const s = solveDegree(r.art, r, d, r.window);
+    const s = solveDegree(r.art, r, degree, r.window);
     a = { ...r.art, [r.key]: s.value };
     solved = s.reached;
   }
-  if (!lateral && (CORONAL.has(place) || DORSAL.has(place) || place === 'pharyngeal')) a.tongueSides = 0;
+  if (!lateral && (CORONAL.has(place) || DORSAL.has(place) || place === 'pharyngeal' || place === 'epiglottal')) a.tongueSides = 0;
   a.velum = manner === 'nasal' ? NASAL_VELUM : 0;
   if (place === 'bilabial' || place === 'labiodental') a.lipTuck = place === 'labiodental' ? 1 : 0;
   const extra: Partial<Phoneme> = { place };

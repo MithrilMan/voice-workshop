@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 151 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 154 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -413,7 +413,11 @@ Butterworth) and resampled to the audio rate with Catmull-Rom interpolation.
 
 **Nasal tract**: 28 sections (about 11 cm, scaled with the speaker) with the
 area profile of Dang, Honda & Suzuki (1994), joined at the velopharyngeal
-port. The first 7 sections (the nasopharynx) are common; at the choanae a
+port, where the velum begins. The model's velum has no uvula, so the dorsum
+makes a uvular closure below it: with the port open and the mouth shut
+there (ɴ), the nose joins just behind that closure, where the uvula would
+hang, instead of being cut off from the glottis (the murmur of [aɴa] is
+7.9 dB under its vowel, 19 dB with the nose joined at the velum). The first 7 sections (the nasopharynx) are common; at the choanae a
 three-way junction splits them into the left and right passages, each with
 half the area and its own radiating nostril. Two equal passages sound like
 the merged tube; unequal ones add a pole-zero pair (Dang et al. 1994): with
@@ -860,6 +864,9 @@ in brackets are the adult male targets described under Speech.
 | Derived vowels | y 252/1869/2395, ø 397/1534/2191, œ 499/1626/2086, ɯ 336/1403/2237, ɨ 399/1679/2306 Hz: rounding lowers F2 and F3 of the front vowels, unrounding raises F2 of the back ones |
 | Czech ř | turbulence during the trill 12 dB above /r/ |
 | Trills | closures of the lips in [aʙa] 3, of the dorsum against the uvula in [aʀa] 4, of the tip in [ara] 1 |
+| Velar lateral | ʟ: midline closed by the dorsum, lateral channels over 10 grid lines, 7.0-9.6 cm from the lips; /l/ F3 still 2421 Hz |
+| Uvular nasal | murmur against the vowel: [ŋ] -4.4 dB, [ɴ] -7.9 dB (-19.3 dB with the nose joined at the velum, in front of the closure) |
+| Epiglottal fricative | ʜ 0.10 cm² at 13.1 cm from the lips, ħ at 12.3 cm |
 | Aeroelastic trills | lungs at 8 cmH2O: [arːa] 4 closures every 34 ms, [aʙːa] 6 every 31 ms, [aʀːa] 6 every 28 ms; at 0.5 cmH2O 1, 1 and 2 |
 | Written aspiration | VOT [p] 10 ms, [pʰ] 66 ms, [kʰ] 73 ms |
 | Ejective | [kʼ] 9.5 cmH2O behind the shut glottis (lungs 8), larynx up 0.88 cm, no flow from the lungs; mouth flow in the 30 ms after the burst 129 cm³/s against 777 for [k] |
@@ -909,17 +916,23 @@ in brackets are the adult male targets described under Speech.
 - The consonant postures are fitted to formants and fricative spectra, not to
   measured area functions. The laterals keep their contact, channels and
   supralingual cavity, but their F3 stays low: /l/ 2421 Hz and /ɫ/ 2254 Hz
-  against about 2600 measured. The palatal /ʎ/ has its lateral channels but
+  against about 2600 measured. The channels run back from the front of the
+  midline contact to the molars, or at least 2.5 cm behind the contact: a
+  velar lateral ʟ has them around the dorsum. The palatal /ʎ/ has its lateral channels but
   no midline contact, so no supralingual cavity.
 - The sounds made from rules (derive.ts) are placed and narrowed by rules,
   not fitted to measurements of each sound: their place, their degree and
   the order of their formants are checked, not their spectra against
   recordings. A few symbols are approximated, and the interface says so
-  under the text: ɴ is made as a velar nasal (the nose joins the tube at a
-  fixed place, in front of a uvular closure), ʟ as a velar approximant (the
-  sides of the tongue open only in front of the velum), ʜ ʢ as pharyngeal
-  fricatives (no epiglottis), ɧ as a rounded velar fricative. Clicks make
-  both closures without the rarefied air between them.
+  under the text: ʜ ʢ are made by the tongue root as low in the pharynx as
+  a passage stays open, 0.8 cm below ħ (the model has no aryepiglottic
+  folds), ɧ as a rounded velar fricative. Clicks make both closures without
+  the rarefied air between them.
+- The velum has no uvula: the uvular closures (q, ɴ, χ) are made by the
+  dorsum against the pharynx just below the velum, and the uvular trill ʀ
+  is a trill of the dorsum, not of the uvula. The sublingual cavity of a
+  retroflex is the air pocket under the raised blade, joined to the
+  channel beside it, not a side branch of its own.
 - The air behind a constriction is one cavity, and only the larynx changes
   its volume: the jaw, the cheeks and the tongue root of a real speaker also
   expand or squeeze it, here they are folded into the compliance of the

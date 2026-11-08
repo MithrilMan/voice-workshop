@@ -509,6 +509,9 @@ const LIP_SPLIT = 0.3;
  *  brace against the molars (canonical cm). */
 const SIDES_FULL = 4.3;
 const SIDES_FADE = 1.0;
+/** The channels stay open at least this far behind the front of the midline
+ *  contact, wherever it is: a velar lateral has them around the dorsum. */
+const SIDES_PAST_CONTACT = 2.5;
 
 function castRay(ray: Ray, solids: Solid[], hit: RayHit): void {
   const px = ray.sx + ray.nx * ray.t0, py = ray.sy + ray.ny * ray.t0;
@@ -705,10 +708,19 @@ export function computeGeometry(a: Articulators, an: Anatomy, teeth: Teeth, opts
 
   let lastRay = rays.length - 1;
   let firstOutside = -1;
+  // the front of the tongue's contact on the midline (canonical cm behind
+  // the incisal edge): the lateral channels of a lateral run back from it
+  let contactFront = Infinity;
+  for (let i = 0; i < rays.length; i++) {
+    const ray = rays[i], h = hits[i];
+    castRay(ray, solids, h);
+    if (h.outside || h.d > 0 || h.lowId !== 'tongue') continue;
+    contactFront = Math.min(contactFront, slit.ux / s - (ray.sx + ray.nx * (ray.t0 + 0.5 * (h.tLow + h.tUp))) / s);
+  }
+  const sidesFull = Math.max(SIDES_FULL, contactFront + SIDES_PAST_CONTACT);
   for (let i = 0; i < rays.length; i++) {
     const ray = rays[i];
     const h = hits[i];
-    castRay(ray, solids, h);
     if (h.outside) {
       if (i > 10 && firstOutside < 0) firstOutside = i;
       h.area = 0; h.perimeter = 0; h.soft = 0; h.lateral = 0; h.width = 0; h.rule = 'oral';
@@ -776,7 +788,7 @@ export function computeGeometry(a: Articulators, an: Anatomy, teeth: Teeth, opts
       lens.grooveHalf = 0.5 * law.grooveWidth;
       // the lateral channels of a lateral run from the tip contact back to
       // where the margins of the tongue brace against the molars again
-      const brace = Math.min(1, Math.max(0, (behind - SIDES_FULL) / SIDES_FADE));
+      const brace = Math.min(1, Math.max(0, (behind - sidesFull) / SIDES_FADE));
       lens.sides = h.lowId === 'tongue' && f > 0 ? tongueSides * (1 - brace) : 0;
       // the hard palate does not yield; the teeth and cheeks close the oral cavity at the sides
       lens.softUp = h.upId === 'palate' ? 0 : 1;

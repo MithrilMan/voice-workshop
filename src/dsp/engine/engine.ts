@@ -446,7 +446,14 @@ export class VoiceEngine {
     }
     const scale = p.anatomy.scale;
     const port = portArea(this.art.velum, p.anatomy.nasalLeak, scale);
-    const coupling = Math.round(0.43 * n) - 1;
+    // the nose joins the pharynx where the velum begins. The model's velum has
+    // no uvula, so the dorsum makes a uvular closure below it: with the port
+    // open and the mouth shut there (ɴ), the nose joins just behind that
+    // closure, where the uvula would hang, instead of being cut off from the
+    // glottis
+    let coupling = Math.round(0.43 * n) - 1;
+    const shutAt = Math.min(n - 1, Math.max(0, Math.floor(this.fineMinS / af.dx)));
+    if (port > 2e-3 && this.fineMinArea < 0.004 && shutAt <= coupling) coupling = Math.max(2, shutAt - 1);
     this.nasal = buildNasal(af.dx, scale, port, coupling, this.nasal.dx === af.dx ? this.nasal : undefined, noseOf(p.anatomy));
     const steps = Math.round(this.fsT * GEOM_INTERVAL * 1.05);
     this.wg.lossParams.base = 70 * p.losses;
