@@ -151,6 +151,8 @@ function trillContact(ph: Phoneme, key: FlickKey, toward: number): number {
  *  way still to go */
 const COMPENSATED: (keyof Articulators)[] = ['tongueX', 'tongueY', 'tongueRoot', 'jaw', 'lipRound', 'lipProtrude'];
 const OVERSHOOT = 0.6;
+/** how far the voice drops into vocal fry, semitones (fry is about 25-70 Hz: Hollien & Michel 1968) */
+const FRY_DROP = 7;
 const isObstruent = (ph: Phoneme | undefined) => !!ph && (ph.manner === 'stop' || ph.manner === 'fricative' || ph.manner === 'affricate');
 const isCons = (u: Unit | undefined) => !!u && !u.vowel && u.ph.manner !== 'silence';
 /** the nucleus of a syllable: a vowel unless marked non-syllabic, or a consonant marked syllabic */
@@ -877,7 +879,10 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     return null;
   };
   const stressedVowels = segs.filter((s) => s.ph.manner === 'vowel' && units[s.unit].p.stress && !units[s.unit].p.func);
-  const phraseEnds = segs.filter((s) => s.ph.manner === 'silence').map((s) => s.t0).concat([t]);
+  // where each phrase ends, and whether it falls (a statement: it may end in creak)
+  const falls = (u: Unit) => u.boundary === 'stop' || u.boundary === 'wh';
+  const phraseEnds = segs.filter((s) => s.ph.manner === 'silence').map((s) => ({ t: s.t0, fall: falls(units[s.unit]) }))
+    .concat([{ t, fall: units.length > 0 && falls(units[units.length - 1]) }]);
   // unaspirated voiceless stops (Italian, English after s) keep the folds
   // apart through the closure and bring them together just after the burst:
   // the voice starts with a short lag, longest behind the slow release of the
@@ -941,7 +946,9 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     let quality = 0;
     const phon = sg && sg.ph.manner !== 'stop' ? units[sg.unit].ph.phonation : undefined;
     if (phon === 'breathy') { abd = Math.max(abd, 0.22); quality = 1.0; }
-    if (phon === 'creaky') quality = -0.6;
+    // a creaky sound: slow, irregular pulses, alternate ones weaker (Gordon & Ladefoged 2001)
+    let creak = 0, fry = 0;
+    if (phon === 'creaky') { quality = -0.6; creak = 0.7; }
     for (const w of murmur) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) { abd = Math.max(abd, 0.28); quality = 1.2; }
     // lungs: on during the utterance, lower during pauses, off at the end
     let ps = time < duration ? o.ps : 0;
@@ -955,9 +962,14 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
           if (d < w) { const e = 0.5 * (1 + Math.cos((Math.PI * d) / w)); ps *= 1 + st.stressPs * e; rd -= st.stressRd * e; }
         }
         // the end of each phrase relaxes: less pressure, breathier voice
+        // (a speaker who ends statements in creak, vocal fry, drops into it instead)
         for (const pe of phraseEnds) {
-          const d = pe - time;
-          if (d >= 0 && d < st.endWindow) { const e = 1 - d / st.endWindow; ps *= 1 - st.endPs * e; rd += st.endRd * e; }
+          const d = pe.t - time;
+          if (d >= 0 && d < st.endWindow) {
+            const e = 1 - d / st.endWindow, c = pe.fall ? st.endCreak : 0;
+            ps *= 1 - st.endPs * e; rd += (st.endRd * (1 - c) - 0.6 * c) * e;
+            if (c > 0) fry = Math.max(fry, c * Math.min(1, 1.6 * e));
+          }
         }
       }
       // a pause is quiet: the lungs hold back instead of blowing through the open glottis
@@ -966,7 +978,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     const tip = flickAt('tipY', time), lips = flickAt('lipOpen', time), dorsum = flickAt('tongueX', time);
     const tr = trills.find((w) => time >= w.t0 && time < w.t1);
     frames.push({
-      t: time, art, abduction: abd, f0: f0At(time), ps, tip, ...(lips ? { lips } : {}), ...(dorsum ? { dorsum } : {}), rd, gate, ...(tense ? { tense } : {}),
+      t: time, art, abduction: abd, f0: f0At(time) * (fry > 0 ? Math.pow(2, (-FRY_DROP * fry) / 12) : 1), ps, ...(Math.max(creak, fry) > 0 ? { creak: Math.max(creak, fry) } : {}), tip, ...(lips ? { lips } : {}), ...(dorsum ? { dorsum } : {}), rd, gate, ...(tense ? { tense } : {}),
       ...(tr ? { trill: 1, trillKey: tr.key, trillAt: tr.at } : {}),
       ...(clickAt(time) > 0 ? { click: clickAt(time) } : {}),
     });

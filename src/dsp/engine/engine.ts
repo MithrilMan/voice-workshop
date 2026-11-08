@@ -181,6 +181,8 @@ export class VoiceEngine {
   private lowerPharynx = 0;
   /** walls of the cavity tensed (1: the pharynx of an ejective does not yield) or let go (-1: that of an implosive gives way) */
   private tense = 0;
+  /** creak of the score (0..1), smoothed */
+  private creak = 0;
   /** the articulator trilling, its offset from the smoothed posture and its speed */
   private trillKey: TrillKey | undefined;
   private trillY = 0;
@@ -310,7 +312,7 @@ export class VoiceEngine {
 
   // ------------------------------------------------------------ control
 
-  private targetFrame(): { art: Articulators | null; abduction: number; f0: number; ps: number; tip: number; lips: number; dorsum: number; rd: number; gate: number; tense: number; trill: number; trillKey?: TrillKey; trillAt: number; click: number } | null {
+  private targetFrame(): { art: Articulators | null; abduction: number; f0: number; ps: number; tip: number; lips: number; dorsum: number; rd: number; gate: number; tense: number; creak: number; trill: number; trillKey?: TrillKey; trillAt: number; click: number } | null {
     const sc = this.score;
     if (!sc) return null;
     if (this.scoreTime > sc.duration + this.scoreHold) { this.score = null; this.restoreTau(); return null; }
@@ -327,7 +329,7 @@ export class VoiceEngine {
     return {
       art, abduction: mix(a.abduction, b.abduction), f0: mix(a.f0, b.f0), ps: mix(a.ps, b.ps),
       tip: mix(a.tip ?? 0, b.tip ?? 0), lips: mix(a.lips ?? 0, b.lips ?? 0), dorsum: mix(a.dorsum ?? 0, b.dorsum ?? 0),
-      rd: mix(a.rd ?? 0, b.rd ?? 0), gate: mix(a.gate ?? 1, b.gate ?? 1), tense: mix(a.tense ?? 0, b.tense ?? 0),
+      rd: mix(a.rd ?? 0, b.rd ?? 0), gate: mix(a.gate ?? 1, b.gate ?? 1), tense: mix(a.tense ?? 0, b.tense ?? 0), creak: mix(a.creak ?? 0, b.creak ?? 0),
       trill: mix(a.trill ?? 0, b.trill ?? 0), trillKey: a.trillKey ?? b.trillKey, trillAt: a.trillAt ?? b.trillAt ?? 0,
       click: mix(a.click ?? 0, b.click ?? 0),
     };
@@ -354,6 +356,7 @@ export class VoiceEngine {
     // a glottal stop closes within a few milliseconds
     this.gate += ((fr ? fr.gate : 1) - this.gate) * (1 - Math.exp(-dt / 0.006));
     this.tense += ((fr ? fr.tense : 0) - this.tense) * (1 - Math.exp(-dt / 0.02));
+    this.creak += ((fr ? fr.creak : 0) - this.creak) * (1 - Math.exp(-dt / 0.02));
     this.abduction = this.tam.abduction.step(fr ? fr.abduction : p.abduction, dt);
     const vib = p.source.vibratoDepth > 0 ? Math.pow(2, (p.source.vibratoDepth / 1200) * Math.sin(2 * Math.PI * p.source.vibratoRate * this.time)) : 1;
     // flutter: slow quasi-random F0 wander of a living voice (Klatt & Klatt 1990)
@@ -655,10 +658,13 @@ export class VoiceEngine {
 
   private nextPeriod = (src: LFSource): void => {
     const s = this.params.source;
-    const j = (s.jitter / 100) * this.rng.gauss();
+    // creak adds irregularity and weakens alternate pulses
+    const c = this.creak;
+    const j = ((s.jitter + 6 * c) / 100) * this.rng.gauss();
     src.periodF0 = Math.max(20, Math.min(1500, this.f0 * (1 + Math.max(-0.3, Math.min(0.3, j)))));
-    let amp = 1 + (s.shimmer / 100) * this.rng.gauss();
-    if (s.diplophonia > 0 && (src.periodIndex & 1)) amp *= 1 - 0.8 * s.diplophonia;
+    let amp = 1 + ((s.shimmer + 10 * c) / 100) * this.rng.gauss();
+    const dip = Math.max(s.diplophonia, 0.6 * c);
+    if (dip > 0 && (src.periodIndex & 1)) amp *= 1 - 0.8 * dip;
     this.periodAmp = Math.max(0, amp);
     const rd = Math.max(0.3, Math.min(2.7, s.rd + this.rdOffset));
     const timing: LFTiming = s.advanced ? timingFromQuotients(s.oq, s.alphaM, s.ra) : rdToTiming(rd);
@@ -714,7 +720,7 @@ export class VoiceEngine {
     } else {
       const tp = this.tm.params;
       const sp = p.source;
-      tp.asym = sp.asym;
+      tp.asym = Math.min(1, sp.asym + 0.3 * this.creak);
       tp.a0 = Math.max(0.0, sp.restArea) * s2 + (p.voicing ? 0 : 0.2);
       tp.d1 = 0.25 * p.anatomy.scale;
       tp.q = sp.tensionAuto ? this.tmQ : sp.q;

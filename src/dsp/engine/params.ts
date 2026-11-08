@@ -204,6 +204,8 @@ export interface ScoreFrame {
   rd?: number;
   /** vocal-fold vibration and leak allowed (1) or folds pressed shut (0, glottal stop) */
   gate?: number;
+  /** creak (0..1): slow, irregular pulses with alternate ones weaker (laryngealized sounds, vocal fry) */
+  creak?: number;
   /** walls of the cavity tensed (up to 1: they do not yield to the pressure of an ejective) or let go (down to -1: they give way, as in an implosive) */
   tense?: number;
 }

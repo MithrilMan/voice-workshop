@@ -40,3 +40,37 @@ describe('a way of speaking', () => {
     expect(say(text, { flutter: 60 }).flutter).toBe(60);
   });
 });
+
+describe('creak', () => {
+  it('a voice that ends its statements in creak drops into slow, irregular pulses', async () => {
+    const { VoiceEngine } = await import('../src/dsp/engine/engine');
+    const { defaultParams } = await import('../src/dsp/engine/params');
+    const run = (endCreak: number) => {
+      const sc = say('la luna e le stelle', { endCreak });
+      const e = new VoiceEngine(48000, defaultParams());
+      e.snapArticulators(); e.snapPressure(); e.playScore(sc);
+      const lf = (e as unknown as { lf: { periodF0: number } }).lf;
+      const priv = e as unknown as { periodAmp: number };
+      const out = new Float32Array(48);
+      const f0: number[] = [], amp: number[] = [];
+      const v = lastVowel(sc);
+      for (let t = 0; t < sc.duration; t += 0.001) {
+        e.process(out, 48);
+        if (t > v.end - 0.08 && t < v.end) { f0.push(lf.periodF0); amp.push(priv.periodAmp); }
+      }
+      const mean = (x: number[]) => x.reduce((a, b) => a + b, 0) / x.length;
+      const sd = (x: number[]) => Math.sqrt(mean(x.map((y) => (y - mean(x)) ** 2)));
+      return { f0: mean(f0), ampSd: sd(amp), frames: sc.frames.filter((f) => (f.creak ?? 0) > 0).length };
+    };
+    const modal = run(0), fry = run(1);
+    expect(modal.frames).toBe(0);
+    expect(fry.frames).toBeGreaterThan(20);
+    expect(fry.f0).toBeLessThan(modal.f0 * 0.75);
+    expect(fry.ampSd).toBeGreaterThan(modal.ampSd * 2);
+  });
+
+  it('a question does not end in creak, a creaky vowel creaks', () => {
+    expect(say('piove oggi?', { endCreak: 1 }).frames.some((f) => (f.creak ?? 0) > 0)).toBe(false);
+    expect(buildScore(textToPhones('[ˈpa̰]', 'it')).frames.some((f) => (f.creak ?? 0) > 0)).toBe(true);
+  });
+});

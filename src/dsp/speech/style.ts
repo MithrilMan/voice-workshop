@@ -37,6 +37,8 @@ export interface ProsodyStyle {
   endWindow: number;
   endPs: number;
   endRd: number;
+  /** statements end in creak (vocal fry), 0 = never ... 1 = always: low, irregular pulses instead of a breathy fade */
+  endCreak: number;
 }
 
 /** one semitone in log units of F0 */
@@ -61,6 +63,7 @@ export const DEFAULT_STYLE: Readonly<ProsodyStyle> = Object.freeze({
   endWindow: 0.28,
   endPs: 0.18,
   endRd: 0.55,
+  endCreak: 0,
 });
 
 /** a style with every field, from a partial one */
