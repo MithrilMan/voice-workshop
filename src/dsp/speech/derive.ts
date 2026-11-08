@@ -247,7 +247,7 @@ function consonantFromChart(sym: string, k: ChartConsonant): Built | null {
   if (!solved) extra.approx = extra.approx ?? 'degree';
   if (DORSAL.has(place) && degree === 'closed') extra.dorsal = true;
   // an implosive lowers the larynx through its closure with the folds vibrating
-  if (k.manner === 'implosive') { extra.airstream = 'implosive'; a.larynx = -0.8; }
+  if (k.manner === 'implosive') { extra.airstream = 'implosive'; a.larynx = -1.5; }
   if (k.manner === 'click') {
     // a click: the front closure and a velar one at once (the release inward comes from the airstream model)
     extra.airstream = 'click';
@@ -375,14 +375,15 @@ function applyCommonMods(ph: Phoneme, mods: Modifier[], place?: Place): Phoneme 
   const labial = place === 'bilabial' || place === 'labiodental';
   for (const m of mods) {
     switch (m) {
-      case 'voiceless': ph.voiced = false; ph.abduction = vowel ? 0.55 : abductionOf(ph.manner, false); break;
+      // a voiceless implosive (Owerri Igbo, Lendu) lowers the larynx with the glottis shut: the air is drawn in
+      case 'voiceless': ph.voiced = false; ph.abduction = vowel ? 0.55 : ph.airstream === 'implosive' ? 0 : abductionOf(ph.manner, false); break;
       case 'voiced': ph.voiced = true; ph.abduction = abductionOf(ph.manner, true); break;
       case 'aspirated': ph.aspirated = true; break;
       case 'breathy': ph.phonation = 'breathy'; break;
       case 'creaky': ph.phonation = 'creaky'; break;
       case 'glottalized': if (ph.manner === 'stop') ph.unreleased = true; else ph.phonation = 'creaky'; break;
       // an ejective raises the closed larynx through its closure, like a piston
-      case 'ejective': ph.airstream = 'ejective'; ph.voiced = false; ph.abduction = 0; a.larynx = 0.8; break;
+      case 'ejective': ph.airstream = 'ejective'; ph.voiced = false; ph.abduction = 0; a.larynx = 1.2; break;
       case 'noRelease': ph.unreleased = true; break;
       case 'nasalized': a.velum = vowel ? 0.3 : NASAL_VELUM; break;
       case 'labialized': if (!labial) { a.lipRound = 1; a.lipProtrude = 0.8; if (vowel) break; a.lipOpen = Math.min(a.lipOpen ?? 0.3, 0.1); } break;
@@ -535,8 +536,8 @@ export function notesForIpa(ipa: string): SoundNote[] {
   return out;
 }
 
-/** airstreams the engine does not drive yet */
-const AIRSTREAM_NOTE: Record<string, ApproxCode> = { ejective: 'ejective', implosive: 'implosive', click: 'click' };
+/** airstreams the engine does not drive yet (the larynx of ejectives and implosives it does) */
+const AIRSTREAM_NOTE: Record<string, ApproxCode> = { click: 'click' };
 
 /** Every symbol of the chart, with the phoneme the model makes of it. */
 export function chartPhonemes(): Phoneme[] {

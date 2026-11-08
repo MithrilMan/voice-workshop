@@ -3,7 +3,7 @@ import { PHONEMES, Phoneme, FlickKey } from './phonemes';
 import { Phone, Lang } from './g2p';
 import { Score, ScoreFrame, ScorePhone } from '../engine/params';
 import { TamChannel, TAM_TAU } from './tam';
-import { phonemeFor } from './derive';
+import { phonemeFor, constrictionOf } from './derive';
 import { IPA_CONSONANTS, IPA_VOWELS, Place } from './ipa';
 import { normalizeIpa } from './ipaReader';
 
@@ -411,6 +411,8 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     if (u.p.extraShort) u.dur *= 0.55;
     // the nasal of a prenasalized stop is a short lead-in to it
     if (u.p.prenasal) u.dur *= 0.45;
+    // the larynx needs time to move: ejective and implosive closures are long (Lindau 1984)
+    if (u.ph.airstream === 'ejective' || u.ph.airstream === 'implosive') u.dur *= 1.5;
     if (u.ph.manner === 'trill') {
       // the number of contacts sets the duration of a trill (each about 38 ms)
       const contacts = u.p.long ? 4 : u.p.wordStart ? 3 : isCons(units[i - 1]) ? 1 : 2;
@@ -428,7 +430,9 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     const ph = u.ph;
     const parts: [string, number][] = ph.manner === 'affricate' && ph.parts ? [[ph.parts[0], 0.45], [ph.parts[1], 0.55]] : [[u.p.ipa, 1]];
     for (const [ipa, frac] of parts) {
-      const q = ipa === u.p.ipa ? ph : phonemeFor(ipa)!;
+      let q = ipa === u.p.ipa ? ph : phonemeFor(ipa)!;
+      // the parts of an ejective affricate share its larynx and its glottis
+      if (q !== ph && ph.airstream) q = { ...q, airstream: ph.airstream, voiced: ph.voiced, abduction: ph.abduction, art: { ...q.art, larynx: ph.art.larynx } };
       const dur = u.dur * frac;
       if (q.manner === 'stop') {
         const rel = Math.min(0.015, dur * 0.35);
@@ -466,7 +470,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
 
   // ---------------------------------------------------------- articulation
   // per-key anchor points: (interval, value) at the segments that specify the key
-  const anchors: Record<string, { t0: number; t1: number; v: number; cons?: boolean; mid?: number }[]> = {};
+  const anchors: Record<string, { t0: number; t1: number; v: number; cons?: boolean; mid?: number; piston?: Seg }[]> = {};
   for (const k of ARTICULATOR_KEYS) anchors[k] = [];
   const neutral: Articulators = { ...DEFAULT_ARTICULATORS, ...PHONEMES['ə'].art };
   for (const s of segs) {
@@ -505,10 +509,14 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
         const prev = anchors[k][anchors[k].length - 1];
         const own = PROTECTED.has(k) && !(en && k === 'velum');
         const core = own && prev && !prev.cons && prev.mid !== undefined ? prev.mid - CORE * TAM_TAU[k] : -Infinity;
-        const t0 = Math.max(core, s.t0 - lead - (m === 'stop' ? 0 : CONS_ONSET));
-        if (prev && prev.t1 > t0) prev.t1 = Math.max(prev.t0, t0);
+        // the larynx of an ejective or an implosive stays where it was until
+        // the mouth is shut (a piston needs a closed cylinder), then moves
+        // through the closure up to the release
+        const piston = k === 'larynx' && (s.ph.airstream === 'ejective' || s.ph.airstream === 'implosive');
+        const t0 = piston ? s.t0 + 0.4 * (s.t1 - s.t0) : Math.max(core, s.t0 - lead - (m === 'stop' ? 0 : CONS_ONSET));
+        if (prev && (prev.t1 > t0 || piston)) prev.t1 = Math.max(prev.t0, t0);
         const release = (m === 'fricative' ? 2 : 1) * RELEASE_LEAD * (TAM_TAU[k] / TAM_TAU.tipY);
-        anchors[k].push({ t0: Math.max(t0, prev ? prev.t1 : -Infinity), t1: Math.max(t0 + 0.01, s.t1 - release), v, cons: true });
+        anchors[k].push({ t0: Math.max(t0, prev ? prev.t1 : -Infinity), t1: piston ? s.t1 : Math.max(t0 + 0.01, s.t1 - release), v, cons: true, ...(piston ? { piston: s } : {}) });
       } else anchors[k].push({ t0: s.t0 - lead, t1: s.t1 - lead, v, mid: 0.5 * (s.t0 + s.t1) });
     }
   }
@@ -553,6 +561,33 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
         const room = OVERSHOOT * Math.abs(w.v0 - w.from);
         w.a.v = Math.max(lo, Math.min(hi, Math.max(w.v0 - room, Math.min(w.v0 + room, w.a.v + miss))));
       }
+    }
+  }
+
+  // the piston of an ejective or an implosive starts when the mouth is shut,
+  // anywhere from a few to 70 ms into the closure (the lips close fast, the
+  // dorsum leaving an open vowel is slow): the target dynamics of the engine
+  // are run here and the passage they leave is measured, until it is closed
+  // (a fricative: nearly as narrow as it will get)
+  const pistons = anchors.larynx.filter((a) => a.piston);
+  if (pistons.length) {
+    const trs = {} as Record<keyof Articulators, TamChannel>;
+    for (const k of ARTICULATOR_KEYS) trs[k] = new TamChannel(valueAt(k, 0), TAM_TAU[k]);
+    const art = { ...DEFAULT_ARTICULATORS };
+    const shut = pistons.map((a) => Math.max(0.003, 1.3 * constrictionOf(a.piston!.ph.art).area));
+    let p = 0;
+    for (let i = 0; i * FRAME <= duration && p < pistons.length; i++) {
+      const time = i * FRAME;
+      for (const k of ARTICULATOR_KEYS) art[k] = trs[k].step(valueAt(k, time), FRAME);
+      const w = pistons[p], s = w.piston!;
+      if (time < s.t0) continue;
+      // never closed: the planned start stays
+      if (time >= s.t1) { p++; continue; }
+      if (constrictionOf(art).area > shut[p]) continue;
+      w.t0 = Math.min(time, w.t1 - 0.01);
+      const prev = anchors.larynx[anchors.larynx.indexOf(w) - 1];
+      if (prev) prev.t1 = Math.max(prev.t0, w.t0);
+      p++;
     }
   }
 
@@ -800,9 +835,16 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // apart, with a breathy pulse shape, for the first part of the vowel
   const murmur = segs.filter((s) => s.part === 'release' && s.ph.voiced && units[s.unit].ph.phonation === 'breathy')
     .map((s) => ({ t0: s.t0, t1: s.t0 + 0.07 }));
-  // an ejective holds the glottis shut through its closure and burst, and a moment after
-  const glottalHold = segs.filter((s) => s.part === 'release' && units[s.unit].ph.airstream === 'ejective')
-    .map((s) => ({ t0: segs.find((a) => a.unit === s.unit && a.part === 'closure')?.t0 ?? s.t0, t1: s.t1 + 0.03 }));
+  // an ejective holds the glottis shut through its closure and burst, and a
+  // moment after, as does a voiceless implosive, whose larynx draws the air in
+  // (a stop, a fricative, an affricate: from its first part to the end of its last)
+  const glottalHold = units.map((u, i) => ({ u, own: segs.filter((s) => s.unit === i) }))
+    .filter(({ u, own }) => (u.ph.airstream === 'ejective' || (u.ph.airstream === 'implosive' && !u.ph.voiced)) && own.length)
+    .map(({ own }) => ({ t0: own[0].t0, t1: own[own.length - 1].t1 + 0.03 }));
+  // an implosive lets the walls of its pharynx and its cheeks go through the
+  // closure, drawn outward with the falling larynx, so that the vibrating
+  // glottis can keep filling the cavity without the pressure rising behind it
+  const expand = segs.filter((s) => s.part === 'closure' && units[s.unit].ph.airstream === 'implosive' && units[s.unit].ph.voiced).map((s) => ({ t0: s.t0, t1: s.t1 }));
   const frames: ScoreFrame[] = [];
   const n = Math.ceil((duration + 0.25) / FRAME);
   for (let i = 0; i <= n; i++) {
@@ -836,7 +878,10 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       else abd = sg.ph.abduction;
     }
     for (const w of shortLag) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) abd = Math.max(abd, 0.5);
-    for (const w of glottalHold) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) { abd = 0; gate = 0; }
+    // and tenses the walls of the pharynx, so that the rising larynx compresses the air instead of stretching them
+    let tense = 0;
+    for (const w of glottalHold) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) { abd = 0; gate = 0; tense = 1; }
+    for (const w of expand) if (time >= w.t0 && time < w.t1) tense = -1;
     // the voice quality of the segment: murmur (breathy) or creak
     let quality = 0;
     const phon = sg && sg.ph.manner !== 'stop' ? units[sg.unit].ph.phonation : undefined;
@@ -864,7 +909,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       if (sg?.ph.manner === 'silence' && sg.t1 - sg.t0 > 0.1 && time > sg.t0 + 0.04 && time < sg.t1 - 0.06) ps *= 0.08;
     }
     const lips = flickAt('lipOpen', time), dorsum = flickAt('tongueX', time);
-    frames.push({ t: time, art, abduction: abd, f0: f0At(time), ps, tip: flickAt('tipY', time), ...(lips ? { lips } : {}), ...(dorsum ? { dorsum } : {}), rd, gate });
+    frames.push({ t: time, art, abduction: abd, f0: f0At(time), ps, tip: flickAt('tipY', time), ...(lips ? { lips } : {}), ...(dorsum ? { dorsum } : {}), rd, gate, ...(tense ? { tense } : {}) });
   }
   const sp: ScorePhone[] = [];
   for (const s of segs) {

@@ -1,6 +1,7 @@
 /**
  * Traces a sentence through the engine every 2 ms: phone, oral constriction
- * area, intraoral pressure, voicing, glottal gate, output level.
+ * area, intraoral pressure, voicing, glottal gate, larynx height, mouth flow,
+ * output level.
  *   npx tsx scripts/trace.ts it "il carro"
  */
 import { readFileSync } from 'node:fs';
@@ -27,6 +28,6 @@ for (let t = 0; t < sc.duration + 0.1; t += block / 48000) {
   let r = 0; for (const x of buf) r += x * x;
   const tel = e.telemetry();
   const db = 10 * Math.log10(r / block + 1e-12);
-  line = `${t.toFixed(3)} ${tel.phone.padEnd(3)} A=${tel.constrictionArea.toFixed(3)} Po=${(tel.po / 980).toFixed(2)} v=${tel.voicingAmp.toFixed(2)} abd=${tel.abduction.toFixed(2)} f0=${tel.f0.toFixed(0)} out=${db.toFixed(0)}dB asp=${(20 * Math.log10(tel.levels.aspiration + 1e-9)).toFixed(0)}`;
+  line = `${t.toFixed(3)} ${tel.phone.padEnd(3)} A=${tel.constrictionArea.toFixed(3)} Po=${(tel.po / 980).toFixed(2)} v=${tel.voicingAmp.toFixed(2)} abd=${tel.abduction.toFixed(2)} lx=${tel.articulators.larynx.toFixed(2)} Um=${tel.uMouth.toFixed(0)} f0=${tel.f0.toFixed(0)} out=${db.toFixed(0)}dB asp=${(20 * Math.log10(tel.levels.aspiration + 1e-9)).toFixed(0)}`;
   console.log(line);
 }

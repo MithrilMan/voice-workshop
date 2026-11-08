@@ -66,8 +66,15 @@ export interface AeroInputs {
   oralArea: number;
   /** nasal passage effective area (cm^2) */
   nasalArea: number;
-  /** wall compliance of the cavity behind the constriction (cm^5/dyn) */
+  /** compliance of the cavity behind the constriction, its walls and its air (cm^5/dyn) */
   compliance: number;
+  /**
+   * rate of change of the volume of that cavity (cm^3/s): a larynx rising
+   * with the glottis shut compresses the air in front of it (ejectives), one
+   * lowering rarefies it (implosives), a tongue or jaw moving during a closure
+   * does the same a little
+   */
+  dVdt?: number;
 }
 
 export class Aero {
@@ -93,15 +100,23 @@ export class Aero {
     const dpg = Math.max(ps - this.po, 0);
     // linearised conductances dU/dP = A k / (2 sqrt(dP)) give the relaxation time
     const gg = (x.glottalArea * k) / (2 * Math.sqrt(Math.max(dpg, 1)));
-    const go = (aout * k) / (2 * Math.sqrt(Math.max(this.po, 1)));
-    const tau = x.compliance / Math.max(gg + go, 1e-9);
-    const a = tau > 0 ? Math.exp(-dt / tau) : 0;
-    this.po = poStar + (this.po - poStar) * a;
+    const go = (aout * k) / (2 * Math.sqrt(Math.max(Math.abs(this.po), 1)));
+    const g = gg + go;
+    // C dPo/dt = Ug - Umouth - Unose - dV/dt: the pressure relaxes toward the
+    // balance of the flows, shifted by the change of volume (with both ends
+    // shut it only integrates it: dPo = -dV / C)
+    const q = x.dVdt ?? 0;
+    const e = g > 1e-12 ? -Math.expm1((-dt * g) / x.compliance) : (dt * g) / x.compliance;
+    const a = 1 - e;
+    const f = g > 1e-12 ? e / g : dt / x.compliance;
+    this.po = poStar + (this.po - poStar) * a - q * f;
     this.ug = x.glottalArea * k * Math.sqrt(Math.max(ps - this.po, 0));
-    const um = x.oralArea * k * Math.sqrt(Math.max(this.po, 0));
+    // below the outside pressure the air flows in (the burst of an implosive or a click goes inward)
+    const sq = Math.sign(this.po) * Math.sqrt(Math.abs(this.po));
+    const um = x.oralArea * k * sq;
     this.dUMouth = (um - this.uMouth) / dt;
     this.uMouth = um;
-    this.uNose = x.nasalArea * k * Math.sqrt(Math.max(this.po, 0));
+    this.uNose = x.nasalArea * k * sq;
   }
 
   /**
@@ -109,7 +124,8 @@ export class Aero {
    * perimeter `perimeter` and lateral width `width` (0 = a round passage).
    */
   jet(ac: number, toTeeth: number, slitHeight: number, out: JetInfo, perimeter = 0, width = 0): JetInfo {
-    const v = Math.sqrt((2 * Math.max(this.po, 0)) / RHO);
+    // the jet blows out, or in when the pressure behind the passage is below the outside
+    const v = Math.sqrt((2 * Math.abs(this.po)) / RHO);
     const a = Math.max(ac, 1e-4);
     const round = 2 * Math.sqrt(a / Math.PI);
     const dh = Math.max(perimeter > 0 ? Math.min((4 * a) / perimeter, round) : round, 0.02);
@@ -160,6 +176,7 @@ export class Aero {
 export function kineticResistances(areas: ArrayLike<number>, flow: number, out: Float64Array, narrowIndex = -1, narrowArea = Infinity): Float64Array {
   out.fill(0);
   const n = areas.length;
+  flow = Math.abs(flow);
   if (!(flow > 0)) return out;
   const at = (i: number) => (i === narrowIndex ? Math.min(areas[i], narrowArea) : areas[i]);
   // the jet speed is bounded by the lung pressure (about 0.15 c)

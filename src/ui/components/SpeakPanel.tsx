@@ -19,8 +19,6 @@ const APPROX: Record<ApproxCode, Bi> = {
   epiglottalFricative: { it: 'fatta come fricativa faringale: il modello non ha l’epiglottide', en: 'made as a pharyngeal fricative: the model has no epiglottis' },
   doubleFricative: { it: 'fatta come fricativa velare arrotondata', en: 'made as a rounded velar fricative' },
   degree: { it: 'il modello non riesce a stringere questo punto quanto chiede il simbolo', en: 'the model cannot narrow this place as much as the symbol asks' },
-  ejective: { it: 'eiettiva: la glottide resta chiusa, ma la laringe che sale non comprime ancora l’aria', en: 'ejective: the glottis stays shut, but the rising larynx does not compress the air yet' },
-  implosive: { it: 'implosiva: la laringe scende, ma non rarefà ancora l’aria', en: 'implosive: the larynx moves down, but does not rarefy the air yet' },
   click: { it: 'clic: due chiusure, ma senza l’aria rarefatta tra loro; si sente come un’occlusiva', en: 'click: two closures, but without the rarefied air between them; it sounds like a stop' },
 };
 

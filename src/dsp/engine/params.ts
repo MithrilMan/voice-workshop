@@ -194,6 +194,8 @@ export interface ScoreFrame {
   rd?: number;
   /** vocal-fold vibration and leak allowed (1) or folds pressed shut (0, glottal stop) */
   gate?: number;
+  /** walls of the cavity tensed (up to 1: they do not yield to the pressure of an ejective) or let go (down to -1: they give way, as in an implosive) */
+  tense?: number;
 }
 
 export interface ScorePhone { ipa: string; t0: number; t1: number; label?: string }

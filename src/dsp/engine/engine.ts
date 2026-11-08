@@ -2,7 +2,7 @@ import { RHO, C_SOUND, CMH2O, NU, AREA_CLOSED } from '../constants';
 import { LFSource, rdToTiming, timingFromQuotients, LFTiming } from '../glottis/lf';
 import { TwoMassGlottis } from '../glottis/twoMass';
 import { Waveguide } from '../tract/waveguide';
-import { computeGeometry, TractGeometry } from '../tract/geometry';
+import { computeGeometry, lowerPharynxLength, TractGeometry } from '../tract/geometry';
 import { AreaFunction, N_SECTIONS, sectionsFromGeometry, resampleTube } from '../tract/areaFunction';
 import { buildNasal, NasalTract, noseOf, nostrilArea, portArea } from '../tract/nasal';
 import { Aero, newJetInfo, JetInfo, RE_CRIT, kineticResistances } from '../aero/aero';
@@ -30,6 +30,17 @@ const FULL_SCALE_PA = 0.3;
 export const NOISE_K = { aspiration: 0.15, wall: 0.07, obstacle: 1.35, user: 0.04, bypass: 0.004, burst: 0.08 };
 /** Length of the vocal folds (cm) for the glottal Reynolds number. */
 const FOLD_LENGTH = 1.4;
+
+/** Volume of an area function from the glottis to s cm (cm^3). */
+function volumeTo(areas: ArrayLike<number>, dx: number, s: number): number {
+  let v = 0;
+  for (let i = 0; i < areas.length; i++) {
+    const s0 = i * dx;
+    if (s0 >= s) break;
+    v += areas[i] * Math.min(dx, s - s0);
+  }
+  return v;
+}
 
 /**
  * A control-rate value carried into the sample loop as a straight line over
@@ -136,6 +147,14 @@ export class VoiceEngine {
   private fineMinPerimeter = 0;
   private fineMinWidth = 0;
   private constrictionIndex = 0;
+  /** air behind the narrowest passage (cm^3), and the change of it still to be felt by the pressure */
+  private cavityVolume = -1;
+  private pendingDV = 0;
+  private dvRate = 0;
+  /** length of the pharynx below its bend, which the larynx height stretches (cm) */
+  private lowerPharynx = 0;
+  /** walls of the cavity tensed (1: the pharynx of an ejective does not yield) or let go (-1: that of an implosive gives way) */
+  private tense = 0;
   private wallJunction = 0;
   private aspJunction = 1;
 
@@ -238,7 +257,7 @@ export class VoiceEngine {
 
   // ------------------------------------------------------------ control
 
-  private targetFrame(): { art: Articulators | null; abduction: number; f0: number; ps: number; tip: number; lips: number; dorsum: number; rd: number; gate: number } | null {
+  private targetFrame(): { art: Articulators | null; abduction: number; f0: number; ps: number; tip: number; lips: number; dorsum: number; rd: number; gate: number; tense: number } | null {
     const sc = this.score;
     if (!sc) return null;
     if (this.scoreTime > sc.duration + this.scoreHold) { this.score = null; this.tam.f0.tau = TAM_TAU.f0; return null; }
@@ -255,7 +274,7 @@ export class VoiceEngine {
     return {
       art, abduction: mix(a.abduction, b.abduction), f0: mix(a.f0, b.f0), ps: mix(a.ps, b.ps),
       tip: mix(a.tip ?? 0, b.tip ?? 0), lips: mix(a.lips ?? 0, b.lips ?? 0), dorsum: mix(a.dorsum ?? 0, b.dorsum ?? 0),
-      rd: mix(a.rd ?? 0, b.rd ?? 0), gate: mix(a.gate ?? 1, b.gate ?? 1),
+      rd: mix(a.rd ?? 0, b.rd ?? 0), gate: mix(a.gate ?? 1, b.gate ?? 1), tense: mix(a.tense ?? 0, b.tense ?? 0),
     };
   }
 
@@ -275,6 +294,7 @@ export class VoiceEngine {
     this.rdOffset = fr ? fr.rd : 0;
     // a glottal stop closes within a few milliseconds
     this.gate += ((fr ? fr.gate : 1) - this.gate) * (1 - Math.exp(-dt / 0.006));
+    this.tense += ((fr ? fr.tense : 0) - this.tense) * (1 - Math.exp(-dt / 0.02));
     this.abduction = this.tam.abduction.step(fr ? fr.abduction : p.abduction, dt);
     const vib = p.source.vibratoDepth > 0 ? Math.pow(2, (p.source.vibratoDepth / 1200) * Math.sin(2 * Math.PI * p.source.vibratoRate * this.time)) : 1;
     // flutter: slow quasi-random F0 wander of a living voice (Klatt & Klatt 1990)
@@ -379,6 +399,22 @@ export class VoiceEngine {
     this.aspJunction = Math.max(1, Math.min(n - 2, Math.round(1.0 / dx)));
     let ci = Math.min(n - 1, Math.max(0, Math.floor(this.fineMinS / dx)));
     this.constrictionIndex = ci;
+    // the air between the glottis and the narrowest passage, and the larynx
+    // as a piston under it: raised, it shortens the pharynx below the bend
+    // (the drawing is squeezed evenly there) and takes away the air of that
+    // stretch, lowered it adds some. Only the larynx counts: the tongue of the
+    // area function does not keep its volume (a stop aims past the contact),
+    // so the cavity it seems to leave behind a closure is not real air
+    const s = this.fineMinS;
+    this.cavityVolume = volumeTo(af.areas, dx, s);
+    if (this.geom) {
+      const lb = lowerPharynxLength(p.anatomy, this.art);
+      if (!force && this.lowerPharynx > 0) {
+        this.pendingDV += (volumeTo(af.areas, dx, Math.min(s, lb)) * (lb - this.lowerPharynx)) / lb;
+        this.dvRate = this.pendingDV / GEOM_INTERVAL;
+      }
+      this.lowerPharynx = lb;
+    }
     // exit of the constriction: first section downstream that opens up
     let exit = ci;
     const ac = Math.max(af.areas[ci], 1e-3);
@@ -420,12 +456,24 @@ export class VoiceEngine {
     // the air leaves the nose through the nostrils: pinched, they stop it
     const nasalArea = Math.min(portArea(this.art.velum, p.anatomy.nasalLeak, scale), 1.0 * scale * scale, nostrilArea(scale, noseOf(p.anatomy)));
     const oral = Math.max(0, this.fineMinArea);
+    // the change of volume of the cavity, spread over a geometry interval
+    const want = this.dvRate * dt;
+    const take = Math.abs(want) >= Math.abs(this.pendingDV) ? this.pendingDV : want;
+    this.pendingDV -= take;
+    // compliance of the cavity: its yielding walls (Stevens 1998: about
+    // 1e-3 cm^5/dyn for the whole tract, a few times less when the walls are
+    // tensed; let go and drawn outward, as the pharynx and the cheeks of an
+    // implosive, they take in a few times more, Westbury 1983) and the air
+    // itself, V / (rho c^2)
+    const air = Math.max(this.cavityVolume, 0) / (RHO * C_SOUND * C_SOUND);
+    const walls = this.tense >= 0 ? 1 - 0.8 * this.tense : 1 - 2 * this.tense;
+    const compliance = 1.0e-3 * scale * scale * scale * walls + air;
     // sub-steps for the stiff closure/release dynamics
     const sub = 4;
     for (let i = 0; i < sub; i++) {
       this.aero.step(dt / sub, {
         ps: this.psCur, glottalArea: ag, oralArea: oral, nasalArea: nasalArea > 2e-3 ? nasalArea : 0,
-        compliance: 1.0e-3 * scale * scale * scale,
+        compliance, dVdt: take / dt,
       });
     }
     // voicing needs transglottal pressure and adducted folds. Below the

@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 146 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 150 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -294,12 +294,33 @@ which widens F1 and skews the pulses as in real voices.
 
 Lungs -> glottis -> oral constriction (with the nose in parallel) -> out
 (Stevens 1998). Each orifice obeys U = A sqrt(2 dP / rho); the cavity behind
-the constriction has a compliance C (mostly its walls),
+the constriction has a compliance C (its walls, plus the air itself,
+V / (rho c^2)) and a volume V that can change,
 
-    C dPo/dt = U_glottis - U_mouth - U_nose
+    C dPo/dt = U_glottis - U_mouth - U_nose - dV/dt
 
 This gives intraoral pressure build-up in closures, the release of stops, and
 the aerodynamic limit of voicing (no transglottal pressure, no vibration).
+The pressure may fall below the outside one: the mouth and nose flows then
+go inward, and the jet noise follows the speed of the air whichever way it
+moves. The volume changes with the larynx, a piston under the cavity: raised,
+it shortens the pharynx below its bend and takes away the air of that
+stretch; lowered, it adds some. Only the larynx counts, because the tongue of
+the area function does not keep its volume (a stop aims past the contact),
+so the cavity it seems to leave behind a closure is not real air. The walls
+yield about 1e-3 cm^5/dyn; tensed, as the pharynx of an ejective, five times
+less; let go and drawn outward, as the pharynx and the cheeks of an
+implosive (Westbury 1983), three times more. An ejective (kʼ) then shuts its
+glottis, raises its larynx once the mouth is closed and compresses the air
+to more than the lungs give (9.5 cmH2O against 8), with no air from the
+lungs: a short burst, then the voice. An implosive (ɓ) lowers its larynx
+with the folds vibrating, and the pressure behind the lips rises to half
+that of [b], so the voice keeps going through the closure; a voiceless one
+(ɓ̥) lowers it with the glottis shut and draws the air in at the release.
+The sequencer finds the moment the mouth is shut by running the engine's
+target dynamics and measuring the passage they leave (from a few to 70 ms
+into the closure: the lips close fast, the dorsum leaving an open vowel is
+slow), and starts the piston there.
 Below the speaking pressure (8 cmH2O) the vibration amplitude falls almost in
 proportion to the transglottal pressure, so that, with the jet speed, the
 voice loses 8-9 dB per halving of the pressure, as measured (Titze & Sundberg
@@ -614,9 +635,12 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   place; murmur after a breathy-voiced stop (the folds vibrate apart, with a
   breathy pulse shape, for 70 ms) and a breathy source through breathy
   sounds; a pressed source and a pitch 3 semitones lower through creaky
-  ones; the glottis held shut through an ejective's closure and burst; the
-  larynx lowered through an implosive and raised through an ejective; no
-  burst after an unreleased stop.
+  ones; the glottis held shut through an ejective's closure and burst (and a
+  voiceless implosive's), with the walls of the pharynx tensed; the larynx
+  raised through an ejective and lowered through an implosive, from the
+  moment the mouth is shut, both with a longer closure (Lindau 1984), and
+  the walls let go through a voiced implosive; no burst after an unreleased
+  stop.
 - **Lexical tones**: each toned syllable has pitch targets in the speaker's
   range, Chao's five levels (1930) spread over 12 semitones at the default
   accent strength (the accent slider scales it), level 3 in the middle; a
@@ -824,6 +848,9 @@ in brackets are the adult male targets described under Speech.
 | Czech ř | turbulence during the trill 12 dB above /r/ |
 | Trills | closures of the lips in [aʙa] 2, of the dorsum against the uvula in [aʀa] 2, of the tip in [ara] 2 |
 | Written aspiration | VOT [p] 10 ms, [pʰ] 66 ms, [kʰ] 73 ms |
+| Ejective | [kʼ] 9.5 cmH2O behind the shut glottis (lungs 8), larynx up 0.88 cm, no flow from the lungs; mouth flow in the 30 ms after the burst 129 cm³/s against 777 for [k] |
+| Implosive | [ɓ] 2.3 cmH2O behind the lips against 4.3 for [b], voicing amplitude at the release 0.74 against 0.51, larynx down 1.25 cm |
+| Voiceless implosive | [ɓ̥] -7.3 cmH2O at the release, mouth flow -1484 cm³/s (the air drawn in) |
 | Mandarin tones | [ma˥ ma˧˥ ma˨˩˦ ma˥˩], F0 at five points of each vowel, semitones from the base, heard (YIN): high level 5.5 5.6 5.4 5.4 5.4; rising 1.9 2.0 2.5 3.4 3.9; dipping -5.1 -5.8 -5.6 -4.2 -2.9; falling 1.6 -0.4 -2.2 -4.4 -5.5 |
 | Downstep | [á ꜜá á]: high tones at 2.2, 0.6, -0.2 st |
 
@@ -877,10 +904,13 @@ in brackets are the adult male targets described under Speech.
   under the text: ɴ is made as a velar nasal (the nose joins the tube at a
   fixed place, in front of a uvular closure), ʟ as a velar approximant (the
   sides of the tongue open only in front of the velum), ʜ ʢ as pharyngeal
-  fricatives (no epiglottis), ɧ as a rounded velar fricative. Ejectives and
-  implosives move the larynx, but the air in front of it does not yet feel
-  the change of volume; clicks make both closures without the rarefied air
-  between them.
+  fricatives (no epiglottis), ɧ as a rounded velar fricative. Clicks make
+  both closures without the rarefied air between them.
+- The air behind a constriction is one cavity, and only the larynx changes
+  its volume: the jaw, the cheeks and the tongue root of a real speaker also
+  expand or squeeze it, here they are folded into the compliance of the
+  walls. The voice of a closed tract is not radiated through the walls of
+  the neck and the cheeks, so the voice bar of a voiced closure is silent.
 - The piriform fossae have the dimensions of an average adult man, scaled
   with the speaker; real ones differ from person to person, and from the
   left to the right side.
@@ -982,7 +1012,7 @@ in brackets are the adult male targets described under Speech.
 npx tsx scripts/say.ts out/            # render example sentences to WAV, print phones, durations and pitch range
 npx tsx scripts/say.ts out/ en "any sentence"   # one sentence; add --flat for the robot version
 npx tsx scripts/g2p.ts en "the water bottle"    # phones of a text and where each English word came from
-npx tsx scripts/trace.ts it "il carro"          # every 2 ms: phone, constriction area, oral pressure, voicing
+npx tsx scripts/trace.ts it "il carro"          # every 2 ms: phone, constriction area, oral pressure, voicing, larynx, mouth flow
 npx tsx scripts/build-lexicon.ts us_gold.json   # rebuild public/lexicon/en-us.lex
 npx tsx scripts/tune-rhotic.ts 490,1350,1690 ɹ  # fit an articulation to F1/F2/F3 with tip and lips free
 npx tsx scripts/areas.ts ɹ ɝ j l w              # narrowest passage and formants of each phoneme's posture

@@ -453,6 +453,12 @@ export function canonTransform(an: Anatomy, a: Articulators): { s: number; k: nu
   return { s: xf.s, k: xf.k };
 }
 
+/** Length (cm) of the vertical pharynx below the bend, stretched or shortened by the larynx height. */
+export function lowerPharynxLength(an: Anatomy, a: Articulators): number {
+  const xf = makeXf(an, a);
+  return BEND_Y * xf.k * xf.s;
+}
+
 function xfPts(pts: number[], xf: Xf): number[] {
   const out = new Array<number>(pts.length);
   for (let i = 0; i < pts.length; i += 2) {
