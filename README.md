@@ -357,7 +357,7 @@ target dynamics and measuring the passage they leave (from a few to 70 ms
 into the closure: the lips close fast, the dorsum leaving an open vowel is
 slow), and starts the piston there.
 
-A click (ʘ ǀ ǃ ǁ) has a second cavity, between its velar closure and its
+A click (ʘ ǀ ǃ ǁ ǂ) has a second cavity, between its velar closure and its
 front one, shut off from the lungs. Once both closures are made, the
 tongue body enlarges it by 0.6 cm³ against stiff walls (the tongue pulled
 taut against the palate, 3e-5 cm^5/dyn, plus its air), so its pressure
@@ -796,7 +796,9 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   the body and solve the degree again (a dental closes with the tip on the
   back of the upper incisors, in a window from their edge to where their
   back meets the gum, 2.4 cm in front of an alveolar; a dental click stays
-  laminal, its blade up to the ridge, which keeps its cavity small); palatalization, velarization and
+  laminal, its blade up to the ridge, which keeps its cavity small, and
+  the palatal click's front closure is the blade's, on the ridge and the
+  front of the palate, while the body makes its velar one); palatalization, velarization and
   pharyngealization move the tongue body, then relax it until it leaves
   0.3 cm² behind the primary constriction (emphatic /tˤ sˤ/ lower F2 by
   400-600 Hz with the pharynx open); nasalization opens the velum.
@@ -1110,7 +1112,7 @@ in brackets are the adult male targets described under Speech.
 | Epilarynx | narrowest section of the tube above the folds 0.43 cm² at rest, 0.19 with the sphincter at 0.5, shut at 1; at 0.5 the band 2.4-3.6 kHz rises against the first formant's by 3.7 dB (/a/), 4.6 (/i/), 8.9 (/u/) in the transfer function and by 2.3 dB in a held /a/ |
 | Epiglottals | ʡ shut 16.7 cm from the lips, its closure about 100 dB below the vowel in [ˈaʡa]; ʜ 0.10 cm² at 16.5 cm (ħ at 12.3), 27 dB below the vowel; a voice with a twang keeps the sphincter at its setting through every other sound |
 | Click jet | [ǀ]: the 8 ms after the front opens, above 3 kHz, 0.6 dB against the vowel with its jet, -18.6 dB without; the hiss peaks at 5.8 kHz |
-| Clicks | cavity between the closures: [ʘ] -19.4 cmH2O, [ǀ] -18.5, [ǃ] -18.7, [ǁ] -17.9; inflow at the front release 848, 294, 297, 227 cm³/s with the back closure still shut |
+| Clicks | cavity between the closures: [ʘ] -19.4 cmH2O, [ǀ] -18.5, [ǃ] -18.7, [ǁ] -17.9, [ǂ] -19.7; inflow at the front release 848, 294, 297, 227, 306 cm³/s with the back closure still shut |
 | Aeroelastic trills | lungs at 8 cmH2O: [arːa] 4 closures every 34 ms, [aʙːa] 6 every 31 ms, [aʀːa] 6 every 28 ms; at 0.5 cmH2O 1, 1 and 2 |
 | Written aspiration | VOT [p] 10 ms, [pʰ] 66 ms, [kʰ] 73 ms |
 | Ejective | [kʼ] 9.5 cmH2O behind the shut glottis (lungs 8), larynx up 0.88 cm, no flow from the lungs; mouth flow in the 30 ms after the burst 129 cm³/s against 777 for [k] |
@@ -1174,9 +1176,11 @@ in brackets are the adult male targets described under Speech.
   not fitted to measurements of each sound: their place, their degree and
   the order of their formants are checked, not their spectra against
   recordings. A few symbols are approximated, and the interface says so
-  under the text: ɧ as a rounded velar fricative, the palatal click ǂ with one
-  closure (the model's tongue is one body: it cannot make the palatal and
-  the velar closure at once), so it rarefies no air.
+  under the text: ɧ as a rounded velar fricative. The palatal click ǂ has
+  its two closures, the blade's in front and the body's at the velum, but
+  the body cannot also fill the cavity between them as a real tongue's
+  front does, nor can it hollow it for ǃ: the two clicks differ only by
+  where the blade seals (0.54 and 0.55 cm³ of air between the closures).
 - The pop of a click is the inflow into a small cavity (about 1 cm³ of air
   to refill), released through the passage the tongue leaves in one
   geometry update: its peak is 9-18 dB below the vowel's, where real

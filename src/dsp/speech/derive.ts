@@ -136,6 +136,8 @@ const RECIPES: Record<Place, Recipe> = {
 };
 
 const CORONAL = new Set<Place>(['dental', 'alveolar', 'postalveolar', 'retroflex']);
+/** the blade of the palatal click a little forward of a postalveolar's, laminal */
+const PALATAL_CLICK_BLADE = 0.3;
 const DORSAL = new Set<Place>(['alveolopalatal', 'palatal', 'velar', 'uvular']);
 
 // ----------------------------------------------------------- measurement
@@ -320,16 +322,23 @@ function consonantFromChart(sym: string, k: ChartConsonant): Built | null {
     // a click: the front closure and a velar one at once; the tongue body
     // rarefies the air between them, and the front opens first (the sequencer
     // and the engine do that). A lateral click keeps its sides shut through
-    // the closure and opens them to release it. The model's tongue is one
-    // body: it cannot make the palatal closure of ǂ and the velar one at once
+    // the closure and opens them to release it
     extra.airstream = 'click';
+    // the palatal click ǂ is laminal: the blade seals on the ridge and the
+    // front of the hard palate with the tip down (Ladefoged & Traill 1984),
+    // so the blade makes its front closure while the body makes the velar one
+    if (place === 'alveolopalatal') {
+      const blade: Recipe = { ...RECIPES.postalveolar, art: { ...RECIPES.postalveolar.art, tipX: PALATAL_CLICK_BLADE } };
+      const start = { ...without(RECIPES.velar.closure!, 'tipY', 'groove'), ...blade.art };
+      a = { ...blade.art, tipY: solveDegree(start, blade, 'closed', blade.window).value, tongueSides: 0, velum: 0 };
+    }
     // a dental click is laminal: the blade seals from the back of the
     // incisors up to the ridge, which keeps the cavity behind it small
     // (Ladefoged & Traill 1984); a dental stop needs only the tip on the teeth
     if (place === 'dental') a.tipY = r.closed;
     a = { ...without(RECIPES.velar.closure!, 'tipY', 'groove'), ...a };
     if (k.lateral) { a.tongueSides = 0; extra.lateralRelease = true; }
-    if (DORSAL.has(place)) extra.approx = 'click';
+    if (DORSAL.has(place) && place !== 'alveolopalatal') extra.approx = 'click';
   }
   // taps and trills: the articulator that strikes, and where it touches
   if (k.manner === 'trill' || k.manner === 'tap' || k.manner === 'lateralTap') {

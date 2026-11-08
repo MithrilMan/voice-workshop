@@ -150,7 +150,7 @@ function clickRun(text: string) {
 describe('clicks', () => {
   it('the tongue rarefies the air between the two closures, and it rushes in when the front opens, before the back', () => {
     const rows: string[] = [];
-    for (const text of ['[aˈʘa]', '[aˈǀa]', '[aˈǃa]', '[aˈǁa]']) {
+    for (const text of ['[aˈʘa]', '[aˈǀa]', '[aˈǃa]', '[aˈǁa]', '[aˈǂa]']) {
       const c = clickRun(text);
       rows.push(`${text} ${c.low.toFixed(1)} cmH₂O, inflow ${c.pop.uc.toFixed(0)} cm³/s, pop ${(c.loud - c.before).toFixed(0)} dB over the closure`);
       expect(c.low).toBeLessThan(-10);
@@ -163,7 +163,7 @@ describe('clicks', () => {
     }
     note('clicks', rows.join('; '));
     expect(notesForIpa('ǃ')).toEqual([]);
-    // one tongue body cannot make the palatal closure of ǂ and the velar one at once
-    expect(notesForIpa('ǂ').map((n) => n.code)).toEqual(['click']);
+    // the palatal click: the blade makes its front closure, the body its velar one
+    expect(notesForIpa('ǂ')).toEqual([]);
   });
 });
