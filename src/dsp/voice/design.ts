@@ -136,6 +136,7 @@ const n = (path: string, tab: Tab, group: Bi, label: Bi, hint: Bi, min: number, 
 
 const G = {
   size: { it: 'Misure', en: 'Size' },
+  palate: { it: 'Palato e arcata', en: 'Palate and arch' },
   nose: { it: 'Naso', en: 'Nose' },
   teeth: { it: 'Denti', en: 'Teeth' },
   folds: { it: 'Corde vocali', en: 'Vocal folds' },
@@ -164,6 +165,10 @@ export const VOICE_FIELDS: Field[] = [
     { it: 'Ampia: suono cupo, cavo; stretta: chiaro, sottile.', en: 'Wide: a dark, hollow sound; narrow: bright and thin.' }, 0.55, 1.6, 0.01),
   n('body.anatomy.piriform', 'body', G.size, { it: 'Seni piriformi', en: 'Piriform fossae' },
     { it: 'Le due tasche d’aria ai lati della laringe: scavano una valle nello spettro intorno a 4-5 kHz (Dang & Honda 1997). 1 = vuote, come sempre.', en: 'The two air pockets beside the larynx: they cut a valley in the spectrum around 4-5 kHz (Dang & Honda 1997). 1 = empty, as always.' }, 0, 1, 0.01),
+  n('body.anatomy.palateHeight', 'body', G.palate, { it: 'Volta del palato', en: 'Vault of the palate' },
+    { it: 'Quanto sale la volta del palato tra la cresta dietro i denti e il velo: 1 = quella del disegno (circa 1 cm al colmo). Alta: le vocali anteriori un po’ più aperte e scure; bassa: più chiuse e chiare. Le consonanti vengono rifatte per questa bocca: la lingua va dove serve per avere la stessa stretta nello stesso punto.', en: 'How high the vault of the palate rises between the ridge behind the teeth and the velum: 1 = the drawing’s (about 1 cm at its top). High: the front vowels a little more open and darker; low: closer and brighter. The consonants are made again for this mouth: the tongue goes where it needs to for the same constriction in the same place.' }, 0.6, 1.45, 0.01),
+  n('body.anatomy.archWidth', 'body', G.palate, { it: 'Larghezza dell’arcata', en: 'Width of the arch' },
+    { it: 'Quanto è larga la bocca tra i denti di un lato e dell’altro: 1 = quella del disegno. Larga: cavità più ampia, formanti della bocca più basse; stretta: più alte. Le consonanti tengono la loro stretta.', en: 'How wide the mouth is from the teeth of one side to the other: 1 = the drawing’s. Wide: a roomier cavity, lower formants of the mouth; narrow: higher. The consonants keep their constriction.' }, 0.8, 1.25, 0.01),
   n('body.anatomy.nasalLeak', 'body', G.nose, { it: 'Velo che non chiude', en: 'Velum that does not close' },
     { it: 'Un passaggio sempre aperto verso il naso, anche sulle occlusive (insufficienza velofaringea): voce nasale e consonanti che perdono aria. Per un’abitudine nasale usa le Abitudini.', en: 'A passage to the nose always open, even on stops (velopharyngeal insufficiency): a nasal voice and consonants that leak air. For a nasal habit use the Habits.' }, 0, 1, 0.01),
   n('body.anatomy.nostrilLeft', 'body', G.nose, { it: 'Narice sinistra aperta', en: 'Left nostril open' },
@@ -373,5 +378,6 @@ export function speechOptions(d: Readonly<VoiceDesign>, lang: string): ScoreOpti
   return {
     lang, f0: d.speaking.f0, ps: d.speaking.ps, accent: d.speaking.accent, rate: d.speaking.rate,
     style: { ...d.speaking.style }, setting: settingOfVoice(d), precision: d.habits.precision,
+    head: { anatomy: { ...d.body.anatomy }, teeth: { ...d.body.teeth } },
   };
 }

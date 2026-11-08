@@ -211,6 +211,34 @@ const PALATE: number[] = [
   6.25, 9.25, 6.5, 9.05, 6.85, 9.55, 7.25, 9.85, 7.1, 10.45, 6.5, 10.95, 4.0, 11.3, 1.5, 11.05, 0.7, 10.65,
 ];
 
+/** the oral surface of the hard palate: PALATE's points from the velum (0) to the alveolar ridge (9) */
+const VAULT_LAST = 9;
+/** how far the oral surface of the palate rises above the chord from the velum to the ridge, at x (canonical cm) */
+function vaultLift(x: number): number {
+  const x0 = PALATE[0], y0 = PALATE[1], x1 = PALATE[2 * VAULT_LAST], y1 = PALATE[2 * VAULT_LAST + 1];
+  if (x <= x0 || x >= x1) return 0;
+  let y = y0;
+  for (let i = 0; i < VAULT_LAST; i++) {
+    const ax = PALATE[2 * i], bx = PALATE[2 * i + 2];
+    if (x >= ax && x <= bx) { y = PALATE[2 * i + 1] + ((x - ax) / (bx - ax)) * (PALATE[2 * i + 3] - PALATE[2 * i + 1]); break; }
+  }
+  return Math.max(0, y - (y0 + ((x - x0) / (x1 - x0)) * (y1 - y0)));
+}
+
+/**
+ * The hard palate of a head: its vault raised or lowered over the chord from
+ * the velum to the alveolar ridge (both ends stay where they are, so the
+ * seams with the velum and the incisors stay closed), the whole bone moving
+ * with it.
+ */
+function buildPalate(an: Anatomy): number[] {
+  const h = an.palateHeight ?? 1;
+  if (h === 1) return PALATE;
+  const out = PALATE.slice();
+  for (let i = 0; i < out.length; i += 2) out[i + 1] += (h - 1) * vaultLift(out[i]);
+  return out;
+}
+
 const UPPER_INCISOR: number[] = [
   6.42, 9.15, 6.6, 8.75, 6.78, 8.4, 6.93, 8.12, 7.0, 8.03, 7.1, 8.02, 7.18, 8.2, 7.27, 8.7, 7.32, 9.3,
   7.2, 9.75, 6.7, 9.7,
@@ -663,7 +691,7 @@ export function computeGeometry(a: Articulators, an: Anatomy, teeth: Teeth, opts
   const lowerInc = buildLowerIncisor(teeth, jawAngle);
   const solidsCanon: [SolidId, number[]][] = [
     ['wall', WALL],
-    ['palate', PALATE],
+    ['palate', buildPalate(an)],
     ['upperIncisor', upperInc],
     ['velum', buildVelum(a)],
     ['upperLip', buildUpperLip(a)],
@@ -701,9 +729,10 @@ export function computeGeometry(a: Articulators, an: Anatomy, teeth: Teeth, opts
   const law = AREA_LAW;
   const scaleArea = (alpha: number, beta: number) => alpha * Math.pow(s, 2 - beta);
   const pw = an.pharynxWidth;
+  const aw = an.archWidth ?? 1;
   const lens = newLens(), pocket = newLens();
   const sec = newSection(), sec2 = newSection();
-  lensFromLaw(law.oral.alpha, law.oral.beta, pocket);
+  lensFromLaw(law.oral.alpha * aw, law.oral.beta, pocket);
   const tongueSides = Math.min(1, Math.max(0, a.tongueSides));
 
   let lastRay = rays.length - 1;
@@ -781,8 +810,8 @@ export function computeGeometry(a: Articulators, an: Anatomy, teeth: Teeth, opts
       } else {
         rule = sc <= SC_FRONT ? 'velar' : 'oral';
         f = sc <= SC_FRONT ? (sc - SC_PHARYNX) / (SC_FRONT - SC_PHARYNX) : 1;
-        lensFromLaw(law.pharynx.alpha * pw * (1 - f) + law.oral.alpha * f, law.pharynx.beta * (1 - f) + law.oral.beta * f, lens);
-        lens.half = PHARYNX_HALF * pw * (1 - f) + archHalfWidth(behind) * f;
+        lensFromLaw(law.pharynx.alpha * pw * (1 - f) + law.oral.alpha * aw * f, law.pharynx.beta * (1 - f) + law.oral.beta * f, lens);
+        lens.half = PHARYNX_HALF * pw * (1 - f) + archHalfWidth(behind) * aw * f;
       }
       lens.groove = rule === 'oral' ? Math.min(1, Math.max(0, a.groove)) : 0;
       lens.grooveHalf = 0.5 * law.grooveWidth;

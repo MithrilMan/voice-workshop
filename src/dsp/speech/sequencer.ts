@@ -3,7 +3,7 @@ import { PHONEMES, Phoneme, FlickKey } from './phonemes';
 import { Phone, Lang } from './g2p';
 import { Score, ScoreFrame, ScorePhone } from '../engine/params';
 import { TamChannel, TAM_TAU } from './tam';
-import { phonemeFor, constrictionOf, contactPoint, passageIn, closingKey, CLOSED_AREA } from './derive';
+import { phonemeFor, constrictionOf, contactPoint, passageIn, closingKey, CLOSED_AREA, Head, shapeOf, shapeKey } from './derive';
 import { IPA_CONSONANTS, IPA_VOWELS, Place } from './ipa';
 import { normalizeIpa } from './ipaReader';
 import { ProsodyStyle, styleOf, lengthen, ST } from './style';
@@ -91,6 +91,12 @@ export interface ProsodyOptions {
    * fall in toward schwa, the unstressed ones most (Lindblom 1990)
    */
   precision?: number;
+  /**
+   * the speaker's head (anatomy and teeth): every sound is aimed at the same
+   * constriction in the same place as on the drawing's head (the reference
+   * head by default)
+   */
+  head?: Head;
 }
 
 /** Options of buildScore: any prosody option, and any subset of the naturalness ingredients. */
@@ -151,10 +157,14 @@ const CLICK_FRONT: [number, number] = [0, 6];
 const CLICK_BACK_WINDOW: [number, number] = [6.2, 12];
 const trillContacts = new Map<string, number>();
 /** where the trilling articulator of a phoneme meets the other side (cached: it takes a dozen geometries) */
-function trillContact(ph: Phoneme, key: FlickKey, toward: number): number {
-  const id = `${ph.ipa}|${key}|${toward}|${JSON.stringify(ph.art)}`;
+function trillContact(ph: Phoneme, key: FlickKey, toward: number, shape?: Head): number {
+  const id = `${ph.ipa}|${key}|${toward}|${JSON.stringify(ph.art)}|${shapeKey(shape)}`;
   let c = trillContacts.get(id);
-  if (c === undefined) { c = contactPoint(ph.art, key, toward); trillContacts.set(id, c); }
+  if (c === undefined) {
+    if (trillContacts.size > 2000) trillContacts.clear();
+    c = contactPoint(ph.art, key, toward, shape);
+    trillContacts.set(id, c);
+  }
   return c;
 }
 /** articulators whose vowel targets are aimed so that the middle of the vowel
@@ -229,12 +239,12 @@ function onsetStart(onset: Unit[], literal: boolean): number {
   return Math.max(0, first);
 }
 
-function analyse(phones: Phone[], literal = false): Unit[] {
+function analyse(phones: Phone[], literal = false, shape?: Head): Unit[] {
   const units: Unit[] = [];
   let word = 0;
   for (let i = 0; i < phones.length; i++) {
     const p = phones[i];
-    const ph = phonemeFor(p.ipa);
+    const ph = phonemeFor(p.ipa, shape);
     if (!ph) continue;
     const prevU = units[units.length - 1];
     if (p.wordStart && prevU && !prevU.p.wordEnd && !prevU.p.pause) word++;
@@ -438,7 +448,9 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   const rate = Math.max(0.3, o.rate);
   const literal = o.literal ?? (phones.length > 0 && phones.every((p) => p.literal));
   const en = !literal && o.lang === 'en';
-  const units = analyse(phones, literal);
+  // the shape of the speaker's mouth, if it is not the drawing's: the sounds are aimed for it
+  const shape = shapeOf(o.head);
+  const units = analyse(phones, literal, shape);
 
   // durations
   for (let i = 0; i < units.length; i++) {
@@ -468,7 +480,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     const ph = u.ph;
     const parts: [string, number][] = ph.manner === 'affricate' && ph.parts ? [[ph.parts[0], 0.45], [ph.parts[1], 0.55]] : [[u.p.ipa, 1]];
     for (const [ipa, frac] of parts) {
-      let q = ipa === u.p.ipa ? ph : phonemeFor(ipa)!;
+      let q = ipa === u.p.ipa ? ph : phonemeFor(ipa, shape)!;
       // the parts of an ejective affricate share its larynx and its glottis
       if (q !== ph && ph.airstream) q = { ...q, airstream: ph.airstream, voiced: ph.voiced, abduction: ph.abduction, art: { ...q.art, larynx: ph.art.larynx } };
       const dur = u.dur * frac;
@@ -530,7 +542,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     let keys = m === 'vowel' || !nat.coarticulation ? ARTICULATOR_KEYS : (Object.keys(art) as (keyof Articulators)[]);
     // a nasal voice still shuts the port for an obstruent, which needs its air
     if (habit && setting.velum > 0 && !nasalizable(s.ph) && !keys.includes('velum')) keys = [...keys, 'velum'];
-    const off = s.ph.offglide ? phonemeFor(s.ph.offglide)?.art ?? null : null;
+    const off = s.ph.offglide ? phonemeFor(s.ph.offglide, shape)?.art ?? null : null;
     // precision: a vowel falls in toward schwa (slack: unstressed ones most) or spreads out from it (crisp)
     const strong = !!(units[s.unit].p.stress || units[s.unit].p.stress2);
     const r = m !== 'vowel' || !prec ? 0 : prec < 0 ? -prec * (strong ? 0.15 : 0.5) : -prec * (strong ? 0.05 : 0.15);
@@ -658,7 +670,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     for (const { s, ck } of shutting) {
       // shut at some point in the second half of the closure
       let least = Infinity;
-      for (let q = 0; q < 3 && least >= CLOSED_AREA; q++) least = Math.min(least, constrictionOf(artAt(s.t0 + (0.5 + 0.2 * q) * (s.t1 - s.t0))).area);
+      for (let q = 0; q < 3 && least >= CLOSED_AREA; q++) least = Math.min(least, constrictionOf(artAt(s.t0 + (0.5 + 0.2 * q) * (s.t1 - s.t0)), shape).area);
       if (least < CLOSED_AREA) continue;
       const { key, dir, jaw } = ck!;
       const a = anchors[key].find((x) => x.seg === s)!;
@@ -695,7 +707,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     const trs = {} as Record<keyof Articulators, TamChannel>;
     for (const k of ARTICULATOR_KEYS) trs[k] = new TamChannel(valueAt(k, 0), tau(k));
     const art = { ...DEFAULT_ARTICULATORS };
-    const shut = pistons.map((a) => Math.max(0.003, 1.3 * constrictionOf(a.piston!.ph.art).area));
+    const shut = pistons.map((a) => Math.max(0.003, 1.3 * constrictionOf(a.piston!.ph.art, shape).area));
     let p = 0;
     for (let i = 0; i * FRAME <= duration && p < pistons.length; i++) {
       const time = i * FRAME;
@@ -704,7 +716,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       if (time < s.t0) continue;
       // never closed: the planned start stays
       if (time >= s.t1) { p++; continue; }
-      if (constrictionOf(art).area > shut[p]) continue;
+      if (constrictionOf(art, shape).area > shut[p]) continue;
       w.t0 = Math.min(time, w.t1 - 0.01);
       const prev = anchors.larynx[anchors.larynx.indexOf(w) - 1];
       if (prev) prev.t1 = Math.max(prev.t0, w.t0);
@@ -728,7 +740,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       const s = clickSegs[p];
       if (time < s.t0) continue;
       if (time >= s.t1) { p++; continue; }
-      if (passageIn(art, CLICK_FRONT) > 0.004 || passageIn(art, CLICK_BACK_WINDOW) > 0.004) continue;
+      if (passageIn(art, CLICK_FRONT, shape) > 0.004 || passageIn(art, CLICK_BACK_WINDOW, shape) > 0.004) continue;
       clicks.push({ t0: time, t1: s.t1, end: s.t1 + CLICK_LAG + 0.03 });
       p++;
     }
@@ -775,7 +787,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       const c = 0.5 * (s.t0 + s.t1);
       flicks[key].push({ c, w: Math.max(0.04, (s.t1 - s.t0) * 1.6), a: toward(fl?.contact ?? 2.2, c, 0) });
     } else {
-      const at = trillContact(s.ph, key, fl?.contact ?? 2.3);
+      const at = trillContact(s.ph, key, fl?.contact ?? 2.3, shape);
       trills.push({ t0: s.t0 - lead * 0.3, t1: s.t1, key, at, ...(fl?.open ? { open: fl.open } : {}) });
     }
   }

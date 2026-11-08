@@ -24,6 +24,7 @@ import { defaultParams, EngineParams, Score, DEFAULT_SOURCE, DEFAULT_NOISE } fro
 import { CMH2O } from '../../dsp/constants';
 import { DEFAULT_ANATOMY, DEFAULT_ARTICULATORS, DEFAULT_TEETH } from '../../dsp/tract/types';
 import { PHONEMES } from '../../dsp/speech/phonemes';
+import { phonemeFor } from '../../dsp/speech/derive';
 import { colourCurve } from '../../dsp/noise/noise';
 import { applyPhoneme } from '../presets';
 import { VoiceDesign, cloneVoice, applyDesign, settingOfVoice, speechOptions as voiceSpeech } from '../../dsp/voice/design';
@@ -118,7 +119,12 @@ export class VoiceController {
    * pitch and lung pressure the hands have now (the lab's sliders).
    */
   speechOptions(lang: string): ScoreOptions {
-    return { ...voiceSpeech(this._active, lang), f0: this._manual.source.f0, ps: Math.max(6, this._manual.source.ps) };
+    const m = this._manual;
+    return {
+      ...voiceSpeech(this._active, lang), f0: m.source.f0, ps: Math.max(6, m.source.ps),
+      // the head the hands have now: its sounds are aimed for its mouth
+      head: { anatomy: { ...m.anatomy }, teeth: { ...m.teeth } },
+    };
   }
   get lanes(): Lanes { return this._lanes; }
   get running(): boolean { return !!this.sink?.running; }
@@ -201,9 +207,9 @@ export class VoiceController {
   holdPhoneme(ipa: string, opts: { f0?: number; takeOver?: boolean; blow?: boolean } = {}): boolean {
     const blow = opts.blow ?? true;
     const setting = settingOfVoice(this._active);
-    const ph = PHONEMES[ipa];
     const ok = this.edit((p) => {
       applyPhoneme(ipa, p);
+      const ph = PHONEMES[ipa] && phonemeFor(ipa, p);
       // the voice's habits on the sound held (its larynx is the habit's, not the one the hands had)
       if (ph && !isNeutral(setting)) {
         p.articulators = settle({ ...p.articulators, larynx: ph.art.larynx ?? 0 }, ph, setting);

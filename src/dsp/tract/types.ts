@@ -48,6 +48,12 @@ export interface Anatomy {
   nostrilRight: number;
   /** air in the piriform fossae beside the larynx, 1 = empty (as always) ... 0 = filled (with water, as in Dang & Honda's experiment) */
   piriform: number;
+  /** height of the vault of the hard palate above the line from the velum to
+   *  the alveolar ridge, 1 = the drawing's (about 1 cm at its top); the ridge
+   *  and the junction with the velum stay where they are */
+  palateHeight: number;
+  /** width of the dental arch (the oral cavity's width at a given height), 1 = the drawing's */
+  archWidth: number;
 }
 
 /**
@@ -88,7 +94,7 @@ export const DEFAULT_ARTICULATORS: Articulators = {
   larynx: 0,
 };
 
-export const DEFAULT_ANATOMY: Anatomy = { scale: 1, pharynx: 1, pharynxWidth: 1, nasalLeak: 0, nasalCycle: 0, nostrilLeft: 1, nostrilRight: 1, piriform: 1 };
+export const DEFAULT_ANATOMY: Anatomy = { scale: 1, pharynx: 1, pharynxWidth: 1, nasalLeak: 0, nasalCycle: 0, nostrilLeft: 1, nostrilRight: 1, piriform: 1, palateHeight: 1, archWidth: 1 };
 
 export const DEFAULT_TEETH: Teeth = {
   slitWidth: 2.2,

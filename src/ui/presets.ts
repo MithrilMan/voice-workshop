@@ -1,5 +1,6 @@
 import { EngineParams, Score, ScoreFrame } from '../dsp/engine/params';
 import { PHONEMES } from '../dsp/speech/phonemes';
+import { phonemeFor } from '../dsp/speech/derive';
 import { DEFAULT_ARTICULATORS } from '../dsp/tract/types';
 import { BUILTIN_VOICES } from '../dsp/voice/builtin';
 import { applyDesign } from '../dsp/voice/design';
@@ -28,7 +29,8 @@ export const TIMBRE_PRESETS: Preset[] = [
 
 /** Sets the articulators (and glottal setting) of a phoneme. */
 export function applyPhoneme(ipa: string, p: EngineParams): void {
-  const ph = PHONEMES[ipa];
+  // the sound as this head makes it (the same constriction in the same place)
+  const ph = PHONEMES[ipa] && phonemeFor(ipa, p);
   if (!ph) return;
   if (ph.manner === 'vowel') {
     const keepLarynx = p.articulators.larynx;

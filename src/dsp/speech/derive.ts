@@ -1,4 +1,4 @@
-import { Articulators, ARTICULATOR_RANGES, DEFAULT_ANATOMY, DEFAULT_ARTICULATORS, DEFAULT_TEETH } from '../tract/types';
+import { Anatomy, Articulators, ARTICULATOR_RANGES, DEFAULT_ANATOMY, DEFAULT_ARTICULATORS, DEFAULT_TEETH, Teeth } from '../tract/types';
 import { computeGeometry } from '../tract/geometry';
 import { PHONEMES, VOWELS, Phoneme, Manner, NASAL_VELUM, FlickKey, ApproxCode } from './phonemes';
 import { IPA_CONSONANTS, IPA_VOWELS, ChartConsonant, ChartVowel, Modifier, Place, ChartManner, IPA_SPELLINGS } from './ipa';
@@ -142,9 +142,41 @@ const DORSAL = new Set<Place>(['alveolopalatal', 'palatal', 'velar', 'uvular']);
 
 const baseArt = (a: Partial<Articulators>): Articulators => ({ ...DEFAULT_ARTICULATORS, ...PHONEMES['ə'].art, ...a });
 
+/**
+ * A speaker's head, as far as the sounds are concerned: the anatomy and the
+ * teeth. Every posture of the tables and the recipes was made on the
+ * drawing's head; a head of another shape gets them adapted (adapt()).
+ */
+export interface Head { anatomy: Anatomy; teeth: Teeth }
+
+/**
+ * The anatomy that changes where the tongue must go to make a sound: the
+ * shape of the mouth and of the throat. The size, the length of the pharynx
+ * and the nose do not (a posture scales with the head, and the passages of
+ * a consonant are measured at the drawing's size); nor do the teeth, whose
+ * effect on a hiss (a lisp through an open bite) is theirs to give.
+ */
+const SHAPE: (keyof Anatomy)[] = ['pharynxWidth', 'palateHeight', 'archWidth'];
+
+/** The shape of a head at the drawing's size, or undefined when it is the drawing's own. */
+export function shapeOf(head?: { anatomy: Partial<Anatomy> }): Head | undefined {
+  if (!head) return undefined;
+  const an: Anatomy = { ...DEFAULT_ANATOMY };
+  let same = true;
+  for (const k of SHAPE) {
+    const v = head.anatomy[k] ?? DEFAULT_ANATOMY[k];
+    an[k] = v;
+    if (Math.abs(v - DEFAULT_ANATOMY[k]) > 1e-6) same = false;
+  }
+  return same ? undefined : { anatomy: an, teeth: DEFAULT_TEETH };
+}
+
+/** a short name of a shape, for the caches */
+export const shapeKey = (h?: Head): string => (h ? SHAPE.map((k) => h.anatomy[k].toFixed(4)).join(',') : '');
+
 /** narrowest passage above the epilaryngeal tube, and the narrowest inside a window (cm from the lips) */
-function measure(a: Articulators, win?: [number, number]): { min: number; at: number; inWindow: number } {
-  const g = computeGeometry(a, DEFAULT_ANATOMY, DEFAULT_TEETH);
+function measure(a: Articulators, win?: [number, number], head?: Head): { min: number; at: number; inWindow: number } {
+  const g = computeGeometry(a, head?.anatomy ?? DEFAULT_ANATOMY, head?.teeth ?? DEFAULT_TEETH);
   let min = Infinity, at = 0, inWindow = Infinity;
   const take = (area: number, fromLips: number) => {
     if (area < min) { min = area; at = fromLips; }
@@ -157,12 +189,12 @@ function measure(a: Articulators, win?: [number, number]): { min: number; at: nu
 
 /** where the narrowest passage of a posture is, cm from the lips */
 /** narrowest passage of a posture between `win[0]` and `win[1]` cm from the lips */
-export function passageIn(a: Partial<Articulators>, win: [number, number]): number {
-  return measure(baseArt(a), win).inWindow;
+export function passageIn(a: Partial<Articulators>, win: [number, number], head?: Head): number {
+  return measure(baseArt(a), win, head).inWindow;
 }
 
-export function constrictionOf(a: Partial<Articulators>): { area: number; fromLips: number } {
-  const m = measure(baseArt(a));
+export function constrictionOf(a: Partial<Articulators>, head?: Head): { area: number; fromLips: number } {
+  const m = measure(baseArt(a), undefined, head);
   return { area: m.min, fromLips: m.at };
 }
 
@@ -171,8 +203,8 @@ export function constrictionOf(a: Partial<Articulators>): { area: number; fromLi
  * between the posture's own and `toward` (shut), at which the passage closes.
  * Returns `toward` if it never closes.
  */
-export function contactPoint(a: Partial<Articulators>, key: keyof Articulators, toward: number): number {
-  const at = (v: number) => measure(baseArt({ ...a, [key]: v })).min;
+export function contactPoint(a: Partial<Articulators>, key: keyof Articulators, toward: number, head?: Head): number {
+  const at = (v: number) => measure(baseArt({ ...a, [key]: v }), undefined, head).min;
   let lo = baseArt(a)[key], hi = toward;
   if (at(hi) >= CLOSED) return toward;
   if (at(lo) < CLOSED) return lo;
@@ -581,7 +613,25 @@ function fromSegment(sym: string, seg: Segment): Phoneme | null {
  * derived from the IPA chart and the diacritics (cached). Undefined for
  * symbols that are not IPA.
  */
-export function phonemeFor(symbol: string): Phoneme | undefined {
+export function phonemeFor(symbol: string, head?: Head): Phoneme | undefined {
+  const base = canonPhoneme(symbol);
+  if (!base || !head) return base;
+  const shape = shapeOf(head);
+  if (!shape) return base;
+  const key = shapeKey(shape);
+  let heads = adapted.get(key);
+  if (!heads) {
+    // a few heads at a time: the voice that speaks, the one being edited
+    if (adapted.size >= 6) adapted.delete(adapted.keys().next().value!);
+    heads = new Map();
+    adapted.set(key, heads);
+  }
+  let ph = heads.get(symbol);
+  if (!ph) { ph = adapt(base, shape); heads.set(symbol, ph); }
+  return ph;
+}
+
+function canonPhoneme(symbol: string): Phoneme | undefined {
   const fitted = PHONEMES[symbol];
   if (fitted) return fitted;
   const hit = cache.get(symbol);
@@ -590,6 +640,186 @@ export function phonemeFor(symbol: string): Phoneme | undefined {
   const ph = seg ? fromSegment(symbol, seg) : null;
   cache.set(symbol, ph);
   return ph ?? undefined;
+}
+
+/** the phonemes adapted to each head shape lately asked for */
+const adapted = new Map<string, Map<string, Phoneme>>();
+
+/** on another head a sound's passage at its constriction stays between these shares of the one it has on the drawing's head */
+const NARROWEST = 0.85;
+const WIDEST = 1.2;
+/** a vowel is aimed with the tongue body only when its narrowest passage is in the mouth, this far from the lips at most (cm); behind, with the root */
+const VOWEL_MOUTH = 10;
+/** no vowel narrows below this anywhere, cm² (narrower, it would start to hiss) */
+const VOWEL_SAFE = 0.3;
+/** a consonant's passage counts as the same within this share */
+const SAME_PASSAGE = 0.06;
+/** a consonant whose posture leaves a wider passage than this has no constriction to keep (a tap's posture) */
+const CONSTRICTION = 0.4;
+/** on another head an articulator may go this far past the range it keeps on the drawing's head */
+const REACH = 0.6;
+/** how far an articulator may move the opening way to keep a passage */
+const OPENING = 1.5;
+
+/** the values an articulator may take on another head: its range, a little further, and wherever it already is */
+function reach(key: keyof Articulators, v0: number): [number, number] {
+  const [lo, hi] = ARTICULATOR_RANGES[key];
+  return [Math.min(v0, lo) - REACH, Math.max(v0, hi) + REACH];
+}
+
+/**
+ * Moves one articulator of a posture until `open` holds and, if given,
+ * `tooWide` does not: the least move from where it is. `dir` is the way the
+ * articulator narrows the passage. Undefined if it is already right; `ok`
+ * false if the articulator cannot get there.
+ */
+function aim(a: Articulators, key: keyof Articulators, dir: number, open: (x: Articulators) => boolean,
+  tooWide?: (x: Articulators) => boolean): { value: number; ok: boolean } | undefined {
+  const v0 = a[key];
+  const [lo, hi] = reach(key, v0);
+  // opening, no further than OPENING from where it is (past that a posture stops making sense: a tongue pushed into the teeth)
+  const shutEnd = dir > 0 ? hi : lo, openEnd = Math.max(lo, Math.min(hi, v0 - dir * OPENING));
+  const at = (v: number) => ({ ...a, [key]: v });
+  /** bisection between a value where `good` holds and one where it does not: the last one where it holds */
+  const edge = (good: (v: number) => boolean, yes: number, no: number) => {
+    for (let it = 0; it < 16; it++) {
+      const m = 0.5 * (yes + no);
+      if (good(m)) yes = m; else no = m;
+    }
+    return yes;
+  };
+  const isOpen = (v: number) => open(at(v));
+  if (!isOpen(v0)) {
+    if (!isOpen(openEnd)) return { value: openEnd, ok: false };
+    return { value: edge(isOpen, openEnd, v0), ok: true };
+  }
+  if (tooWide && tooWide(at(v0))) {
+    const narrow = (v: number) => !tooWide(at(v));
+    let v = narrow(shutEnd) ? edge(narrow, shutEnd, v0) : shutEnd;
+    const ok = narrow(v);
+    if (!isOpen(v)) v = edge(isOpen, v0, v);
+    return { value: v, ok };
+  }
+  return undefined;
+}
+
+const rounded = (ph: Phoneme, key: keyof Articulators, v: number): Phoneme => ({ ...ph, art: { ...ph.art, [key]: Math.round(v * 1000) / 1000 } });
+
+/** articulators and the way each narrows the passage */
+type Lever = [keyof Articulators, number];
+const BODY: Lever = ['tongueY', 1];
+const TIP: Lever = ['tipY', 1];
+const ROOT: Lever = ['tongueRoot', -1];
+const DORSAL_KEYS = new Set<keyof Articulators>(['tongueY', 'tongueX', 'tongueRoot']);
+
+/**
+ * The first articulator, in order, that brings a sound where `open` holds
+ * and `tooWide` does not, moved as little as it takes; the sound as it was
+ * if it is already there, and marked approximate ('anatomy') if none can.
+ */
+function withLevers(ph: Phoneme, levers: Lever[], open: (x: Articulators) => boolean, tooWide?: (x: Articulators) => boolean): Phoneme {
+  const a = baseArt(ph.art);
+  for (const [key, dir] of levers) {
+    const r = aim(a, key, dir, open, tooWide);
+    if (!r) return ph;
+    if (r.ok) return rounded(ph, key, r.value);
+  }
+  return { ...ph, approx: ph.approx ?? 'anatomy' };
+}
+
+/**
+ * A sound made on the drawing's head, made again on another head: the same
+ * constriction at the same place (motor equivalence: a speaker aims at the
+ * constriction, not at a posture; Perkell et al. 1993).
+ * - A stop or a nasal closes, pressing as far past the new contact as it
+ *   pressed past the old one.
+ * - A fricative, an approximant or a trill leaves the same passage at its
+ *   place, with the articulator that makes it (or the body of the tongue if
+ *   that one cannot); a dorsal one, wherever the body narrows the tract. If
+ *   the head narrows the tract somewhere else (a low palate over the dorsum
+ *   of a [ɻ]), the body comes down, or the root forward, until it is no
+ *   narrower there than NARROWEST of the sound's passage.
+ * - A lateral keeps the passage at its sides with the margins of the tongue
+ *   (or, behind a closure of the tip, with the body or the root).
+ * - A vowel keeps its passage between NARROWEST and WIDEST at its own
+ *   constriction (only from narrowing if that is in the pharynx: a wide
+ *   pharynx stays the head's timbre) and no narrower than VOWEL_SAFE
+ *   anywhere, with the body of the tongue, the tip (an r-coloured vowel) or
+ *   the root.
+ * What is left of the difference is the head's timbre. Where the head does
+ * not let the tongue get there, the sound is marked approximate
+ * ('anatomy'). Clicks, affricates (their parts are adapted one by one) and
+ * the glottals keep their posture.
+ */
+function adapt(ph: Phoneme, head: Head): Phoneme {
+  if (ph.manner === 'vowel') return adaptVowel(ph, head);
+  if (ph.airstream === 'click' || ph.parts) return ph;
+  const a = baseArt(ph.art);
+  const canon = measure(a);
+  const anywhere = (x: Articulators) => measure(x, undefined, head).min;
+  const ck = closingKey(ph);
+  if (ph.manner === 'lateral') {
+    // the passage at the sides; a closure of the dorsum (a velar lateral) must not be opened to widen it
+    const own = canon.min;
+    if (own < CLOSED || Math.abs(anywhere(a) - own) <= SAME_PASSAGE * own) return ph;
+    const levers: Lever[] = ck && DORSAL_KEYS.has(ck.key) ? [['tongueSides', -1]] : [['tongueSides', -1], BODY, ROOT];
+    return withLevers(ph, levers, (x) => anywhere(x) >= NARROWEST * own, (x) => anywhere(x) > WIDEST * own);
+  }
+  if (!ck) return ph;
+  const { key, dir } = ck;
+  const v0 = a[key];
+  const [lo, hi] = reach(key, v0);
+  const shutEnd = dir > 0 ? hi : lo;
+  const passage = (v: number, h?: Head) => measure(baseArt({ ...ph.art, [key]: v }), undefined, h).min;
+  if (canon.min < CLOSED) {
+    // where the passage shuts, coming from open: null if it never opens, undefined if it never shuts
+    const contact = (h?: Head): number | null | undefined => {
+      let o = Math.max(lo, Math.min(hi, v0 - 2 * dir)), c = shutEnd;
+      if (passage(o, h) < CLOSED) return null;
+      if (passage(c, h) >= CLOSED) return undefined;
+      for (let it = 0; it < 16; it++) {
+        const m = 0.5 * (o + c);
+        if (passage(m, h) < CLOSED) c = m; else o = m;
+      }
+      return c;
+    };
+    const c0 = contact();
+    if (c0 == null) return ph;
+    const c1 = contact(head);
+    if (c1 === null) return ph;
+    if (c1 === undefined) return { ...rounded(ph, key, shutEnd), approx: ph.approx ?? 'anatomy' };
+    return Math.abs(c1 - c0) < 1e-3 ? ph : rounded(ph, key, v0 + (c1 - c0));
+  }
+  if (canon.min > CONSTRICTION) return ph;
+  const dorsal = DORSAL_KEYS.has(key);
+  // a dorsal sound's passage is wherever the body narrows the tract; another's is at its place
+  const win: [number, number] = [Math.max(0, canon.at - 1.1), canon.at + 1.1];
+  const own = dorsal ? canon.min : measure(a, win).inWindow;
+  const atPlace = dorsal ? anywhere : (x: Articulators) => measure(x, win, head).inWindow;
+  let out = ph;
+  if (Math.abs(atPlace(a) - own) > SAME_PASSAGE * own) {
+    out = withLevers(ph, dorsal ? [[key, dir]] : [[key, dir], BODY], (x) => atPlace(x) >= (1 - SAME_PASSAGE) * own, (x) => atPlace(x) > (1 + SAME_PASSAGE) * own);
+  }
+  if (dorsal) return out;
+  // nowhere else narrower than the sound's own passage allows
+  const keep = NARROWEST * canon.min;
+  const placed = out.approx === 'anatomy' && ph.approx !== 'anatomy' ? 0 : NARROWEST * own;
+  return withLevers(out, [BODY, ROOT], (x) => anywhere(x) >= keep && atPlace(x) >= placed);
+}
+
+function adaptVowel(ph: Phoneme, head: Head): Phoneme {
+  const a = baseArt(ph.art);
+  const c = measure(a);
+  const mouth = c.at <= VOWEL_MOUTH;
+  const win: [number, number] = [Math.max(0, c.at - 1.5), c.at + 1.5];
+  const own = measure(a, win).inWindow;
+  const safe = Math.min(NARROWEST * c.min, VOWEL_SAFE);
+  const open = (x: Articulators) => {
+    const m = measure(x, win, head);
+    return m.inWindow >= NARROWEST * own && m.min >= safe;
+  };
+  const tooWide = mouth ? (x: Articulators) => measure(x, win, head).inWindow > WIDEST * own : undefined;
+  return withLevers(ph, mouth ? [BODY, TIP, ROOT] : [ROOT, BODY], open, tooWide);
 }
 
 /** Something about a transcription the listener should know: a symbol not read, or a sound only approximated. */

@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 192 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 197 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -117,7 +117,7 @@ Four modes, switchable in the header and remembered in the browser:
   patterns for a statement, a yes/no question, a question with "where" and
   a list; "As it was" says it again with the voice before the changes. Five
   tabs hold every field of the voice, each with its range, its unit and
-  what it does: the body (size, pharynx, nose, teeth), the voice (the fold
+  what it does: the body (size, pharynx, palate and arch, nose, teeth), the voice (the fold
   model, its quality, irregularity, breath and vibrato), the habits (the
   posture kept beneath every sound and the precision), the melody (usual
   pitch, accents, downstep, the ends of statements and questions, with the
@@ -160,7 +160,7 @@ Inspector (Lab) and tools (Learn):
 | Block | Controls |
 |---|---|
 | Source | Lungs, voicing, F0, lung pressure, glottal opening, vibrato; voice presets (man, woman, child, deep, whisper, vocal fry, breathy, pressed, raspy); LF (Rd or Oq / alpha_m / Ra) or two-mass (tension, asymmetry, rest area); peak area, source-tract interaction, posterior chink; jitter, shimmer, diplophonia. |
-| Tract: tract & person | Filter (head, tube or none), articulators as sliders, phoneme buttons (IPA), the vowels measured by MRI (Story 2008) loaded as the tube, anatomy (size, pharynx length and width, nasal leak, nasal cycle, each nostril, pinch the nose, air in the piriform fossae), timbre presets, losses. |
+| Tract: tract & person | Filter (head, tube or none), articulators as sliders, phoneme buttons (IPA), the vowels measured by MRI (Story 2008) loaded as the tube, anatomy (size, pharynx length and width, vault of the palate, width of the arch, nasal leak, nasal cycle, each nostril, pinch the nose, air in the piriform fossae), timbre presets, losses. |
 | Tract: teeth & slit | Front view and side view of the incisors with the jet; slit width, extra opening, diastema, overjet, advance, upper / lower incisor length, tongue groove; presets (open bite, gap teeth, overjet, short teeth); s / ʃ / f / θ / z shortcuts; live jet readouts (velocity, Reynolds number, share of the jet hitting the teeth). |
 | Noise | The physical sources (aspiration, constriction jet, teeth obstacle, release bursts) with trims and pulsing; your own noise: colour (white, pink, brown, blue, violet), a drawable 32-point spectrum, band limits, level, pulsing by the glottal flow, injection point (glottis, constriction, teeth, lips or anywhere along the tract) or straight to the ears (bypassing the tract). |
 | Speak | Italian or English text (numbers are read out), or text in one of 68 other languages, transcribed by an open pronunciation dictionary and, for the words it lacks, by a neural model, both downloaded at first use (what came from where is listed under the text); /IPA/ between slashes, said with the rules of English or Italian; or [IPA] between brackets, any language said as written (every symbol of the chart with its diacritics, length, stress and tones; what the model only approximates is listed under the text); rate, accent strength; examples in several languages and in IPA; a phone timeline that follows the playback; "what makes it sound natural": timing, intonation, micro-variation, voice quality and coarticulation, each switchable, with a plain explanation and a one-click robot voice. |
@@ -401,8 +401,29 @@ measured by MRI (Story 2008), where the lower pharynx of most vowels is about
 jaw, as a closing lip does for a bilabial (motor equivalence), and it slides
 out in front of the incisors when it rises above their edge, so that a /v/
 on its way to a rounded /w/ ("vuole") never closes. The anatomy (size,
-pharynx length and width, nasal leak) is the persistent "person" part of the
-filter.
+pharynx length and width, the vault of the palate and the width of the
+dental arch, nasal leak) is the persistent "person" part of the filter. The
+vault rises or sinks over the line from the velum to the alveolar ridge, so
+the seams with the velum and the incisors stay where they are; the arch
+widens or narrows every section of the mouth.
+
+**A head of another shape** (src/dsp/speech/derive.ts, adapt()): every
+posture of the tables and every recipe was made on the drawing's head. On a
+head whose mouth or throat has another shape (the vault, the arch, the
+width of the pharynx) each sound is aimed again, as a speaker aims at the
+constriction and not at a posture (motor equivalence; Perkell et al. 1993):
+a stop or a nasal closes, pressing as far past its new contact as it
+pressed past the old one; a fricative, an approximant or a trill keeps its
+passage at its place with the articulator that makes it, and the body of
+the tongue comes down (or the root forward) if the head would narrow the
+tract somewhere else; a lateral keeps its sides; a vowel keeps its passage
+within 0.85-1.2 of its own at its constriction and never narrower than
+0.3 cm², so what is left of the difference is the head's timbre. The size,
+the length of the pharynx and the nose change no posture (a posture scales
+with the head), nor do the teeth (their effect on a hiss is theirs to give).
+The planner, the sounds held by hand and the trills' contacts all use the
+adapted sounds; a sound the head does not let the tongue make is listed as
+approximate.
 
 **Waveguide** (Kelly & Lochbaum 1962): 44 equal sections of pressure waves
 with one sample of delay each, run at fs_t = N c / L (88 kHz for 17.5 cm), so
@@ -996,6 +1017,8 @@ in brackets are the adult male targets described under Speech.
 | Czech ř | laminal, its narrowest passage in front of /r/'s; contacts in [ˈr̝eka] 4, in [ˈtr̝̊i] 3; open phases at most 0.16 cm², their hiss 21 dB above /r/'s |
 | Dentals | t̪ d̪ n̪ closed 2.4 cm in front of /t/, with no note |
 | Stops close | "papa tata kaka gaga": every closure builds its pressure (/g/ after /a/ did not close before) |
+| Head shapes | 120 sounds on six heads (vault 0.6 and 1.45, arch 0.8 and 1.25, pharynx 0.7 and 1.4): every stop and nasal closes, every other consonant keeps its passage within 15 %, no vowel narrows below 0.25 cm²; only the velar lateral under the lowest vault and the velarized l in the narrowest pharynx are approximate. On a vault of 0.6 "kaka gaga tata cece" builds 42-100 % of the lungs' pressure behind each closure |
+| Palate and arch | F2 of /i/ 2192 Hz: 2036 with a vault of 1.3, 2258 with 0.7; 2140 with an arch of 1.2, 2237 with 0.85 |
 | Speaking habits | a setting with a low larynx and rounded lips keeps both through every sound; a nasal one never lowers the velum on an obstruent; a whispering voice speaks its vowels 24 dB above the near silence it had; with every habit at its extreme /p t k/ still close |
 | Trills | closures of the lips in [aʙa] 3, of the dorsum against the uvula in [aʀa] 4, of the tip in [ara] 1 |
 | Velar lateral | ʟ: midline closed by the dorsum, lateral channels over 10 grid lines, 7.0-9.6 cm from the lips; /l/ F3 still 2421 Hz |
@@ -1169,6 +1192,7 @@ in brackets are the adult male targets described under Speech.
 - Lindblom, B. (1963). Spectrographic study of vowel reduction. JASA 35.
 - Klatt, D. H. & Klatt, L. C. (1990). Analysis, synthesis, and perception of voice quality variations among female and male talkers. JASA 87.
 - Lisker, L. & Abramson, A. S. (1964). A cross-language study of voicing in initial stops: acoustical measurements. Word 20.
+- Perkell, J. S., Matthies, M. L., Svirsky, M. A. & Jordan, M. I. (1993). Trading relations between tongue-body raising and lip rounding in production of the vowel /u/: a pilot "motor equivalence" study. JASA 93.
 - Laver, J. (1980). The Phonetic Description of Voice Quality. Cambridge University Press.
 - Laver, J., Wirz, S., Mackenzie, J. & Hiller, S. M. (1981). A perceptual protocol for the analysis of vocal profiles. Edinburgh University Department of Linguistics, Work in Progress 14.
 - Honikman, B. (1964). Articulatory settings. In D. Abercrombie et al. (eds.), In Honour of Daniel Jones. Longmans.

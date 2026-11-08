@@ -22,6 +22,7 @@ const APPROX: Record<ApproxCode, Bi> = {
   doubleFricative: { it: 'fatta come fricativa velare arrotondata', en: 'made as a rounded velar fricative' },
   degree: { it: 'il modello non riesce a stringere questo punto quanto chiede il simbolo', en: 'the model cannot narrow this place as much as the symbol asks' },
   click: { it: 'clic palatale: la lingua del modello è un corpo solo e non fa insieme la chiusura palatale e quella velare, quindi ne fa una e non rarefà l’aria', en: 'palatal click: the model’s tongue is one body and cannot make the palatal and the velar closure at once, so it makes one and rarefies no air' },
+  anatomy: { it: 'con la bocca di questa voce (il palato, l’arcata, la faringe) la lingua non arriva a fare questo suono come lo fa nella testa di riferimento', en: 'with the mouth of this voice (its palate, arch, pharynx) the tongue cannot make this sound as it does in the reference head' },
 };
 
 const noteText = (n: SoundNote): Bi =>
