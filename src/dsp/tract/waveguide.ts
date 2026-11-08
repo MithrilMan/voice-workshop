@@ -5,6 +5,8 @@ import { PIRIFORM_SECTIONS, SUPRA_SECTIONS } from './section3d';
 
 /** areas of a blind branch with nothing in it */
 const CLOSED_BRANCH = new Float64Array(Math.max(PIRIFORM_SECTIONS, SUPRA_SECTIONS)).fill(AREA_CLOSED);
+/** what is left of a branch's areas at each step of its fading out, where its mouth used to be */
+const FADE = 0.03;
 
 /**
  * Time-domain vocal tract: a Kelly-Lochbaum (1962) scattering waveguide of
@@ -126,6 +128,21 @@ class Branch {
     t = this.b; this.b = this.bn; this.bn = t;
   }
   reset(): void { this.f.fill(0); this.b.fill(0); this.fn.fill(0); this.bn.fill(0); }
+  /**
+   * Takes over the waves and the shape of a branch of the same size, its
+   * areas scaled: the same cavity with a narrower mouth (the reflections
+   * inside depend only on the ratios of the areas, so they do not change).
+   */
+  copyFrom(src: Branch, scale: number): void {
+    this.f.set(src.f); this.b.set(src.b); this.fn.set(src.fn); this.bn.set(src.bn);
+    for (let i = 0; i < this.n; i++) {
+      this.area[i] = this.target[i] = Math.max(AREA_CLOSED, src.area[i] * scale);
+      this.dA[i] = 0;
+      this.loss[i] = this.lossTarget[i] = src.loss[i];
+      this.dLoss[i] = 0;
+    }
+    this.k.set(src.k); this.dk.fill(0);
+  }
   /** sets target areas with a linear ramp of the reflection coefficients over `steps` samples */
   setAreas(src: ArrayLike<number>, steps: number): void {
     this.steps = Math.max(1, steps);
@@ -181,10 +198,14 @@ export class Waveguide {
   coupling: number;
   /** the blind branches (piriform fossae, supralingual cavity) and the oral
    *  junction each joins (-1 = none) */
-  readonly piriform: Branch = new Branch(PIRIFORM_SECTIONS);
-  readonly supra: Branch = new Branch(SUPRA_SECTIONS);
-  private readonly blind: Branch[] = [this.piriform, this.supra];
-  readonly blindAt = new Int32Array([-1, -1]);
+  /** slots 2 and 3 hold the branch closing at the junction that slot 0 or 1 has just left */
+  private readonly blind: Branch[] = [new Branch(PIRIFORM_SECTIONS), new Branch(SUPRA_SECTIONS), new Branch(PIRIFORM_SECTIONS), new Branch(SUPRA_SECTIONS)];
+  readonly blindAt = new Int32Array([-1, -1, -1, -1]);
+  /** geometry updates left before a closing branch is let go */
+  private readonly fadeLeft = new Int32Array(2);
+  private readonly shrunk = new Float64Array(Math.max(PIRIFORM_SECTIONS, SUPRA_SECTIONS));
+  get piriform(): Branch { return this.blind[0]; }
+  get supra(): Branch { return this.blind[1]; }
   get piriformAt(): number { return this.blindAt[0]; }
   private rampLeft = 0;
   private lipRad: RadFilter = newRad();
@@ -293,6 +314,7 @@ export class Waveguide {
     this.nasalL.setAreas(nt.left, steps);
     this.nasalR.setAreas(nt.right, steps);
     for (let i = 0; i < this.sinuses.length; i++) this.sinuses[i].tube.setAreas(nt.sinuses[i].areas, steps);
+    this.fadeBranches(steps);
     this.placeBranch(0, af.piriform, -1, steps);
     this.placeBranch(1, af.supralingual, this.blindAt[0], steps);
     const lp = this.lossParams;
@@ -321,23 +343,59 @@ export class Waveguide {
 
   /**
    * Joins blind branch q at its junction. A branch closed at its mouth is
-   * left out; one that opens at another junction starts from silence there.
+   * left out; one that opens starts from silence, its mouth opening over the
+   * ramp. When the mouth of an open branch moves to another junction (the
+   * larynx rising or falling carries the fossae along, about twice a second
+   * in speech), a copy of the branch, waves included, opens there from a
+   * sliver while the branch narrows to one where it was: the same cavity
+   * with its mouth sliding over. Moving it, or zeroing its waves, in one
+   * sample is a click.
    */
   private placeBranch(q: number, br: BlindBranch | undefined, taken: number, steps: number): void {
-    const t = this.blind[q];
+    let t = this.blind[q];
     const ok = br && br.at > 0 && br.at < this.n - 2 && br.at !== this.coupling && br.at !== taken;
     const shut = !br || br.areas[0] <= 2 * AREA_CLOSED;
     if (!ok || (shut && t.area[0] <= 2 * AREA_CLOSED)) {
-      if (this.blindAt[q] >= 0) { t.setAreas(CLOSED_BRANCH, 1); t.settle(); t.reset(); }
-      this.blindAt[q] = -1;
+      if (this.blindAt[q] >= 0) this.dropBranch(q);
       return;
     }
     if (br.at !== this.blindAt[q]) {
-      t.reset();
-      if (this.blindAt[q] < 0) { t.setAreas(CLOSED_BRANCH, 1); t.settle(); }
+      // a branch still closing at the new junction goes now
+      for (let r = 2; r < 4; r++) if (this.blindAt[r] === br.at) this.dropBranch(r);
+      if (this.blindAt[q] >= 0) {
+        if (this.blindAt[q + 2] >= 0) this.dropBranch(q + 2);
+        const old = t;
+        t = this.blind[q + 2];
+        this.blind[q + 2] = old; this.blind[q] = t;
+        this.blindAt[q + 2] = this.blindAt[q];
+        this.fadeLeft[q] = 2;
+        t.copyFrom(old, FADE);
+        this.shrink(old, steps);
+      } else { t.reset(); t.setAreas(CLOSED_BRANCH, 1); t.settle(); }
       this.blindAt[q] = br.at;
     }
     t.setAreas(br.areas, steps);
+  }
+
+  /** Lets go of the branches that have closed at the junction they left (two geometry updates after the move). */
+  private fadeBranches(steps: number): void {
+    for (let q = 2; q < 4; q++) {
+      if (this.blindAt[q] < 0) continue;
+      if (--this.fadeLeft[q - 2] <= 0) this.dropBranch(q);
+      else this.shrink(this.blind[q], steps);
+    }
+  }
+
+  /** Narrows a branch to FADE of its areas, all alike, within `steps` samples. */
+  private shrink(t: Branch, steps: number): void {
+    for (let i = 0; i < t.n; i++) this.shrunk[i] = t.target[i] * FADE;
+    t.setAreas(this.shrunk, steps);
+  }
+
+  private dropBranch(q: number): void {
+    const t = this.blind[q];
+    t.setAreas(CLOSED_BRANCH, 1); t.settle(); t.reset();
+    this.blindAt[q] = -1;
   }
 
   /** Characteristic impedance of the first (glottal) section. */
@@ -355,10 +413,12 @@ export class Waveguide {
     if (ramp) {
       this.rampLeft--;
       if (this.rampLeft === 0) {
-        o.settle(); ns.settle(); this.nasalL.settle(); this.nasalR.settle(); this.piriform.settle(); this.supra.settle();
+        o.settle(); ns.settle(); this.nasalL.settle(); this.nasalR.settle();
+        for (const t of this.blind) t.settle();
         for (const s of this.sinuses) s.tube.settle();
       } else {
-        o.glide(); ns.glide(); this.nasalL.glide(); this.nasalR.glide(); this.piriform.glide(); this.supra.glide();
+        o.glide(); ns.glide(); this.nasalL.glide(); this.nasalR.glide();
+        for (const t of this.blind) t.glide();
         for (const s of this.sinuses) s.tube.glide();
       }
       // radiation filters glide with the end areas
@@ -389,9 +449,9 @@ export class Waveguide {
 
     // oral junctions
     const resOn = this.resOn;
-    const P = this.blindAt[0], Q = this.blindAt[1];
+    const P = this.blindAt[0], Q = this.blindAt[1], P2 = this.blindAt[2], Q2 = this.blindAt[3];
     for (let i = 0; i < n - 1; i++) {
-      if (i === J || i === P || i === Q) continue;
+      if (i === J || i === P || i === Q || i === P2 || i === Q2) continue;
       const fin = f[i], bin = b[i + 1];
       // the lip exit acts at the last junction
       const rr = resOn ? (i === n - 2 ? rv[i] + rv[n - 1] : rv[i]) : 0;
@@ -417,7 +477,7 @@ export class Waveguide {
       ns.fn[0] = ns.loss[0] * (pj - ns.b[0]);
     }
     // blind branches: three-way junctions (oral j, oral j+1, branch 0)
-    for (let q = 0; q < 2; q++) {
+    for (let q = 0; q < 4; q++) {
       const j = this.blindAt[q];
       if (j < 0) continue;
       const t = this.blind[q];
@@ -432,7 +492,7 @@ export class Waveguide {
       const j = this.srcJunction[s];
       if (j < 0 || j >= n - 1) continue;
       const p = this.srcValue[s];
-      const r = j === J || j === P || j === Q ? 0 : k[j];
+      const r = j === J || j === P || j === Q || j === P2 || j === Q2 ? 0 : k[j];
       fn[j + 1] += loss[j + 1] * p * 0.5 * (1 + r);
       bn[j] -= loss[j] * p * 0.5 * (1 - r);
     }
@@ -443,7 +503,7 @@ export class Waveguide {
       const rc = RHO * C_SOUND;
       for (let q = 0; q < wj.length; q++) {
         const j = wj[q];
-        if (j === J || j === P || j === Q) continue;
+        if (j === J || j === P || j === Q || j === P2 || j === Q2) continue;
         const pj = fn[j + 1] + b[j + 1];
         let v = wv[q];
         v += (dt / WALL_MASS) * (pj - WALL_RES * v - WALL_STIFF * wy[q]);
@@ -484,7 +544,7 @@ export class Waveguide {
     }
     this.nosFlow = this.stepNasalPart(this.nasalL, 1, this.nosRadL) + this.stepNasalPart(this.nasalR, 2, this.nosRadR);
     // the blind branches, rigid at the far end
-    for (let q = 0; q < 2; q++) {
+    for (let q = 0; q < 4; q++) {
       if (this.blindAt[q] < 0) continue;
       const t = this.blind[q], tn = t.n;
       for (let i = 0; i < tn - 1; i++) {

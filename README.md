@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 163 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 164 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -458,7 +458,12 @@ adult men, 2.35 cm effective here, 1.4 cm² together at the opening and
 antiresonance at 4-5 kHz into every vowel and lower the formants below it
 (Dang & Honda 1997), here 4470-4490 Hz and 23-27 dB deep. Filled halfway with
 water, as in Dang and Honda's experiment (Tract & person: piriform fossae, air
-inside), the valley rises to about 8 kHz. In a lateral the tip closes on the
+inside), the valley rises to about 8 kHz. The larynx carries them along as
+it rises and falls, about twice a second in speech, so their mouth moves to
+the next junction of the tube: a copy of the branch, with its waves, opens
+there from a sliver while the branch narrows to one where it was, over two
+geometry updates (moving it in one sample, with its waves zeroed, was a
+click of up to +51 dB above the voice around it). In a lateral the tip closes on the
 midline and the air flows past both sides of the tongue, through channels of
 0.1-0.5 cm² a side (Narayanan, Alwan & Haker 1997; here 0.52 cm² both
 together); the lumen between the margins of the tongue, from where the
@@ -883,6 +888,7 @@ in brackets are the adult male targets described under Speech.
 | Nasal cycle | /m/ with one passage congested (cycle 0.6): a new resonance at 2170 Hz with its antiresonance; first resonance 280 -> 270 Hz |
 | Pinched nostril | /m/ with the left nostril pinched: first resonance 310 -> 230 Hz, new antiresonance at 550 Hz |
 | Asymmetric nose, waveguide vs reference | congested left side, right nostril 40 % open, lossless: worst difference 0.34 % over 6 resonances below 3 kHz |
+| No clicks in running speech | loudest transient inside a vowel or sonorant, above 6 kHz, against the 40 ms around it: "la luna e le stelle" +41 -> +27 dB with the piriform junction moving twice; over six Italian and two English sentences, transients above +30 dB 15 -> 5 (the rest are an English flap released like a stop and two at +30-31 dB) |
 | Pinched nose | held /m/: nasal airflow 231 -> 0 cm³/s, mouth pressure 8.0 cmH2O (the lung pressure), the hum silent |
 | Italian G2P | sasso, mamma, voce, rosa (northern /z/), gnocchi, figlio (long ʎ), scena, chiesa, città; IPA parsing |
 | English G2P | 89 321-word lexicon; voice v ɔɪ s, water w ɔ ɾ ɚ, little l ɪ ɾ ə ɫ, 1984 "nineteen eighty four", blick (rules) b l ɪ k; weak forms; wh-questions marked |
@@ -1002,6 +1008,8 @@ in brackets are the adult male targets described under Speech.
   pronunciation. Italian open and close e/o are only known where an accent is
   written. Prosody is rule-based: it has no idea which word the sentence is
   about, so the nuclear accent always falls on the last content word.
+- An American flap /ɾ/ closes long enough for the pressure behind it to
+  build (4.5 cmH2O in "heard is"), and its release bursts like a stop.
 - The other languages are read word by word, with no context: homographs
   take one pronunciation, links across words (French liaison, tone sandhi)
   are not made, and the model's mistakes pass unchecked (привет comes out
