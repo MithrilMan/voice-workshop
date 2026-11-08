@@ -54,6 +54,10 @@ export interface Anatomy {
   palateHeight: number;
   /** width of the dental arch (the oral cavity's width at a given height), 1 = the drawing's */
   archWidth: number;
+  /** size of the body of the tongue (its radius), 1 = the drawing's (2.2 cm in an adult man) */
+  tongueSize: number;
+  /** how far the frenulum lets the tip go from the floor of the mouth, 1 = never in the way; less is a short frenulum (tongue-tie) */
+  tipReach: number;
 }
 
 /**
@@ -94,7 +98,7 @@ export const DEFAULT_ARTICULATORS: Articulators = {
   larynx: 0,
 };
 
-export const DEFAULT_ANATOMY: Anatomy = { scale: 1, pharynx: 1, pharynxWidth: 1, nasalLeak: 0, nasalCycle: 0, nostrilLeft: 1, nostrilRight: 1, piriform: 1, palateHeight: 1, archWidth: 1 };
+export const DEFAULT_ANATOMY: Anatomy = { scale: 1, pharynx: 1, pharynxWidth: 1, nasalLeak: 0, nasalCycle: 0, nostrilLeft: 1, nostrilRight: 1, piriform: 1, palateHeight: 1, archWidth: 1, tongueSize: 1, tipReach: 1 };
 
 export const DEFAULT_TEETH: Teeth = {
   slitWidth: 2.2,

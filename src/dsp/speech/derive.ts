@@ -156,7 +156,7 @@ export interface Head { anatomy: Anatomy; teeth: Teeth }
  * a consonant are measured at the drawing's size); nor do the teeth, whose
  * effect on a hiss (a lisp through an open bite) is theirs to give.
  */
-const SHAPE: (keyof Anatomy)[] = ['pharynxWidth', 'palateHeight', 'archWidth'];
+const SHAPE: (keyof Anatomy)[] = ['pharynxWidth', 'palateHeight', 'archWidth', 'tongueSize', 'tipReach'];
 
 /** The shape of a head at the drawing's size, or undefined when it is the drawing's own. */
 export function shapeOf(head?: { anatomy: Partial<Anatomy> }): Head | undefined {
@@ -660,6 +660,11 @@ const CONSTRICTION = 0.4;
 const REACH = 0.6;
 /** how far an articulator may move the opening way to keep a passage */
 const OPENING = 1.5;
+/** how far past its contact a closure made by a helping articulator presses */
+const PRESS = 0.05;
+/** where the front and the back closures of a click lie, cm from the lips (as the sequencer looks for them) */
+const CLICK_FRONT: [number, number] = [0, 6];
+const CLICK_BACK: [number, number] = [6.2, 12];
 
 /** the values an articulator may take on another head: its range, a little further, and wherever it already is */
 function reach(key: keyof Articulators, v0: number): [number, number] {
@@ -710,21 +715,27 @@ type Lever = [keyof Articulators, number];
 const BODY: Lever = ['tongueY', 1];
 const TIP: Lever = ['tipY', 1];
 const ROOT: Lever = ['tongueRoot', -1];
+/** the whole body of the tongue back narrows the pharynx */
+const FRONT: Lever = ['tongueX', -1];
 const DORSAL_KEYS = new Set<keyof Articulators>(['tongueY', 'tongueX', 'tongueRoot']);
 
 /**
  * The first articulator, in order, that brings a sound where `open` holds
  * and `tooWide` does not, moved as little as it takes; the sound as it was
- * if it is already there, and marked approximate ('anatomy') if none can.
+ * if it is already there. If none can, the first one goes as far as it can
+ * (a vowel left as open as the head allows rather than shut) and the sound
+ * is marked approximate ('anatomy').
  */
 function withLevers(ph: Phoneme, levers: Lever[], open: (x: Articulators) => boolean, tooWide?: (x: Articulators) => boolean): Phoneme {
   const a = baseArt(ph.art);
+  let best: Phoneme | undefined;
   for (const [key, dir] of levers) {
     const r = aim(a, key, dir, open, tooWide);
     if (!r) return ph;
     if (r.ok) return rounded(ph, key, r.value);
+    best ??= rounded(ph, key, r.value);
   }
-  return { ...ph, approx: ph.approx ?? 'anatomy' };
+  return { ...(best ?? ph), approx: ph.approx ?? 'anatomy' };
 }
 
 /**
@@ -748,21 +759,38 @@ function withLevers(ph: Phoneme, levers: Lever[], open: (x: Articulators) => boo
  *   the root.
  * What is left of the difference is the head's timbre. Where the head does
  * not let the tongue get there, the sound is marked approximate
- * ('anatomy'). Clicks, affricates (their parts are adapted one by one) and
- * the glottals keep their posture.
+ * ('anatomy'). A click keeps both its closures shut. Affricates (their parts
+ * are adapted one by one) and the glottals keep their posture.
  */
 function adapt(ph: Phoneme, head: Head): Phoneme {
   if (ph.manner === 'vowel') return adaptVowel(ph, head);
-  if (ph.airstream === 'click' || ph.parts) return ph;
+  if (ph.parts) return ph;
   const a = baseArt(ph.art);
   const canon = measure(a);
   const anywhere = (x: Articulators) => measure(x, undefined, head).min;
   const ck = closingKey(ph);
+  if (ph.airstream === 'click') {
+    // both closures stay shut: the front one with its articulator, the back one with the body
+    let out = ph;
+    const closures: [[number, number], Lever[]][] = [[CLICK_FRONT, ck ? [[ck.key, ck.dir], ['jaw', -1]] : [BODY]], [CLICK_BACK, [BODY]]];
+    for (const [w, levers] of closures) {
+      if (measure(a, w).inWindow >= CLOSED) continue;
+      const shut = (x: Articulators) => measure(x, w, head).inWindow < CLOSED;
+      let done = false;
+      for (const [k, d] of levers) {
+        const r = aim(baseArt(out.art), k, -d, shut);
+        if (!r) { done = true; break; }
+        if (r.ok) { out = rounded(out, k, r.value + d * PRESS); done = true; break; }
+      }
+      if (!done) out = { ...out, approx: out.approx ?? 'anatomy' };
+    }
+    return out;
+  }
   if (ph.manner === 'lateral') {
     // the passage at the sides; a closure of the dorsum (a velar lateral) must not be opened to widen it
     const own = canon.min;
     if (own < CLOSED || Math.abs(anywhere(a) - own) <= SAME_PASSAGE * own) return ph;
-    const levers: Lever[] = ck && DORSAL_KEYS.has(ck.key) ? [['tongueSides', -1]] : [['tongueSides', -1], BODY, ROOT];
+    const levers: Lever[] = ck && DORSAL_KEYS.has(ck.key) ? [['tongueSides', -1]] : [['tongueSides', -1], BODY, ROOT, FRONT];
     return withLevers(ph, levers, (x) => anywhere(x) >= NARROWEST * own, (x) => anywhere(x) > WIDEST * own);
   }
   if (!ck) return ph;
@@ -787,7 +815,21 @@ function adapt(ph: Phoneme, head: Head): Phoneme {
     if (c0 == null) return ph;
     const c1 = contact(head);
     if (c1 === null) return ph;
-    if (c1 === undefined) return { ...rounded(ph, key, shutEnd), approx: ph.approx ?? 'anatomy' };
+    if (c1 === undefined) {
+      // the articulator alone cannot shut it on this head (a tip held back by a short frenulum): the jaw
+      // comes up with it (and the tip with the jaw), or else the body of the tongue
+      const shut = rounded(ph, key, shutEnd);
+      const closes = (x: Articulators) => measure(x, undefined, head).min < CLOSED;
+      for (const [k2, d2] of [['jaw', -1], BODY] as Lever[]) {
+        if (k2 === key) continue;
+        // aim() moves the opening way of its `dir`: asked for the other way, it closes
+        const r = aim(baseArt(shut.art), k2, -d2, closes);
+        if (!r) return shut;
+        // and a little past the contact, as a closure presses
+        if (r.ok) return rounded(shut, k2, r.value + d2 * PRESS);
+      }
+      return { ...shut, approx: ph.approx ?? 'anatomy' };
+    }
     return Math.abs(c1 - c0) < 1e-3 ? ph : rounded(ph, key, v0 + (c1 - c0));
   }
   if (canon.min > CONSTRICTION) return ph;
@@ -798,13 +840,14 @@ function adapt(ph: Phoneme, head: Head): Phoneme {
   const atPlace = dorsal ? anywhere : (x: Articulators) => measure(x, win, head).inWindow;
   let out = ph;
   if (Math.abs(atPlace(a) - own) > SAME_PASSAGE * own) {
-    out = withLevers(ph, dorsal ? [[key, dir]] : [[key, dir], BODY], (x) => atPlace(x) >= (1 - SAME_PASSAGE) * own, (x) => atPlace(x) > (1 + SAME_PASSAGE) * own);
+    const levers: Lever[] = dorsal ? [[key, dir], key === 'tongueX' ? BODY : FRONT] : [[key, dir], BODY];
+    out = withLevers(ph, levers, (x) => atPlace(x) >= (1 - SAME_PASSAGE) * own, (x) => atPlace(x) > (1 + SAME_PASSAGE) * own);
   }
   if (dorsal) return out;
   // nowhere else narrower than the sound's own passage allows
   const keep = NARROWEST * canon.min;
   const placed = out.approx === 'anatomy' && ph.approx !== 'anatomy' ? 0 : NARROWEST * own;
-  return withLevers(out, [BODY, ROOT], (x) => anywhere(x) >= keep && atPlace(x) >= placed);
+  return withLevers(out, [BODY, ROOT, FRONT], (x) => anywhere(x) >= keep && atPlace(x) >= placed);
 }
 
 function adaptVowel(ph: Phoneme, head: Head): Phoneme {
@@ -819,7 +862,7 @@ function adaptVowel(ph: Phoneme, head: Head): Phoneme {
     return m.inWindow >= NARROWEST * own && m.min >= safe;
   };
   const tooWide = mouth ? (x: Articulators) => measure(x, win, head).inWindow > WIDEST * own : undefined;
-  return withLevers(ph, mouth ? [BODY, TIP, ROOT] : [ROOT, BODY], open, tooWide);
+  return withLevers(ph, mouth ? [BODY, TIP, ROOT, FRONT] : [ROOT, FRONT, BODY], open, tooWide);
 }
 
 /** Something about a transcription the listener should know: a symbol not read, or a sound only approximated. */

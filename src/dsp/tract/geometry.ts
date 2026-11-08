@@ -260,6 +260,8 @@ const FLOOR: number[] = [
 const LIP_CONTACT_Y = 8.28;
 const TONGUE_C0: [number, number] = [2.85, 6.95];
 const TONGUE_R = 2.45;
+/** how far the frenulum lets the tip go from where it joins the floor of the mouth (canonical cm): no sound of the tables goes that far */
+const FRENULUM = 4.2;
 const TIP0: [number, number] = [6.15, 7.9];
 const FLOOR_ATTACH: [number, number] = [5.75, 6.6];
 /** tongue root position of the drawing's rest shape, cm: the lower pharynx of
@@ -293,12 +295,21 @@ function tangentAngle(p: [number, number], c: [number, number], r: number, side:
   return phi + side * Math.acos(r / D);
 }
 
-function buildTongue(a: Articulators, jawAngle: number): { pts: number[]; c: [number, number]; tip: [number, number] } {
+function buildTongue(a: Articulators, jawAngle: number, an: Anatomy): { pts: number[]; c: [number, number]; tip: [number, number] } {
   const cLocal: [number, number] = [TONGUE_C0[0] + a.tongueX, TONGUE_C0[1] + a.tongueY];
   const c = rot(cLocal, J, jawAngle * 0.75);
-  const r = TONGUE_R;
+  const r = TONGUE_R * (an.tongueSize ?? 1);
   const h: [number, number] = [1.4 + 0.6 * a.tongueX, 3.2 + 0.25 * a.tongueY];
   let tip = rot([TIP0[0] + a.tipX, TIP0[1] + a.tipY], J, jawAngle);
+  const fl = rot(FLOOR_ATTACH, J, jawAngle);
+  // the frenulum ties the underside of the tip to the floor of the mouth: a short one holds the tip
+  // back (tongue-tie). The floor turns with the jaw, so only closing the jaw lifts a held tip
+  {
+    const reach = FRENULUM * (an.tipReach ?? 1);
+    const dx = tip[0] - fl[0], dy = tip[1] - fl[1];
+    const D = Math.hypot(dx, dy);
+    if (D > reach) tip = [fl[0] + (dx / D) * reach, fl[1] + (dy / D) * reach];
+  }
   // tongue length constraint: the tip stays within reach of the body
   {
     const dx = tip[0] - c[0], dy = tip[1] - c[1];
@@ -307,7 +318,6 @@ function buildTongue(a: Articulators, jawAngle: number): { pts: number[]; c: [nu
     if (D < dMin) tip = [c[0] + (dx / D) * dMin, c[1] + (dy / D) * dMin];
     else if (D > dMax) tip = [c[0] + (dx / D) * dMax, c[1] + (dy / D) * dMax];
   }
-  const fl = rot(FLOOR_ATTACH, J, jawAngle);
 
   const pts: number[] = [];
   pts.push(h[0], h[1]);
@@ -686,7 +696,7 @@ export function computeGeometry(a: Articulators, an: Anatomy, teeth: Teeth, opts
   const xf = makeXf(an, a);
   const s = xf.s;
 
-  const tongue = buildTongue(a, jawAngle);
+  const tongue = buildTongue(a, jawAngle, an);
   const upperInc = buildUpperIncisor(teeth);
   const lowerInc = buildLowerIncisor(teeth, jawAngle);
   const solidsCanon: [SolidId, number[]][] = [

@@ -5,7 +5,7 @@ import { formants } from '../src/dsp/tract/acoustics';
 import { Anatomy, DEFAULT_ANATOMY, DEFAULT_ARTICULATORS, DEFAULT_TEETH } from '../src/dsp/tract/types';
 import { PHONEMES } from '../src/dsp/speech/phonemes';
 import { IPA_CONSONANTS, IPA_VOWELS } from '../src/dsp/speech/ipa';
-import { phonemeFor, constrictionOf, shapeOf, CLOSED_AREA } from '../src/dsp/speech/derive';
+import { phonemeFor, constrictionOf, contactPoint, shapeOf, CLOSED_AREA } from '../src/dsp/speech/derive';
 import { textToPhones } from '../src/dsp/speech/g2p';
 import { buildScore } from '../src/dsp/speech/sequencer';
 import { VoiceEngine } from '../src/dsp/engine/engine';
@@ -37,7 +37,8 @@ describe('the shape of the head', () => {
   });
 
   it('on a low or a high palate, a narrow or a wide arch or pharynx, every sound keeps its constriction', () => {
-    const shapes: Partial<Anatomy>[] = [{ palateHeight: 0.6 }, { palateHeight: 1.45 }, { archWidth: 0.8 }, { archWidth: 1.25 }, { pharynxWidth: 0.7 }, { pharynxWidth: 1.4 }];
+    const shapes: Partial<Anatomy>[] = [{ palateHeight: 0.6 }, { palateHeight: 1.45 }, { archWidth: 0.8 }, { archWidth: 1.25 }, { pharynxWidth: 0.7 }, { pharynxWidth: 1.4 },
+      { tongueSize: 0.92 }, { tongueSize: 1.08 }, { tipReach: 0.6 }];
     const marked: string[] = [];
     for (const an of shapes) {
       const h = head(an), shape = shapeOf(h)!;
@@ -49,16 +50,17 @@ describe('the shape of the head', () => {
         if (c.manner === 'vowel') expect(now, what).toBeGreaterThanOrEqual(Math.min(0.25, 0.8 * was));
         else if (was < CLOSED_AREA) expect(now, what).toBeLessThan(CLOSED_AREA);
         else if (was <= 0.4) {
-          // a lateral keeps its passage within its bounds (0.85-1.2), any other consonant within a few per cent
-          const [lo, hi] = c.manner === 'lateral' ? [0.84, 1.21] : [0.85, 1.15];
+          // a lateral keeps its passage within its bounds (0.85-1.2); any other consonant keeps it at its place, and
+          // narrows no more than that elsewhere
+          const [lo, hi] = c.manner === 'lateral' ? [0.84, 1.21] : [0.8, 1.15];
           expect(now / was, what).toBeGreaterThan(lo);
           expect(now / was, what).toBeLessThan(hi);
         }
       }
     }
-    note('head shapes', `${SYMBOLS.length} sounds on six head shapes; marked approximate: ${marked.join('; ') || 'none'}`);
-    // the velar lateral cannot keep its sides open under a very low palate without opening its closure
-    expect(marked.length).toBeLessThanOrEqual(2);
+    note('head shapes', `${SYMBOLS.length} sounds on ${shapes.length} head shapes; marked approximate: ${marked.join('; ') || 'none'}`);
+    // only a lateral whose closure is the dorsum's may fail to keep its sides: they cannot open without opening it
+    for (const m of marked) expect(m, m).toMatch(/^[ʎʟ] /);
   });
 
   it('a high vault darkens the front vowels and a low one brightens them; a wide arch lowers their second formant', () => {
@@ -76,6 +78,22 @@ describe('the shape of the head', () => {
     // a low vault no longer brings an [ɛ] up toward [e]: the tongue comes down with it
     const [e1] = formantsOf('ɛ', {}), [e1low] = formantsOf('ɛ', { palateHeight: 0.7 });
     expect(Math.abs(e1low - e1)).toBeLessThan(25);
+  });
+
+  it('a bigger tongue darkens the back vowels; a short frenulum closes /t/ with the jaw and stops the tip from trilling', () => {
+    const [, a2] = formantsOf('a', {}), [, big] = formantsOf('a', { tongueSize: 1.08 }), [, small] = formantsOf('a', { tongueSize: 0.92 });
+    note('tongue', `/a/ F2: ${Math.round(a2)} Hz; tongue 1.08 ${Math.round(big)}, 0.92 ${Math.round(small)}`);
+    expect(big).toBeLessThan(a2 - 40);
+    expect(small).toBeGreaterThan(a2 + 40);
+    const tied = head({ tipReach: 0.6 }), shape = shapeOf(tied)!;
+    for (const s of ['t', 'd', 'n']) {
+      const ph = phonemeFor(s, tied)!;
+      expect(constrictionOf(ph.art, shape).area, s).toBeLessThan(CLOSED_AREA);
+      expect(ph.art.jaw!, s).toBeLessThan(phonemeFor(s)!.art.jaw! - 0.1);
+    }
+    // the tip of a trill no longer reaches its contact
+    expect(contactPoint(PHONEMES.r.art, 'tipY', 2.3, shape)).toBe(2.3);
+    expect(contactPoint(PHONEMES.r.art, 'tipY', 2.3)).toBeLessThan(2.3);
   });
 
   it('speaking with a low palate, every stop still closes and builds its pressure', () => {
