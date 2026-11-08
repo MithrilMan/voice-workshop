@@ -5,11 +5,14 @@ import { DriverBar } from './components/DriverBar';
 import { Learn } from './modes/Learn';
 import { Play } from './modes/Play';
 import { Lab } from './modes/Lab';
+import { Studio } from './modes/Studio';
+import { library } from './library';
+import { voiceFromLink } from '../dsp/voice/codec';
 import { voice } from './voice/voice';
 import { useManual, useSoundOn, useVoice } from './voice/hooks';
 
-const MODES: [Mode, 'mLearn' | 'mPlay' | 'mLab', 'mLearnHint' | 'mPlayHint' | 'mLabHint'][] = [
-  ['learn', 'mLearn', 'mLearnHint'], ['play', 'mPlay', 'mPlayHint'], ['lab', 'mLab', 'mLabHint'],
+const MODES: [Mode, 'mLearn' | 'mPlay' | 'mLab' | 'mVoices', 'mLearnHint' | 'mPlayHint' | 'mLabHint' | 'mVoicesHint'][] = [
+  ['learn', 'mLearn', 'mLearnHint'], ['play', 'mPlay', 'mPlayHint'], ['lab', 'mLab', 'mLabHint'], ['voices', 'mVoices', 'mVoicesHint'],
 ];
 
 /** The bar every mode shares: the name, the three modes, one Sound button, the volume, the language; then who drives the voice. */
@@ -65,12 +68,17 @@ export function App() {
   const L = useL();
   const ui = useUi();
   useEffect(() => { document.documentElement.lang = ui.lang; document.title = t('appTitle'); }, [ui.lang]);
+  // a voice shared with a link (#voice=…) opens in the voice studio, ready to be saved
+  useEffect(() => {
+    void voiceFromLink(window.location.hash).then((v) => { if (v) { library.setIncoming(v); store.setUi({ mode: 'voices' }); } });
+  }, []);
   return (
     <div className={`app mode-${ui.mode}`}>
       <Header />
       {ui.mode === 'learn' && <Learn />}
       {ui.mode === 'play' && <Play />}
       {ui.mode === 'lab' && <Lab />}
+      {ui.mode === 'voices' && <Studio />}
       <footer className="app-footer">
         <span>{L({ it: 'Modello fisico: sorgente LF o a due masse, tratto vocale a guida d’onda (Kelly-Lochbaum) con naso e seni, turbolenza da numero di Reynolds, ostacolo dei denti. Dettagli e riferimenti nel README.', en: 'Physical model: LF or two-mass source, waveguide vocal tract (Kelly-Lochbaum) with nose and sinuses, Reynolds-number turbulence, teeth obstacle. Details and references in the README.' })}</span>
       </footer>

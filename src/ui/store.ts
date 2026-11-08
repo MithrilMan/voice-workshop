@@ -15,7 +15,7 @@ import type { StreamBlock } from './voice/sink';
 
 export type Lang = 'it' | 'en';
 /** learn: guided chapters; play: a few big controls; lab: everything, organised by the signal chain */
-export type Mode = 'learn' | 'play' | 'lab';
+export type Mode = 'learn' | 'play' | 'lab' | 'voices';
 export type ControlTab = 'source' | 'tract' | 'teeth' | 'noise' | 'output' | 'speak' | 'melody' | 'ab' | 'machine';
 export type ViewTab = 'spectrum' | 'spectrogram' | 'scope' | 'glottis' | 'chart' | 'tube' | 'tract3d';
 /** the lab's benches: the blocks of the signal chain, and the experiments */
@@ -88,7 +88,7 @@ function query(key: string): string | null {
 
 /** First visit: the guided chapters; then the mode last used (`?mode=` wins). */
 function initialMode(): Mode {
-  for (const v of [query('mode'), remembered(MODE_KEY)]) if (v === 'learn' || v === 'play' || v === 'lab') return v;
+  for (const v of [query('mode'), remembered(MODE_KEY)]) if (v === 'learn' || v === 'play' || v === 'lab' || v === 'voices') return v;
   return 'learn';
 }
 function initialChapter(): number {

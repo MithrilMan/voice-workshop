@@ -7,6 +7,7 @@ import { voiceToJson, voiceFromJson, voiceToLink, voiceFromLink, voiceFileName }
 import { VOICE_PRESETS } from '../src/ui/presets';
 import { textToPhones } from '../src/dsp/speech/g2p';
 import { buildScore } from '../src/dsp/speech/sequencer';
+import { utterance } from '../src/dsp/voice/utterance';
 
 /** the speaker presets as they were written before they became voices */
 const base = (p: EngineParams) => { p.source = { ...DEFAULT_SOURCE }; p.anatomy = { ...DEFAULT_ANATOMY }; p.noise = { ...DEFAULT_NOISE, user: p.noise.user }; p.voicing = true; p.abduction = 0; p.articulators.larynx = 0; };
@@ -100,5 +101,19 @@ describe('a voice as data', () => {
     expect(sc.frames[Math.round((0.5 * (a.t0 + a.t1)) / 0.005)].abduction).toBeGreaterThanOrEqual(0.42);
     const deep = buildScore(textToPhones('la luna', 'it'), speechOptions(builtinVoice('deep')!.design, 'it'));
     expect(deep.frames[40].art!.larynx).toBeCloseTo(-0.8, 2);
+  });
+
+  it('one turn of a conversation: two voices say the same words, each with its own body and way of speaking', () => {
+    const phones = textToPhones('la luna', 'it');
+    const deep = utterance(builtinVoice('deep')!.design, phones, 'it');
+    const child = utterance(builtinVoice('child')!.design, phones, 'it');
+    expect(deep.voice).toBe('builtin-deep');
+    expect(deep.params.phonate).toBe(true);
+    expect(deep.params.anatomy.scale).toBeCloseTo(1.08, 6);
+    expect(child.params.anatomy.scale).toBeCloseTo(0.72, 6);
+    const mean = (u: typeof deep) => { const v = u.score.frames.filter((f) => f.ps > 1); return v.reduce((s, f) => s + f.f0, 0) / v.length; };
+    expect(mean(child)).toBeGreaterThan(2.5 * mean(deep));
+    // what the caller asks for wins over the voice
+    expect(utterance(builtinVoice('deep')!.design, phones, 'it', { rate: 2 }).score.duration).toBeLessThan(0.7 * deep.score.duration);
   });
 });
