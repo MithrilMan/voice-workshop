@@ -8,8 +8,9 @@ import { useL } from '../i18n';
 import { Slider, Toggle } from '../components/controls';
 import { VOICE_PRESETS } from '../presets';
 import { PHONEMES } from '../../dsp/speech/phonemes';
-import { textToPhones } from '../../dsp/speech/g2p';
+import { textToPhones, ipaKind } from '../../dsp/speech/g2p';
 import { buildScore } from '../../dsp/speech/sequencer';
+import { speechLanguage } from '../../dsp/speech/languages';
 import { MRI_VOWELS } from '../../dsp/data/mri';
 import { noteName } from '../canvas';
 import { voice, mriTube } from '../voice/voice';
@@ -72,6 +73,8 @@ export function SayBox(props: { examples?: boolean }) {
   useEffect(() => { if (sp.lang === 'en') void store.ensureLexicon(); }, [sp.lang]);
   const speak = async (text = sp.text, lang = sp.lang) => {
     if (lang === 'en') await store.ensureLexicon();
+    // a language chosen in the lab's Speak panel
+    if (speechLanguage(lang) && !ipaKind(text)) await store.ensurePhonemes(text, lang, true);
     const ph = textToPhones(text, lang);
     if (!ph.length) return;
     const p = voice.manual;

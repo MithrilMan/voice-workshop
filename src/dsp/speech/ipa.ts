@@ -154,14 +154,6 @@ export const IPA_SPELLINGS: Record<string, string> = {
   'ɡ': 'g', 'ʤ': 'dʒ', 'ʧ': 'tʃ', 'ʦ': 'ts', 'ʣ': 'dz', 'ᵊ': 'ə', 'ᵻ': 'ɪ', 'ɩ': 'ɪ', 'ɷ': 'ʊ', 'ʚ': 'ɞ', 'ɼ': 'r̝', 'ɿ': 'z̩', 'ʅ': 'ʐ̩',
 };
 
-/** Symbols the model makes only approximately, and why. */
-export const APPROXIMATE: Record<string, string> = {
-  'ɴ': 'the model joins the nose to the tube at a fixed place, in front of a uvular closure: made as a velar nasal',
-  'ʟ': 'the sides of the tongue open only in front of the velum: made as a velar approximant',
-  'ʜ': 'the model has no epiglottis: made as a pharyngeal fricative',
-  'ʢ': 'the model has no epiglottis: made as a pharyngeal fricative',
-};
-
 const PLACE_NAMES: Record<Place, string> = {
   bilabial: 'bilabial', labiodental: 'labiodental', dental: 'dental', alveolar: 'alveolar', postalveolar: 'postalveolar',
   retroflex: 'retroflex', alveolopalatal: 'alveolo-palatal', palatal: 'palatal', velar: 'velar', uvular: 'uvular',
