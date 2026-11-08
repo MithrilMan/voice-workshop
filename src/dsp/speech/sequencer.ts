@@ -6,6 +6,7 @@ import { TamChannel, TAM_TAU } from './tam';
 import { phonemeFor, constrictionOf, contactPoint, passageIn } from './derive';
 import { IPA_CONSONANTS, IPA_VOWELS, Place } from './ipa';
 import { normalizeIpa } from './ipaReader';
+import { ProsodyStyle, styleOf, lengthen, ST } from './style';
 
 /**
  * Turns phones into a gestural score: piecewise targets for every articulator
@@ -77,6 +78,8 @@ export interface ProsodyOptions {
    * planner's own runs of the target dynamics use the same
    */
   tauScale?: Partial<Record<keyof Articulators, number>>;
+  /** the speaker's way of speaking: melody, pauses, accents, phrase ends (the planner's own values by default) */
+  style?: Partial<ProsodyStyle>;
 }
 
 /** Options of buildScore: any prosody option, and any subset of the naturalness ingredients. */
@@ -320,13 +323,13 @@ const ITALIAN: Record<string, [number, number]> = {
   l: [65, 40], 'ʎ': [95, 65], r: [70, 50], 'ɾ': [25, 20], j: [60, 40], w: [60, 40], h: [70, 30],
 };
 
-function englishDuration(u: Unit, next: Unit | undefined, prev: Unit | undefined): number {
+function englishDuration(u: Unit, next: Unit | undefined, prev: Unit | undefined, st: ProsodyStyle): number {
   const [inh, min0] = KLATT[u.p.ipa] ?? [u.ph.dur * 1000, u.ph.dur * 500];
   let min = min0;
   let pr = 1;
   const clauseFinal = u.phraseFinal && u.boundary !== 'comma';
   if (u.vowel) {
-    if (u.phraseFinal) pr *= clauseFinal ? 1.4 : 1.2; // phrase-final lengthening
+    if (u.phraseFinal) pr *= lengthen(clauseFinal ? 1.4 : 1.2, st); // phrase-final lengthening
     else pr *= 0.6; // non-phrase-final shortening
     if (!u.wordFinalSyl) pr *= 0.85;
     if (u.polysyllabic) pr *= 0.8;
@@ -346,12 +349,12 @@ function englishDuration(u: Unit, next: Unit | undefined, prev: Unit | undefined
     if (!u.stressed) pr *= 0.7;
     const pc = isCons(prev) && prev!.word === u.word, nc = isCons(next) && next!.word === u.word;
     if (pc && nc) pr *= 0.5; else if (pc || nc) pr *= 0.7;
-    if (u.phraseFinal && u.coda) pr *= 1.4;
+    if (u.phraseFinal && u.coda) pr *= lengthen(1.4, st);
   }
   return (min + (inh - min) * pr) / 1000;
 }
 
-function italianDuration(u: Unit, next: Unit | undefined, prev: Unit | undefined): number {
+function italianDuration(u: Unit, next: Unit | undefined, prev: Unit | undefined, st: ProsodyStyle): number {
   const [inh, min0] = ITALIAN[u.p.ipa] ?? KLATT[u.p.ipa] ?? [u.ph.dur * 1000, u.ph.dur * 500];
   let min = min0;
   let pr = 1;
@@ -362,14 +365,14 @@ function italianDuration(u: Unit, next: Unit | undefined, prev: Unit | undefined
     if (u.p.stress) pr *= closed ? 0.75 : 1.55;
     else if (u.p.func) { pr *= 0.35; min *= 0.7; }
     else { pr *= 0.45; min *= 0.75; }
-    if (u.phraseFinal) pr *= u.boundary === 'comma' ? 1.2 : 1.4;
+    if (u.phraseFinal) pr *= lengthen(u.boundary === 'comma' ? 1.2 : 1.4, st);
     if (!u.p.stress && u.wordFinalSyl && !u.p.func) pr *= 1.1;
   } else {
     if (u.p.wordStart) pr *= 1.05;
     const pc = isCons(prev) && prev!.word === u.word, nc = isCons(next) && next!.word === u.word;
     if (pc || nc) pr *= 0.8;
     if (!u.stressed) pr *= 0.9;
-    if (u.phraseFinal && u.coda) pr *= 1.3;
+    if (u.phraseFinal && u.coda) pr *= lengthen(1.3, st);
   }
   let d = min + (inh - min) * pr;
   if (u.p.long && !u.vowel) d *= 1.85;
@@ -383,19 +386,19 @@ function italianDuration(u: Unit, next: Unit | undefined, prev: Unit | undefined
  * closed syllable or in a cluster. Syllabic consonants last about as long as
  * a short vowel.
  */
-function neutralDuration(u: Unit, next: Unit | undefined, prev: Unit | undefined): number {
+function neutralDuration(u: Unit, next: Unit | undefined, prev: Unit | undefined, st: ProsodyStyle): number {
   let d = u.ph.dur;
   if (u.vowel) {
     if (u.ph.manner !== 'vowel') d *= 1.6;
     if (u.p.stress) d *= 1.25; else if (!u.p.stress2) d *= 0.85;
-    if (u.phraseFinal) d *= u.boundary === 'comma' ? 1.2 : 1.4;
+    if (u.phraseFinal) d *= lengthen(u.boundary === 'comma' ? 1.2 : 1.4, st);
     const nx = next && next.word === u.word ? next : undefined;
     if (nx && !nx.vowel && (nx.coda || nx.p.long)) d *= 0.85;
     if (u.p.long) d *= 1.7;
   } else {
     const pc = isCons(prev) && prev!.word === u.word, nc = isCons(next) && next!.word === u.word;
     if (pc || nc) d *= 0.85;
-    if (u.phraseFinal && u.coda) d *= 1.25;
+    if (u.phraseFinal && u.coda) d *= lengthen(1.25, st);
     if (u.p.long) d *= 1.85;
   }
   return d;
@@ -407,7 +410,6 @@ const ALPHA = 2.0; // phrase control, 1/s
 const GAMMA = 0.9; // ceiling of the accent response
 const gp = (t: number) => (t > 0 ? ALPHA * ALPHA * t * Math.exp(-ALPHA * t) : 0);
 const ga = (t: number, beta: number) => (t > 0 ? Math.min(1 - (1 + beta * t) * Math.exp(-beta * t), GAMMA) : 0);
-const ST = Math.LN2 / 12; // one semitone in log units
 
 interface Command { t1: number; t2: number; a: number; beta: number }
 
@@ -416,6 +418,7 @@ interface Command { t1: number; t2: number; a: number; beta: number }
 export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   const o: ProsodyOptions = { ...DEFAULT_PROSODY, ...opts, natural: { ...NATURAL_ALL, ...(opts.natural ?? {}) } };
   const nat = o.natural;
+  const st = styleOf(o.style);
   const rate = Math.max(0.3, o.rate);
   const literal = o.literal ?? (phones.length > 0 && phones.every((p) => p.literal));
   const en = !literal && o.lang === 'en';
@@ -424,7 +427,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // durations
   for (let i = 0; i < units.length; i++) {
     const u = units[i];
-    if (nat.timing) u.dur = (literal ? neutralDuration : en ? englishDuration : italianDuration)(u, units[i + 1], units[i - 1]);
+    if (nat.timing) u.dur = (literal ? neutralDuration : en ? englishDuration : italianDuration)(u, units[i + 1], units[i - 1], st);
     else u.dur = u.ph.dur * (u.p.long && !u.vowel ? 1.9 : 1);
     if (u.p.halfLong) u.dur *= 1.3;
     if (u.p.extraShort) u.dur *= 0.55;
@@ -479,7 +482,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     }
     // a pause inside the utterance; after the last sound the voice simply stops
     if (u.p.pause && i < units.length - 1) {
-      const d = (u.p.pause === 'long' ? 0.3 : 0.16) / rate;
+      const d = (u.p.pause === 'long' ? st.pauseLong : st.pauseShort) / rate;
       segs.push({ ipa: '_', ph: PHONEMES._, t0: t, t1: t + d, unit: i, label: '_' });
       t += d;
     }
@@ -768,7 +771,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       const isEnd = i === units.length - 1 || !!u.p.pause;
       if (!isEnd) continue;
       const startT = segs.find((s) => s.unit === phraseStart)?.t0 ?? 0;
-      phraseCmds.push({ t: startT - 0.25, a: first ? 0.32 : u.boundary === 'comma' || units[phraseStart - 1]?.boundary === 'comma' ? 0.16 : 0.26 });
+      phraseCmds.push({ t: startT - 0.25, a: st.phrase * (first ? 0.32 : u.boundary === 'comma' || units[phraseStart - 1]?.boundary === 'comma' ? 0.16 : 0.26) });
       first = false;
       // accents on the stressed vowels of content words
       const acc: number[] = [];
@@ -799,20 +802,20 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
           accentCmds.push({ t1: Math.min(vs.t0 - 0.03, t2 - 0.13), t2, a, beta: betaAcc });
         }
         // downstep: each accent a little lower than the one before, never below 60 %
-        height = Math.max(0.6 * o.accent * ST, height * 0.9);
+        height = Math.max(st.downstepFloor * o.accent * ST, height * st.downstep);
       });
       // boundary tones
       const lv = lastV >= 0 ? vowelSeg(lastV) : undefined;
       const endT = segs.filter((s) => s.unit <= i).reduce((m, s) => Math.max(m, s.t1), 0);
       if (lv) {
-        if (yesNo) accentCmds.push({ t1: lv.t0 - 0.1, t2: endT + 0.2, a: 0.5, beta: 16 });
-        else if (boundary === 'comma') accentCmds.push({ t1: lv.t0, t2: endT + 0.1, a: 0.13, beta: 16 });
-        else accentCmds.push({ t1: lv.t0 - 0.02, t2: endT + 0.2, a: -0.13, beta: 12 }); // final lowering
+        if (yesNo) accentCmds.push({ t1: lv.t0 - 0.1, t2: endT + 0.2, a: st.questionRise * ST, beta: 16 });
+        else if (boundary === 'comma') accentCmds.push({ t1: lv.t0, t2: endT + 0.1, a: st.continuation * ST, beta: 16 });
+        else accentCmds.push({ t1: lv.t0 - 0.02, t2: endT + 0.2, a: -st.finalFall * ST, beta: 12 }); // final lowering
       }
       phraseStart = i + 1;
     }
   }
-  const floor = o.f0 * Math.pow(2, -4 / 12);
+  const floor = o.f0 * Math.pow(2, -st.floor / 12);
   // microprosody: intrinsic F0 of vowels and the push of the preceding consonant
   const micro: { t0: number; t1: number; st: number; decay?: number }[] = [];
   if (nat.micro) {
@@ -821,24 +824,24 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       // close vowels are a little higher, open ones a little lower (by their place on the chart)
       const h = vowelHeight(s.ipa);
       const intrinsic = h === undefined ? 0 : h >= 0.85 ? 0.7 : h <= 0.17 ? -0.5 : 0;
-      if (intrinsic) micro.push({ t0: s.t0, t1: s.t1, st: intrinsic });
+      if (intrinsic) micro.push({ t0: s.t0, t1: s.t1, st: st.micro * intrinsic });
       const prevSeg = segs[segs.indexOf(s) - 1];
-      if (prevSeg && isObstruent(prevSeg.ph)) micro.push({ t0: s.t0, t1: s.t0 + 0.12, st: prevSeg.ph.voiced ? -0.8 : 1.3, decay: 0.035 });
+      if (prevSeg && isObstruent(prevSeg.ph)) micro.push({ t0: s.t0, t1: s.t0 + 0.12, st: st.micro * (prevSeg.ph.voiced ? -0.8 : 1.3), decay: 0.035 });
     }
   }
   // a creaky (laryngealized) sound is said low in the voice
   for (const s of segs) if (s.ph.phonation === 'creaky' && s.part !== 'release') micro.push({ t0: s.t0, t1: s.t1, st: -3 });
   const microAt = (time: number): number => {
-    let st = 0;
+    let sum = 0;
     for (const m of micro) {
       if (time < m.t0 - 0.03 || time > m.t1 + 0.03) continue;
-      if (m.decay) st += m.st * Math.exp(-Math.max(0, time - m.t0) / m.decay);
+      if (m.decay) sum += m.st * Math.exp(-Math.max(0, time - m.t0) / m.decay);
       else {
         const e = Math.min(1, Math.max(0, (time - m.t0 + 0.03) / 0.06), Math.max(0, (m.t1 + 0.03 - time) / 0.06));
-        st += m.st * e;
+        sum += m.st * e;
       }
     }
-    return st;
+    return sum;
   };
   const f0At = (time: number): number => {
     let f: number;
@@ -945,16 +948,16 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     let rd = quality;
     if (time < duration) {
       if (nat.voiceQuality) {
-        ps *= 1 - 0.12 * (time / duration);
+        ps *= 1 - st.declination * (time / duration);
         for (const v of stressedVowels) {
           const c = 0.5 * (v.t0 + v.t1), w = (v.t1 - v.t0) + 0.08;
           const d = Math.abs(time - c);
-          if (d < w) { const e = 0.5 * (1 + Math.cos((Math.PI * d) / w)); ps *= 1 + 0.14 * e; rd -= 0.12 * e; }
+          if (d < w) { const e = 0.5 * (1 + Math.cos((Math.PI * d) / w)); ps *= 1 + st.stressPs * e; rd -= st.stressRd * e; }
         }
         // the end of each phrase relaxes: less pressure, breathier voice
         for (const pe of phraseEnds) {
           const d = pe - time;
-          if (d >= 0 && d < 0.28) { const e = 1 - d / 0.28; ps *= 1 - 0.18 * e; rd += 0.55 * e; }
+          if (d >= 0 && d < st.endWindow) { const e = 1 - d / st.endWindow; ps *= 1 - st.endPs * e; rd += st.endRd * e; }
         }
       }
       // a pause is quiet: the lungs hold back instead of blowing through the open glottis
@@ -978,7 +981,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // contour): the engine only rounds off the 5 ms frame steps, without the
   // slower glide it gives to a slider, which would shave the accent peaks
   const scaled = o.tauScale && Object.values(o.tauScale).some((v) => v !== undefined && v !== 1);
-  return { frames, phones: sp, duration, flutter: nat.micro ? 25 : 0, f0Tau: 0.006, ...(scaled ? { tauScale: { ...o.tauScale } } : {}) };
+  return { frames, phones: sp, duration, flutter: nat.micro ? st.flutter : 0, f0Tau: 0.006, ...(scaled ? { tauScale: { ...o.tauScale } } : {}) };
 }
 
 /** A sustained vowel or a glide between targets, for the singing / A-B demos. */
