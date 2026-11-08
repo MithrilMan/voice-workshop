@@ -239,6 +239,8 @@ export class Waveguide {
   /** outputs of the last step */
   lipFlow = 0;
   nosFlow = 0;
+  /** volume velocity of the yielding walls, outward (cm^3/s): the tissue carries it to the skin of the neck and cheeks, which radiate it */
+  wallFlow = 0;
   /** flow at the glottal end of the tract (cm^3/s) */
   glottalEndFlow = 0;
 
@@ -254,6 +256,10 @@ export class Waveguide {
   walls = true;
   private wallJ: Int32Array;
   private wallS: Float64Array;
+  /** the wall surfaces the ramp glides to (heard through the skin, a jump would click) */
+  private wallST: Float64Array;
+  /** per-sample decay of a wall left at a branch junction, so that it leaves the sound smoothly */
+  private wallIdle = 0.995;
   private wallY: Float64Array;
   private wallV: Float64Array;
 
@@ -268,6 +274,7 @@ export class Waveguide {
     this.wallJ = new Int32Array(nw);
     for (let i = 0; i < nw; i++) this.wallJ[i] = 2 * i + 1;
     this.wallS = new Float64Array(nw);
+    this.wallST = new Float64Array(nw);
     this.wallY = new Float64Array(nw);
     this.wallV = new Float64Array(nw);
     this.resTarget = new Float64Array(n);
@@ -332,8 +339,10 @@ export class Waveguide {
       // there would be unstable): fade the wall surface out below 0.2 cm^2
       const fade = Math.min(1, Math.max(0, (a - 0.02) / 0.18));
       const soft = af.soft ? 0.5 * (af.soft[j] + af.soft[j + 1]) : 1;
-      this.wallS[i] = 2 * Math.sqrt(Math.PI * a) * soft * 2 * af.dx * fade * fade;
+      this.wallST[i] = 2 * Math.sqrt(Math.PI * a) * soft * 2 * af.dx * fade * fade;
+      if (steps <= 1) this.wallS[i] = this.wallST[i];
     }
+    this.wallIdle = Math.exp(-1 / (0.002 * fs));
     const first = steps <= 1;
     designRadiation(this.oral.target[this.n - 1], fs, this.lipRad, first);
     designRadiation(this.nasalL.target[this.nasalL.n - 1], fs, this.nosRadL, first);
@@ -426,6 +435,8 @@ export class Waveguide {
       glideRad(this.lipRad, w);
       glideRad(this.nosRadL, w);
       glideRad(this.nosRadR, w);
+      const ws = this.wallS, wst = this.wallST;
+      for (let q = 0; q < ws.length; q++) ws[q] += (wst[q] - ws[q]) * w;
     }
     const f = o.f, b = o.b, fn = o.fn, bn = o.bn, k = o.k, loss = o.loss;
 
@@ -501,20 +512,28 @@ export class Waveguide {
       const dt = 1 / this.fs;
       const wj = this.wallJ, ws = this.wallS, wy = this.wallY, wv = this.wallV;
       const rc = RHO * C_SOUND;
+      let sum = 0;
       for (let q = 0; q < wj.length; q++) {
         const j = wj[q];
-        if (j === J || j === P || j === Q || j === P2 || j === Q2) continue;
+        if (j === J || j === P || j === Q || j === P2 || j === Q2) {
+          // a branch joins here: the wall comes to rest instead of stopping dead
+          wv[q] *= this.wallIdle; wy[q] *= this.wallIdle;
+          sum += ws[q] * wv[q];
+          continue;
+        }
         const pj = fn[j + 1] + b[j + 1];
         let v = wv[q];
         v += (dt / WALL_MASS) * (pj - WALL_RES * v - WALL_STIFF * wy[q]);
         wy[q] += dt * v;
         wv[q] = v;
         const uw = ws[q] * v;
+        sum += uw;
         const c = (rc * uw) / (o.area[j] + o.area[j + 1]);
         fn[j + 1] -= loss[j + 1] * c;
         bn[j] -= loss[j] * c;
       }
-    }
+      this.wallFlow = sum;
+    } else this.wallFlow = 0;
     if (this.monoJunction >= 0 && this.monoJunction < n - 1) {
       const j = this.monoJunction;
       const v = (RHO * C_SOUND * this.monoValue) / Math.max(0.2, o.area[j] + o.area[j + 1]);

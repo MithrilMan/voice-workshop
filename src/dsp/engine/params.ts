@@ -95,6 +95,9 @@ export interface EngineParams {
   bypassTract: boolean;
   /** multiplier of the waveguide losses */
   losses: number;
+  /** how much of the yielding walls' motion is heard through the skin of the neck and cheeks (1 = all of it; the back of
+   *  the pharynx rests on the spine and the neck is farther from the listener than the lips, so about half by default) */
+  wallRadiation: number;
   /** vocal tract drawn as a tube (direct area-function mode) */
   tubeMode: boolean;
   /** user area function for tube mode (cm^2), any length >= 2, resampled to N */
@@ -163,6 +166,7 @@ export function defaultParams(): EngineParams {
     volume: 0,
     bypassTract: false,
     losses: 1,
+    wallRadiation: 0.5,
     tubeMode: false,
     tubeAreas: new Array(16).fill(3),
     tubeLength: 17.5,

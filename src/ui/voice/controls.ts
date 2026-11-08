@@ -39,7 +39,7 @@ export function controlOf(path: string): ControlId | null {
   if (path.startsWith('noise.')) return 'noise';
   if (path === 'tubeMode' || path === 'bypassTract') return 'filter';
   if (path === 'tubeAreas' || path === 'tubeLength') return 'tube';
-  if (path === 'losses') return 'walls';
+  if (path === 'losses' || path === 'wallRadiation') return 'walls';
   if (path === 'volume') return 'volume';
   return null;
 }

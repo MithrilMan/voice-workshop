@@ -259,7 +259,7 @@ export class VoiceController {
       p.teeth = { ...DEFAULT_TEETH };
       p.source = { ...DEFAULT_SOURCE };
       p.noise = { ...DEFAULT_NOISE, user: { ...DEFAULT_NOISE.user, curve: Array.from(colourCurve('white')) } };
-      p.abduction = 0; p.voicing = true; p.bypassTract = false; p.tubeMode = false; p.losses = 1;
+      p.abduction = 0; p.voicing = true; p.bypassTract = false; p.tubeMode = false; p.losses = 1; p.wallRadiation = defaultParams().wallRadiation;
     }, { takeOver: true });
   }
 

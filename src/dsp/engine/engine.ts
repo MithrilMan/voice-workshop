@@ -815,7 +815,7 @@ export class VoiceEngine {
     }
 
     wg.step();
-    const uOut = wg.lipFlow + wg.nosFlow;
+    const uOut = wg.lipFlow + wg.nosFlow + p.wallRadiation * wg.wallFlow;
     let rad = (uOut - this.uPrev) * fs;
     this.uPrev = uOut;
     if (p.bypassTract) rad = this.dflow + (asp + wall + obs + user) * NOISE_K.bypass * fs;

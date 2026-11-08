@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 214 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 216 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -469,9 +469,18 @@ Flanagan 1975: m = 1.5 g/cm², r = 1600 dyn s/cm³, k = 3e5 dyn/cm³) removes
 air as a flow sink over the soft part of the wall only (in /i/ half of the
 wall under the hard palate, the tongue; all of it in the pharynx; none at the
 incisal slit), which raises F1 in closed tracts and sets the low-frequency
-bandwidths. Lips and nostrils: Flanagan's piston radiation
+bandwidths. The walls are also heard: the air they take in and give back
+moves the tissue out to the skin of the neck and the cheeks, which radiates
+it like a small mouth. Half of their summed volume velocity joins the sound
+(the back of the pharynx rests on the spine, and the neck is farther from
+the listener than the lips), so a voiced closure hums low, 21-26 dB below its
+vowel: the voice bar of a spectrogram, through which /b d g/ sound voiced;
+a voiceless closure stays silent. The surfaces glide with the areas, and a
+wall where a branch joins comes to rest instead of stopping, so that it
+never clicks. Lips and nostrils: Flanagan's piston radiation
 impedance (parallel R-L) as a first-order reflection filter (bilinear
-transform); the sound is the time derivative of lip plus nostril flow. Areas,
+transform); the sound is the time derivative of lip plus nostril flow, with
+the walls' share. Areas,
 losses and radiation coefficients glide sample by sample between control
 updates, so articulations never click. Jet losses: where the flow leaves a
 narrow passage (the constriction of a fricative, the slit between the
@@ -1061,7 +1070,7 @@ in brackets are the adult male targets described under Speech.
 | Italian durations | stressed /a/ in fato 156 ms vs fatto 104 ms |
 | Voice onset time | /t/ English 77 ms, after /s/ 21 ms; Italian /p t k/ 12 / 21 / 25 ms (Lisker & Abramson: English /t/ about 70 ms, range 30-105; Italian voiceless stops short-lag, under about 30 ms, /k/ longest) |
 | Trill and tap | tongue-tip closures: "carro" 4, "caro" 1 |
-| Consonant dips | nasals 7.0-15.0 dB, /v/ 13.2-19.9 dB below their vowels (natural speech: nasals 6-12 dB, voiced fricatives 12-20 dB; 8.3-17.7 dB without the jet losses) ("la mamma vuole la nonna e il vino", "Every voice you have ever heard is raining in."); no complete closure in /v w l/, the narrowest /v/ 0.08 cm² (0.03 before the lip could slide out from under the teeth); /ŋ/ in front of the nasal port in every vowel context |
+| Consonant dips | nasals 6.4-13.5 dB, /v/ 11.3-17.9 dB below their vowels (natural speech: nasals 6-12 dB, voiced fricatives 12-20 dB) ("la mamma vuole la nonna e il vino", "Every voice you have ever heard is raining in."); no complete closure in /v w l/, the narrowest /v/ 0.08 cm² (0.03 before the lip could slide out from under the teeth); /ŋ/ in front of the nasal port in every vowel context |
 | Vowels in running speech | 15 English and Italian sentences, each vowel in its middle against the same vowel held: front vowels F2 99 % on average, 97 % at the 10th percentile; F3 of non-rhotic vowels 2367 Hz at the 10th percentile, 6.5 % of them 150 Hz below their own (after /ɹ/, before /l/); tip 0.24 at the 90th percentile; F1 100 %; tongue body 0.04 from its target; nasal port 0.002 cm² at most away from nasals, 0.05 cm² on average next to one |
 | Fujisaki intonation | final F0: statement 106 Hz, wh-question 101 Hz, yes/no question 180 Hz (base 120 Hz) |
 | Melody | "Every voice you have ever heard is made of just two ingredients.": planned F0 range 10.2 st; the voice follows the plan within 0.58 st (90 %), 1.9 st with the slider smoothing |
@@ -1082,6 +1091,7 @@ in brackets are the adult male targets described under Speech.
 | Trills | closures of the lips in [aʙa] 3, of the dorsum against the uvula in [aʀa] 4, of the tip in [ara] 1 |
 | Velar lateral | ʟ: midline closed by the dorsum, lateral channels over 10 grid lines, 7.0-9.6 cm from the lips; /l/ F3 still 2421 Hz |
 | Uvular nasal | murmur against the vowel: [ŋ] -4.4 dB, [ɴ] -7.9 dB (-19.3 dB with the nose joined at the velum, in front of the closure) |
+| Walls heard | quietest 10 ms of a closure against its vowel: /b/ -26, /d/ -21, /g/ -24 dB, a hum centred at 158 Hz (-132 dB with the walls unheard); /p/ -83 dB; held against /a/: /i/ -3.9 dB, /u/ -8.3 dB (-12.4 unheard), /m/ -7.2 dB |
 | Epilarynx | narrowest section of the tube above the folds 0.43 cm² at rest, 0.19 with the sphincter at 0.5, shut at 1; at 0.5 the band 2.4-3.6 kHz rises against the first formant's by 3.7 dB (/a/), 4.6 (/i/), 8.9 (/u/) in the transfer function and by 2.3 dB in a held /a/ |
 | Epiglottals | ʡ shut 16.7 cm from the lips, its closure about 100 dB below the vowel in [ˈaʡa]; ʜ 0.10 cm² at 16.5 cm (ħ at 12.3), 27 dB below the vowel; a voice with a twang keeps the sphincter at its setting through every other sound |
 | Clicks | cavity between the closures: [ʘ] -19.4 cmH2O, [ǀ] -18.5, [ǃ] -18.7, [ǁ] -17.9; inflow at the front release 848, 294, 297, 227 cm³/s with the back closure still shut |
@@ -1121,8 +1131,9 @@ in brackets are the adult male targets described under Speech.
   narrowing adds only 2.3 dB of ring to a held /a/ at 0.5; the twang of a
   singer also raises the larynx, narrows the pharynx and spreads the lips,
   which the habits set apart.
-- A held /u/ is probably too weak: 11 dB below /a/, against 4.7 dB for /i/,
-  where natural speech has close vowels only a few dB below open ones. Its
+- A held /u/ is still on the weak side: 8.3 dB below /a/, against 3.9 dB
+  for /i/ (12.4 and 5.7 before the walls were heard), where natural speech
+  has close vowels only a few dB below open ones. Its
   first resonance is damped by the soft walls, which also lift it from
   208 Hz (rigid walls) to 304 Hz: the bandwidth is 108 Hz in both acoustic
   models, against about 70 Hz measured for close vowels with the glottis
@@ -1161,8 +1172,10 @@ in brackets are the adult male targets described under Speech.
 - The air behind a constriction is one cavity, and only the larynx changes
   its volume: the jaw, the cheeks and the tongue root of a real speaker also
   expand or squeeze it, here they are folded into the compliance of the
-  walls. The voice of a closed tract is not radiated through the walls of
-  the neck and the cheeks, so the voice bar of a voiced closure is silent.
+  walls. The walls are heard as one share of their summed motion, not as
+  surfaces of the neck and the cheeks with their own place, size and
+  filtering by the tissue; the share (half) is set by the voice bar and by
+  the level of a held /m/, which it leaves 7.2 dB below /a/.
 - The piriform fossae have the dimensions of an average adult man, scaled
   with the speaker; real ones differ from person to person, and from the
   left to the right side.
