@@ -1,4 +1,11 @@
 import { Articulators } from '../tract/types';
+import type { Place } from './ipa';
+
+/** the articulators that strike in taps and trills: the tongue tip, the lips, the dorsum against the uvula */
+export type FlickKey = 'tipY' | 'lipOpen' | 'tongueX';
+
+/** what is approximate about a sound derived from rules (the interface explains each) */
+export type ApproxCode = 'uvularNasal' | 'velarLateral' | 'epiglottalFricative' | 'doubleFricative' | 'degree' | 'click' | 'ejective' | 'implosive';
 
 export type Manner =
   | 'vowel' | 'fricative' | 'stop' | 'nasal' | 'approximant' | 'lateral' | 'trill' | 'tap' | 'affricate' | 'glottal' | 'glottalStop' | 'silence';
@@ -30,6 +37,25 @@ export interface Phoneme {
   dorsal?: boolean;
   /** diphthongs: the vowel the tongue and lips glide to */
   offglide?: string;
+  /** place of articulation on the IPA chart (VOT and short lag of stops, derived sounds) */
+  place?: Place;
+  /** released into a voiceless interval before the voice (ʰ) */
+  aspirated?: boolean;
+  /** voice quality of the segment: breathy (murmured) or creaky (laryngealized) */
+  phonation?: 'breathy' | 'creaky';
+  /** air set in motion by the larynx (ejective, implosive) or by the tongue (click), not the lungs */
+  airstream?: 'ejective' | 'implosive' | 'click';
+  /** taps and trills: the articulator that strikes and its value at the contact */
+  flick?: { key: FlickKey; contact: number };
+  /** a stop held without an audible release (̚) */
+  unreleased?: boolean;
+  /** a consonant that is the nucleus of its syllable (n̩), or a vowel that is not (ɪ̯) */
+  syllabic?: boolean;
+  nonSyllabic?: boolean;
+  /** made from rules (derive.ts), not fitted to measurements */
+  derived?: boolean;
+  /** what is approximate about it */
+  approx?: ApproxCode;
 }
 
 const V = (ipa: string, art: Partial<Articulators>, examples: string, dur = 0.14): Phoneme => ({

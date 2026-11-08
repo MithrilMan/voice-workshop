@@ -1,8 +1,11 @@
 import { Articulators, ARTICULATOR_KEYS, ARTICULATOR_RANGES, DEFAULT_ARTICULATORS } from '../tract/types';
-import { PHONEMES, Phoneme } from './phonemes';
+import { PHONEMES, Phoneme, FlickKey } from './phonemes';
 import { Phone, Lang } from './g2p';
 import { Score, ScoreFrame, ScorePhone } from '../engine/params';
 import { TamChannel, TAM_TAU } from './tam';
+import { phonemeFor } from './derive';
+import { IPA_CONSONANTS, IPA_VOWELS, Place } from './ipa';
+import { normalizeIpa } from './ipaReader';
 
 /**
  * Turns phones into a gestural score: piecewise targets for every articulator
@@ -56,6 +59,13 @@ export interface ProsodyOptions {
   ps: number;
   /** language: durations, aspiration, accent alignment */
   lang: Lang;
+  /**
+   * said as written, with no language's rules: durations from the sounds and
+   * the length marks, aspiration only where it is written, syllables from the
+   * breaks or the sonority of the clusters (a [phonetic] transcription; by
+   * default when its phones say so)
+   */
+  literal?: boolean;
   /** optional user contour: points (t in 0..1 of the utterance, f0 in Hz) */
   contour?: { t: number; f0: number }[];
   /** articulatory lead of targets before the acoustic segment, s */
@@ -121,6 +131,35 @@ const COMPENSATED: (keyof Articulators)[] = ['tongueX', 'tongueY', 'tongueRoot',
 const OVERSHOOT = 0.6;
 const isObstruent = (ph: Phoneme | undefined) => !!ph && (ph.manner === 'stop' || ph.manner === 'fricative' || ph.manner === 'affricate');
 const isCons = (u: Unit | undefined) => !!u && !u.vowel && u.ph.manner !== 'silence';
+/** the nucleus of a syllable: a vowel unless marked non-syllabic, or a consonant marked syllabic */
+const isNucleus = (ph: Phoneme) => (ph.manner === 'vowel' && !ph.nonSyllabic) || !!ph.syllabic;
+
+/** place of articulation of a stop, from the chart for the fitted ones */
+const placeOf = (ph: Phoneme): Place | undefined => ph.place ?? IPA_CONSONANTS[ph.ipa]?.place;
+/** voice onset time of aspirated stops by place (Cho & Ladefoged 1999: further back, longer) */
+const VOT: Partial<Record<Place, number>> = {
+  bilabial: 0.055, labiodental: 0.055, dental: 0.065, alveolar: 0.065, postalveolar: 0.065, retroflex: 0.065,
+  alveolopalatal: 0.07, palatal: 0.07, velar: 0.075, uvular: 0.08, pharyngeal: 0.08, epiglottal: 0.08,
+};
+/** the short voice lag of unaspirated voiceless stops by place */
+const SHORT_LAG: Partial<Record<Place, number>> = {
+  bilabial: 0.008, labiodental: 0.008, dental: 0.012, alveolar: 0.012, postalveolar: 0.012, retroflex: 0.012,
+  alveolopalatal: 0.016, palatal: 0.016, velar: 0.02, uvular: 0.022, pharyngeal: 0.022, epiglottal: 0.022,
+};
+/** height of a vowel on the chart (its first symbol), for its intrinsic pitch */
+const vowelHeight = (ipa: string): number | undefined => IPA_VOWELS[normalizeIpa(ipa)[0]]?.height;
+
+/** sonority of a sound, for the syllables of a [phonetic] transcription */
+function sonority(ph: Phoneme): number {
+  switch (ph.manner) {
+    case 'stop': case 'affricate': case 'glottalStop': return 0;
+    case 'fricative': case 'glottal': return 1;
+    case 'nasal': return 2;
+    case 'lateral': case 'trill': case 'tap': return 3;
+    case 'approximant': return 4;
+    default: return 5;
+  }
+}
 
 // ------------------------------------------------------------------ context
 
@@ -132,17 +171,37 @@ function legalOnset(a: string, b: string): boolean {
   return false;
 }
 
-function analyse(phones: Phone[]): Unit[] {
+/**
+ * How many consonants before a vowel open its syllable: a written syllable
+ * break decides; otherwise English and Italian keep at most a legal two-sound
+ * onset, and a [phonetic] transcription the longest one rising in sonority
+ * toward the vowel (with /s/ before a stop, as in most languages that allow
+ * clusters).
+ */
+function onsetStart(onset: Unit[], literal: boolean): number {
+  const n = onset.length;
+  for (let j = n - 1; j >= 0; j--) if (onset[j].p.sylStart) return j;
+  if (!literal) {
+    if (n >= 2 && legalOnset(onset[n - 2].p.ipa, onset[n - 1].p.ipa)) return n - 2;
+    return Math.max(0, n - 1);
+  }
+  let first = n - 1;
+  while (first > 0 && sonority(onset[first - 1].ph) < sonority(onset[first].ph)) first--;
+  if (first > 0 && /^[sʃ]$/.test(onset[first - 1].p.ipa) && sonority(onset[first].ph) === 0) first--;
+  return Math.max(0, first);
+}
+
+function analyse(phones: Phone[], literal = false): Unit[] {
   const units: Unit[] = [];
   let word = 0;
   for (let i = 0; i < phones.length; i++) {
     const p = phones[i];
-    const ph = PHONEMES[p.ipa];
+    const ph = phonemeFor(p.ipa);
     if (!ph) continue;
     const prevU = units[units.length - 1];
     if (p.wordStart && prevU && !prevU.p.wordEnd && !prevU.p.pause) word++;
     units.push({
-      p, ph, vowel: ph.manner === 'vowel', word, syl: -1, w0: 0, w1: 0, stressed: false, coda: false,
+      p, ph, vowel: isNucleus(ph), word, syl: -1, w0: 0, w1: 0, stressed: false, coda: false,
       phraseFinal: false, boundary: 'stop', wordFinalSyl: false, polysyllabic: false, dur: 0,
     });
     if (p.wordEnd || p.pause) word++;
@@ -173,8 +232,8 @@ function analyse(phones: Phone[]): Unit[] {
     let first = 0;
     if (k >= u.w0) {
       const n = onset.length;
-      if (n >= 2 && legalOnset(units[onset[n - 2]].p.ipa, units[onset[n - 1]].p.ipa)) first = n - 2;
-      else first = Math.max(0, n - 1);
+      // a break written just before the vowel leaves all the consonants to the syllable before
+      first = u.p.sylStart ? n : onsetStart(onset.map((j) => units[j]), literal);
       // the first half of a geminate closes the previous syllable
       if (n >= 1 && units[onset[n - 1]].p.long) first = n - 1;
     }
@@ -298,6 +357,31 @@ function italianDuration(u: Unit, next: Unit | undefined, prev: Unit | undefined
   return d / 1000;
 }
 
+/**
+ * Durations of a [phonetic] transcription, which belongs to no language
+ * whose rules are known: the nominal duration of each sound, longer when
+ * stressed, at the end of a phrase or written long, shorter unstressed, in a
+ * closed syllable or in a cluster. Syllabic consonants last about as long as
+ * a short vowel.
+ */
+function neutralDuration(u: Unit, next: Unit | undefined, prev: Unit | undefined): number {
+  let d = u.ph.dur;
+  if (u.vowel) {
+    if (u.ph.manner !== 'vowel') d *= 1.6;
+    if (u.p.stress) d *= 1.25; else if (!u.p.stress2) d *= 0.85;
+    if (u.phraseFinal) d *= u.boundary === 'comma' ? 1.2 : 1.4;
+    const nx = next && next.word === u.word ? next : undefined;
+    if (nx && !nx.vowel && (nx.coda || nx.p.long)) d *= 0.85;
+    if (u.p.long) d *= 1.7;
+  } else {
+    const pc = isCons(prev) && prev!.word === u.word, nc = isCons(next) && next!.word === u.word;
+    if (pc || nc) d *= 0.85;
+    if (u.phraseFinal && u.coda) d *= 1.25;
+    if (u.p.long) d *= 1.85;
+  }
+  return d;
+}
+
 // ------------------------------------------------------------------ Fujisaki
 
 const ALPHA = 2.0; // phrase control, 1/s
@@ -314,14 +398,19 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   const o: ProsodyOptions = { ...DEFAULT_PROSODY, ...opts, natural: { ...NATURAL_ALL, ...(opts.natural ?? {}) } };
   const nat = o.natural;
   const rate = Math.max(0.3, o.rate);
-  const en = o.lang === 'en';
-  const units = analyse(phones);
+  const literal = o.literal ?? (phones.length > 0 && phones.every((p) => p.literal));
+  const en = !literal && o.lang === 'en';
+  const units = analyse(phones, literal);
 
   // durations
   for (let i = 0; i < units.length; i++) {
     const u = units[i];
-    if (nat.timing) u.dur = (en ? englishDuration : italianDuration)(u, units[i + 1], units[i - 1]);
+    if (nat.timing) u.dur = (literal ? neutralDuration : en ? englishDuration : italianDuration)(u, units[i + 1], units[i - 1]);
     else u.dur = u.ph.dur * (u.p.long && !u.vowel ? 1.9 : 1);
+    if (u.p.halfLong) u.dur *= 1.3;
+    if (u.p.extraShort) u.dur *= 0.55;
+    // the nasal of a prenasalized stop is a short lead-in to it
+    if (u.p.prenasal) u.dur *= 0.45;
     if (u.ph.manner === 'trill') {
       // the number of contacts sets the duration of a trill (each about 38 ms)
       const contacts = u.p.long ? 4 : u.p.wordStart ? 3 : isCons(units[i - 1]) ? 1 : 2;
@@ -339,7 +428,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     const ph = u.ph;
     const parts: [string, number][] = ph.manner === 'affricate' && ph.parts ? [[ph.parts[0], 0.45], [ph.parts[1], 0.55]] : [[u.p.ipa, 1]];
     for (const [ipa, frac] of parts) {
-      const q = PHONEMES[ipa];
+      const q = ipa === u.p.ipa ? ph : phonemeFor(ipa)!;
       const dur = u.dur * frac;
       if (q.manner === 'stop') {
         const rel = Math.min(0.015, dur * 0.35);
@@ -347,16 +436,18 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
         t += dur - rel;
         segs.push({ ipa, ph: q, t0: t, t1: t + rel, unit: i, part: 'release', label: label(u) });
         t += rel;
-        // English voiceless stops are aspirated at the start of a stressed syllable (not after s)
+        // aspiration where it is written (ʰ); English voiceless stops are also
+        // aspirated at the start of a stressed syllable (not after s)
         const nx = units[i + 1];
         const afterS = units[i - 1]?.p.ipa === 's' && units[i - 1].word === u.word;
-        if (en && !q.voiced && ph.manner === 'stop' && nx?.vowel && !u.coda && !afterS) {
-          const vot = ({ p: 0.055, t: 0.065, k: 0.075 }[ipa] ?? 0.06) * (u.stressed ? 1 : 0.55) / Math.sqrt(rate);
+        const written = !!q.aspirated && !q.voiced && ph.manner === 'stop' && !ph.airstream;
+        if (written || (en && !q.voiced && ph.manner === 'stop' && nx?.vowel && !u.coda && !afterS)) {
+          const vot = (VOT[placeOf(q) ?? 'alveolar'] ?? 0.065) * (u.stressed ? 1 : written ? 0.8 : 0.55) / Math.sqrt(rate);
           const asp = Math.max(0.005, vot - rel);
           segs.push({ ipa, ph: q, t0: t, t1: t + asp, unit: i, part: 'aspiration', label: label(u) });
           t += asp;
           // the aspiration takes over the start of the vowel (Klatt)
-          nx.dur = Math.max(0.04, nx.dur - 0.5 * asp);
+          if (nx?.vowel) nx.dur = Math.max(0.04, nx.dur - 0.5 * asp);
         }
       } else {
         segs.push({ ipa, ph: q, t0: t, t1: t + dur, unit: i, label: label(u) });
@@ -385,7 +476,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     if (s.part === 'release' || s.part === 'aspiration') continue;
     const art = s.ph.art;
     const keys = m === 'vowel' || !nat.coarticulation ? ARTICULATOR_KEYS : (Object.keys(art) as (keyof Articulators)[]);
-    const off = s.ph.offglide ? PHONEMES[s.ph.offglide].art : null;
+    const off = s.ph.offglide ? phonemeFor(s.ph.offglide)?.art ?? null : null;
     for (const k of keys) {
       const v = art[k] ?? (nat.coarticulation ? DEFAULT_ARTICULATORS[k] : neutral[k]);
       if (off) {
@@ -465,36 +556,56 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     }
   }
 
-  // tongue-tip contacts of taps and trills (raised-cosine flicks up to the
-  // ridge). Their height is measured from where the smoothed tip really is,
-  // so the same target dynamics as the engine are run here
-  const tipTrack = new TamChannel(valueAt('tipY', 0), TAM_TAU.tipY);
-  const tipSmooth: number[] = [];
-  for (let k = 0; k * FRAME <= duration + 0.05; k++) tipSmooth.push(tipTrack.step(valueAt('tipY', k * FRAME), FRAME));
-  const tipNow = (time: number) => tipSmooth[Math.max(0, Math.min(tipSmooth.length - 1, Math.round(time / FRAME)))];
-  const flicks: { c: number; w: number; a: number }[] = [];
+  // contacts of taps and trills (raised-cosine flicks up to the contact: the
+  // tongue tip to the ridge, the lips together, the dorsum against the
+  // uvula). Their size is measured from where the smoothed articulator
+  // really is, so the same target dynamics as the engine are run here. The
+  // fitted tap and trill of the tip keep the heights they were tuned with
+  const tracks = {} as Record<FlickKey, number[]>;
+  for (const key of ['tipY', 'lipOpen', 'tongueX'] as FlickKey[]) {
+    const tr = new TamChannel(valueAt(key, 0), TAM_TAU[key]);
+    const y: number[] = [];
+    for (let k = 0; k * FRAME <= duration + 0.05; k++) y.push(tr.step(valueAt(key, k * FRAME), FRAME));
+    tracks[key] = y;
+  }
+  const now = (key: FlickKey, time: number) => tracks[key][Math.max(0, Math.min(tracks[key].length - 1, Math.round(time / FRAME)))];
+  const flicks: Record<FlickKey, { c: number; w: number; a: number }[]> = { tipY: [], lipOpen: [], tongueX: [] };
   for (const s of segs) {
+    if (s.ph.manner !== 'tap' && s.ph.manner !== 'trill') continue;
+    const fl = s.ph.flick;
+    const key: FlickKey = fl?.key ?? 'tipY';
+    // the tip strikes upward; the lips and the dorsum close by going down
+    const up = key === 'tipY';
+    const toward = (contact: number, time: number, least: number) => {
+      const d = contact - now(key, time);
+      return up ? Math.max(least, d) : Math.min(-least, d);
+    };
     if (s.ph.manner === 'tap') {
       // the flick is added after the smoothing, so it is not led like the
       // postures; it overshoots the ridge so that the contact lasts about
       // 10-15 ms (American flaps 10-40 ms, Zue & Laferriere 1979)
       const c = 0.5 * (s.t0 + s.t1);
-      flicks.push({ c, w: Math.max(0.04, (s.t1 - s.t0) * 1.6), a: Math.max(0, 2.2 - tipNow(c)) });
-    } else if (s.ph.manner === 'trill') {
+      flicks[key].push({ c, w: Math.max(0.04, (s.t1 - s.t0) * 1.6), a: toward(fl?.contact ?? 2.2, c, 0) });
+    } else {
       const period = 1 / 26;
       const n = Math.max(1, Math.round((s.t1 - s.t0) / period));
       const step = (s.t1 - s.t0) / n;
       for (let k = 0; k < n; k++) {
         const c = s.t0 + (k + 0.5) * step - lead * 0.3;
-        flicks.push({ c, w: 0.62 * step, a: Math.max(0.5, (k === 0 ? 2.3 : 2.0) - tipNow(c)) });
+        // the first contact reaches a little further than the next ones
+        const contact = fl ? fl.contact + (up ? 1 : -1) * (k === 0 ? 0.1 : -0.2) : k === 0 ? 2.3 : 2.0;
+        flicks[key].push({ c, w: 0.62 * step, a: toward(contact, c, up ? 0.5 : 0.15) });
       }
     }
   }
-  const tipAt = (time: number): number => {
+  const flickAt = (key: FlickKey, time: number): number => {
     let y = 0;
-    for (const f of flicks) {
+    for (const f of flicks[key]) {
       const d = Math.abs(time - f.c);
-      if (d < f.w / 2) y = Math.max(y, f.a * 0.5 * (1 + Math.cos((2 * Math.PI * d) / f.w)));
+      if (d < f.w / 2) {
+        const v = f.a * 0.5 * (1 + Math.cos((2 * Math.PI * d) / f.w));
+        if (Math.abs(v) > Math.abs(y)) y = v;
+      }
     }
     return y;
   };
@@ -565,13 +676,16 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   if (nat.micro) {
     for (const s of segs) {
       if (s.ph.manner !== 'vowel') continue;
-      const ip = s.ipa;
-      const intrinsic = ['i', 'u', 'ɪ', 'ʊ'].includes(ip) ? 0.7 : ['a', 'æ', 'ɑ', 'aɪ', 'aʊ'].includes(ip) ? -0.5 : 0;
+      // close vowels are a little higher, open ones a little lower (by their place on the chart)
+      const h = vowelHeight(s.ipa);
+      const intrinsic = h === undefined ? 0 : h >= 0.85 ? 0.7 : h <= 0.17 ? -0.5 : 0;
       if (intrinsic) micro.push({ t0: s.t0, t1: s.t1, st: intrinsic });
       const prevSeg = segs[segs.indexOf(s) - 1];
       if (prevSeg && isObstruent(prevSeg.ph)) micro.push({ t0: s.t0, t1: s.t0 + 0.12, st: prevSeg.ph.voiced ? -0.8 : 1.3, decay: 0.035 });
     }
   }
+  // a creaky (laryngealized) sound is said low in the voice
+  for (const s of segs) if (s.ph.phonation === 'creaky' && s.part !== 'release') micro.push({ t0: s.t0, t1: s.t1, st: -3 });
   const microAt = (time: number): number => {
     let st = 0;
     for (const m of micro) {
@@ -621,9 +735,17 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // apart through the closure and bring them together just after the burst:
   // the voice starts with a short lag, longest behind the slow release of the
   // tongue body (Italian: short lag, under about 30 ms, /k/ the longest)
-  const shortLag = segs.filter((s) => s.part === 'release' && !s.ph.voiced && units[s.unit].ph.manner === 'stop' && !units[s.unit].p.glottalized
-    && !segs.some((a) => a.unit === s.unit && a.part === 'aspiration'))
-    .map((s) => ({ t0: s.t0, t1: s.t0 + (({ p: 0.008, t: 0.012, k: 0.02 } as Record<string, number>)[s.ipa] ?? 0.012) }));
+  const held = (u: Unit) => !!u.p.glottalized || !!u.ph.unreleased;
+  const shortLag = segs.filter((s) => s.part === 'release' && !s.ph.voiced && units[s.unit].ph.manner === 'stop' && !held(units[s.unit])
+    && !units[s.unit].ph.airstream && !segs.some((a) => a.unit === s.unit && a.part === 'aspiration'))
+    .map((s) => ({ t0: s.t0, t1: s.t0 + (SHORT_LAG[placeOf(s.ph) ?? 'alveolar'] ?? 0.012) }));
+  // a breathy-voiced stop (bʱ) is released into murmur: the folds vibrate
+  // apart, with a breathy pulse shape, for the first part of the vowel
+  const murmur = segs.filter((s) => s.part === 'release' && s.ph.voiced && units[s.unit].ph.phonation === 'breathy')
+    .map((s) => ({ t0: s.t0, t1: s.t0 + 0.07 }));
+  // an ejective holds the glottis shut through its closure and burst, and a moment after
+  const glottalHold = segs.filter((s) => s.part === 'release' && units[s.unit].ph.airstream === 'ejective')
+    .map((s) => ({ t0: segs.find((a) => a.unit === s.unit && a.part === 'closure')?.t0 ?? s.t0, t1: s.t1 + 0.03 }));
   const frames: ScoreFrame[] = [];
   const n = Math.ceil((duration + 0.25) / FRAME);
   for (let i = 0; i <= n; i++) {
@@ -643,23 +765,30 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       const unit = units[sg.unit];
       if (m === 'silence') abd = 0.6;
       else if (m === 'glottalStop') { abd = 0; gate = 0; }
-      else if (m === 'stop' && unit.p.glottalized) {
+      else if (m === 'stop' && held(unit)) {
         // [ʔt̚]: the folds close with the tongue, so no pressure builds up
         // behind the closure and nothing bursts out at its release
         abd = 0;
         if (sg.part === 'closure') gate = 0;
       } else if (m === 'stop' && !sg.ph.voiced) {
         // the stop part of an affricate keeps the glottis open into its hiss
-        const aspirated = unit.ph.manner === 'affricate' || segs.some((s) => s.unit === sg.unit && s.part === 'aspiration');
+        const aspirated = (unit.ph.manner === 'affricate' && !unit.ph.voiced) || segs.some((s) => s.unit === sg.unit && s.part === 'aspiration');
         if (sg.part === 'release') abd = aspirated ? 0.55 : 0.04;
         else abd = 0.5;
-      } else if (m === 'stop') abd = en && unit.p.wordStart ? 0.12 : 0.02;
+      } else if (m === 'stop') abd = unit.ph.airstream === 'implosive' ? 0 : en && unit.p.wordStart ? 0.12 : 0.02;
       else abd = sg.ph.abduction;
     }
     for (const w of shortLag) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) abd = Math.max(abd, 0.5);
+    for (const w of glottalHold) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) { abd = 0; gate = 0; }
+    // the voice quality of the segment: murmur (breathy) or creak
+    let quality = 0;
+    const phon = sg && sg.ph.manner !== 'stop' ? units[sg.unit].ph.phonation : undefined;
+    if (phon === 'breathy') { abd = Math.max(abd, 0.22); quality = 1.0; }
+    if (phon === 'creaky') quality = -0.6;
+    for (const w of murmur) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) { abd = Math.max(abd, 0.28); quality = 1.2; }
     // lungs: on during the utterance, lower during pauses, off at the end
     let ps = time < duration ? o.ps : 0;
-    let rd = 0;
+    let rd = quality;
     if (time < duration) {
       if (nat.voiceQuality) {
         ps *= 1 - 0.12 * (time / duration);
@@ -677,7 +806,8 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       // a pause is quiet: the lungs hold back instead of blowing through the open glottis
       if (sg?.ph.manner === 'silence' && sg.t1 - sg.t0 > 0.1 && time > sg.t0 + 0.04 && time < sg.t1 - 0.06) ps *= 0.08;
     }
-    frames.push({ t: time, art, abduction: abd, f0: f0At(time), ps, tip: tipAt(time), rd, gate });
+    const lips = flickAt('lipOpen', time), dorsum = flickAt('tongueX', time);
+    frames.push({ t: time, art, abduction: abd, f0: f0At(time), ps, tip: flickAt('tipY', time), ...(lips ? { lips } : {}), ...(dorsum ? { dorsum } : {}), rd, gate });
   }
   const sp: ScorePhone[] = [];
   for (const s of segs) {

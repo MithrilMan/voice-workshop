@@ -186,6 +186,10 @@ export interface ScoreFrame {
    * ballistic contacts of taps and trills, too quick for the target dynamics
    */
   tip?: number;
+  /** the same for the lips (added to lipOpen: bilabial trills, labiodental flaps) */
+  lips?: number;
+  /** and for the dorsum against the uvula (added to tongueX: uvular trills) */
+  dorsum?: number;
   /** change of the LF shape parameter Rd (breathier phrase ends, tenser accents) */
   rd?: number;
   /** vocal-fold vibration and leak allowed (1) or folds pressed shut (0, glottal stop) */

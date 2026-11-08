@@ -238,7 +238,7 @@ export class VoiceEngine {
 
   // ------------------------------------------------------------ control
 
-  private targetFrame(): { art: Articulators | null; abduction: number; f0: number; ps: number; tip: number; rd: number; gate: number } | null {
+  private targetFrame(): { art: Articulators | null; abduction: number; f0: number; ps: number; tip: number; lips: number; dorsum: number; rd: number; gate: number } | null {
     const sc = this.score;
     if (!sc) return null;
     if (this.scoreTime > sc.duration + this.scoreHold) { this.score = null; this.tam.f0.tau = TAM_TAU.f0; return null; }
@@ -254,7 +254,8 @@ export class VoiceEngine {
     }
     return {
       art, abduction: mix(a.abduction, b.abduction), f0: mix(a.f0, b.f0), ps: mix(a.ps, b.ps),
-      tip: mix(a.tip ?? 0, b.tip ?? 0), rd: mix(a.rd ?? 0, b.rd ?? 0), gate: mix(a.gate ?? 1, b.gate ?? 1),
+      tip: mix(a.tip ?? 0, b.tip ?? 0), lips: mix(a.lips ?? 0, b.lips ?? 0), dorsum: mix(a.dorsum ?? 0, b.dorsum ?? 0),
+      rd: mix(a.rd ?? 0, b.rd ?? 0), gate: mix(a.gate ?? 1, b.gate ?? 1),
     };
   }
 
@@ -268,6 +269,9 @@ export class VoiceEngine {
     // taps and trills: the contacts of the tongue tip are ballistic, added on
     // top of the smoothed posture (alveolar trill about 26 Hz, Recasens 1991)
     if (fr && fr.tip) this.art.tipY += fr.tip;
+    // the same contacts for the lips (ʙ, ⱱ) and for the dorsum against the uvula (ʀ)
+    if (fr && fr.lips) this.art.lipOpen += fr.lips;
+    if (fr && fr.dorsum) this.art.tongueX += fr.dorsum;
     this.rdOffset = fr ? fr.rd : 0;
     // a glottal stop closes within a few milliseconds
     this.gate += ((fr ? fr.gate : 1) - this.gate) * (1 - Math.exp(-dt / 0.006));

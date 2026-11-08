@@ -1,5 +1,6 @@
 import { PHONEMES } from './phonemes';
 import { englishWord, englishNumber } from './english';
+import { readIpa } from './ipaReader';
 
 /** A phone of an utterance after grapheme-to-phoneme conversion. */
 export interface Phone {
@@ -26,6 +27,21 @@ export interface Phone {
   whQuestion?: boolean;
   /** English final /t/ before a consonant: held by a glottal stop, released without a puff */
   glottalized?: boolean;
+  /** half-long (ˑ) and extra-short (˘) */
+  halfLong?: boolean;
+  extraShort?: boolean;
+  /** a syllable starts here (an IPA syllable break or stress mark) */
+  sylStart?: boolean;
+  /** the nasal of a prenasalized stop (ᵐb, ⁿd): short, part of the stop */
+  prenasal?: boolean;
+  /** tone of the syllable, as levels 1 (extra low) .. 5 (extra high), one per contour point */
+  tone?: number[];
+  /** downstep (-1) or upstep (+1) before this syllable */
+  toneStep?: number;
+  /** global rise (+1) or fall (-1) of the intonation from this syllable on */
+  globalPitch?: number;
+  /** read from a phonetic transcription in [brackets]: said as written, with no language's rules */
+  literal?: boolean;
 }
 
 export type Lang = 'it' | 'en';
@@ -179,46 +195,17 @@ export function italianNumber(n: number): string {
   return (m === 1 ? 'un milione' : italianNumber(m) + ' milioni') + (r ? ' ' + italianNumber(r) : '');
 }
 
-const IPA_SYMBOLS = Object.keys(PHONEMES).sort((a, b) => b.length - a.length);
-const IPA_ALIASES: Record<string, string> = {
-  'ɐ': 'ə', 'ɡ': 'g', 'ʁ': 'r', 'ç': 'ʃ', 'x': 'k', 'ɒ': 'ɔ', 'y': 'i', 'ø': 'e', 'œ': 'ɛ', 'ɨ': 'ɪ', 'ᵻ': 'ɪ', 'ᵊ': 'ə', 'ʤ': 'dʒ', 'ʧ': 'tʃ',
-};
-
-/** Parses an IPA string into phones (stress marks ˈ ˌ, length marks ː). */
+/** Parses an IPA string into phones (see ipaReader.ts for everything it reads). */
 export function parseIpa(s: string): Phone[] {
-  const out: Phone[] = [];
-  let stressNext: 0 | 1 | 2 = 0;
-  let wordStart = true;
-  let i = 0;
-  const add = (p: Phone) => {
-    if (wordStart) { p.wordStart = true; wordStart = false; }
-    out.push(p);
-  };
-  while (i < s.length) {
-    const c = s[i];
-    if (c === 'ˈ') { stressNext = 1; i++; continue; }
-    if (c === 'ˌ') { stressNext = 2; i++; continue; }
-    if (c === '.' || c === '/' || c === '[' || c === ']') { i++; continue; }
-    if (c === 'ː' || c === ':') { if (out.length) out[out.length - 1].long = true; i++; continue; }
-    if (c === ' ') { if (out.length) out[out.length - 1].wordEnd = true; wordStart = true; i++; continue; }
-    if (c === ',' || c === '|') { if (out.length) out[out.length - 1].pause = 'short'; i++; continue; }
-    if (c === '‖' || c === '!' || c === ';') { if (out.length) out[out.length - 1].pause = 'long'; i++; continue; }
-    if (c === '?') { if (out.length) { out[out.length - 1].pause = 'long'; out[out.length - 1].question = true; } i++; continue; }
-    let matched = '';
-    for (const sym of IPA_SYMBOLS) if (s.startsWith(sym, i)) { matched = sym; break; }
-    const ipa = matched || IPA_ALIASES[c];
-    if (!ipa) { i++; continue; }
-    const p: Phone = { ipa };
-    // stress applies to the next vowel
-    if (stressNext && PHONEMES[ipa]?.manner === 'vowel') {
-      if (stressNext === 1) p.stress = true; else p.stress2 = true;
-      stressNext = 0;
-    }
-    add(p);
-    i += matched ? matched.length : 1;
-  }
-  if (out.length) out[out.length - 1].wordEnd = true;
-  return out;
+  return readIpa(s).phones;
+}
+
+/** Whether a text is an IPA transcription, and of which kind: /phonemic/ or [phonetic]. */
+export function ipaKind(text: string): 'phonemic' | 'phonetic' | null {
+  const t = text.trim();
+  if (t.length >= 2 && t.startsWith('/') && t.endsWith('/')) return 'phonemic';
+  if (t.length >= 2 && t.startsWith('[') && t.endsWith(']')) return 'phonetic';
+  return null;
 }
 
 const WH_WORDS = {
@@ -229,7 +216,10 @@ const WH_WORDS = {
 /** Text (Italian or English words, or /IPA/) to phones. */
 export function textToPhones(text: string, lang: Lang): Phone[] {
   const t = text.trim();
-  if ((t.startsWith('/') && t.endsWith('/')) || (t.startsWith('[') && t.endsWith(']'))) return parseIpa(t.slice(1, -1));
+  // /phonemic/ IPA goes through the rules of the language; [phonetic] IPA is said as written
+  const kind = ipaKind(t);
+  if (kind === 'phonemic') return parseIpa(t.slice(1, -1));
+  if (kind === 'phonetic') return parseIpa(t.slice(1, -1)).map((p) => ({ ...p, literal: true }));
   const out: Phone[] = [];
   // numbers become words first
   const spelled = t.replace(/\d+/g, (d) => ' ' + (lang === 'en' ? englishNumber(Number(d)) : italianNumber(Number(d))) + ' ');

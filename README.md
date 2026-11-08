@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 128 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 143 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -143,7 +143,7 @@ Inspector (Lab) and tools (Learn):
 | Tract: tract & person | Filter (head, tube or none), articulators as sliders, phoneme buttons (IPA), the vowels measured by MRI (Story 2008) loaded as the tube, anatomy (size, pharynx length and width, nasal leak, nasal cycle, each nostril, pinch the nose, air in the piriform fossae), timbre presets, losses. |
 | Tract: teeth & slit | Front view and side view of the incisors with the jet; slit width, extra opening, diastema, overjet, advance, upper / lower incisor length, tongue groove; presets (open bite, gap teeth, overjet, short teeth); s / ʃ / f / θ / z shortcuts; live jet readouts (velocity, Reynolds number, share of the jet hitting the teeth). |
 | Noise | The physical sources (aspiration, constriction jet, teeth obstacle, release bursts) with trims and pulsing; your own noise: colour (white, pink, brown, blue, violet), a drawable 32-point spectrum, band limits, level, pulsing by the glottal flow, injection point (glottis, constriction, teeth, lips or anywhere along the tract) or straight to the ears (bypassing the tract). |
-| Speak | English or Italian text (numbers are read out), or IPA between slashes; rate, accent strength; examples in both languages; a phone timeline that follows the playback; "what makes it sound natural": timing, intonation, micro-variation, voice quality and coarticulation, each switchable, with a plain explanation and a one-click robot voice. |
+| Speak | English or Italian text (numbers are read out); /IPA/ between slashes, said with the rules of English or Italian; or [IPA] between brackets, any language said as written (every symbol of the chart with its diacritics, length, stress and tones; what the model only approximates is listed under the text); rate, accent strength; examples in both languages and in IPA; a phone timeline that follows the playback; "what makes it sound natural": timing, intonation, micro-variation, voice quality and coarticulation, each switchable, with a plain explanation and a one-click robot voice. |
 | Melody | Draw a pitch contour (erase = unvoiced) and play it with the buzz alone or through the current vowel; contour presets (sample sentence, question, flat); a two-octave keyboard (mouse or computer keys) with vibrato. |
 | A/B experiment | Nine ready-made experiments (same filter other pitch, same pitch other filter, same vowel another body, dark vs bright, velum closed vs open, one nostril pinched, steady vs pulsed hiss, voice vs whisper, LF vs two-mass) plus your own A/B captures. Each side plays through the live engine, so the head and the views show A or B as you hear it, and the long-term spectra are taken from the samples you heard. |
 | Machine voice | Only the excitation of the speech model of the paper Teacher in the Loop, as the paper describes it: nine sines at 1..9 x F0, locked to the pitch, switched off where the melody is zero and replaced by soft noise, mixed by learned weights (here by hand). |
@@ -175,7 +175,7 @@ src/
     aero/aero.ts          slow aerodynamics, jets, Reynolds number, obstacle
     noise/noise.ts        turbulence sources and user noise shaping
     engine/engine.ts      the voice engine (one sample loop, telemetry)
-    speech/               phonemes, G2P (it/en), sequencer, target approximation
+    speech/               phonemes, the IPA chart (ipa.ts) and its reader, sounds from rules (derive.ts), G2P (it/en), sequencer, target approximation
     analysis/             LPC formants, YIN pitch, mel filterbank
     data/vowels.ts        reference vowel formants
     data/mri.ts           vowel area functions measured by MRI (Story 2008)
@@ -557,7 +557,66 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   /t/ held by a glottal stop and not released before a consonant ("it
   rains": the folds close with the tongue, so no pressure builds up behind
   it), dropped between consonants ("just two").
-- **IPA** between slashes, with ˈ ˌ and ː.
+- **IPA** (src/dsp/speech/ipaReader.ts): every symbol of the IPA chart
+  (2020), pulmonic and non-pulmonic, with its diacritics and modifier
+  letters (voicing, aspiration, breathy and creaky voice, secondary
+  articulations ʷ ʲ ˠ ˤ, nasalization, dental, advanced and retracted,
+  raised and lowered, rounding, tongue root, syllabic, no release,
+  ejective, rhotic), tie bars (t͡s, k͡p, a͡ɪ), prenasalized stops (ᵐb),
+  stress ˈ ˌ, length ː ˑ ˘, syllable breaks, groups | ‖, tones as tone
+  letters (˥˩, ˨˩˦), superscript or plain digits (⁵¹, 214) or diacritics
+  (á à ā ǎ â), downstep ꜜ and upstep ꜛ, the global rise and fall ↗ ↘. The
+  text is read in canonical decomposition, so a precomposed ã and a with a
+  combining tilde are the same sound. Whatever it cannot read is listed
+  under the text, never dropped in silence. Between slashes, /phonemic/ IPA
+  goes through the rules of English or Italian; between brackets,
+  [phonetic] IPA is said as written, with neutral rules: the nominal
+  duration of each sound, longer when stressed (x1.25), phrase-final (x1.4)
+  or written long (x1.7 vowels, x1.85 consonants), shorter unstressed, in a
+  closed syllable or in a cluster; aspiration only where it is written;
+  syllables from the written breaks, or else the longest onset rising in
+  sonority toward the vowel.
+- **Sounds from rules** (src/dsp/speech/derive.ts), in the spirit of
+  Browman & Goldstein's articulatory phonology (a gesture is an organ, a
+  place and a degree of constriction). Every place has a recipe: the
+  articulators it sets and the one that narrows the passage there (the
+  rounded lips for bilabials, the lower lip under the incisors, the tip
+  against the incisors, the ridge, behind it, or up and back for
+  retroflexes, the blade and front of the body for alveolo-palatals, the
+  body for palatals and velars, the dorsum backed against the uvula with the
+  root forward, the tongue root for pharyngeals and the epiglottal stop).
+  The manner gives the degree: closed for stops and nasals, about 0.1 cm²
+  for fricatives (Stevens 1998), 0.3 cm² for approximants, 0.12 cm² between
+  the contacts of a trill; a bisection on the geometry finds the value of
+  the key that gives it inside the place's window, as the tuning scripts did
+  by hand for the fitted consonants. Laterals close the midline and lower
+  the sides of the tongue to the degree (ɬ ɮ: 0.1 cm² past the sides). Taps
+  and trills strike with the tip, the lips (ʙ ⱱ) or the dorsum against the
+  uvula (ʀ). Vowels are interpolated over the fitted vowels by their height
+  and backness on the chart (inverse-distance weights of the four nearest),
+  with the lips of the rounded or unrounded fitted vowels of the same height:
+  [y] has the tongue of [i] and the lips of [u], [ɯ] the tongue of [u] and
+  spread lips. The diacritics change the result: a raised or lowered
+  sound moves one step along closed, 0.05, 0.1, 0.3 and 0.6 cm² (a lowered
+  fricative is an approximant, Spanish β̞ ð̞; a raised trill narrows until
+  it hisses between its contacts and lets the glottis open as a voiced
+  fricative does, Czech ř); dental, advanced and retracted move the tip or
+  the body and solve the degree again; palatalization, velarization and
+  pharyngealization move the tongue body, then relax it until it leaves
+  0.3 cm² behind the primary constriction (emphatic /tˤ sˤ/ lower F2 by
+  400-600 Hz with the pharynx open); nasalization opens the velum.
+  Where a symbol is one of the fitted phonemes, the fitted one is used, and
+  a diacritic on it starts from its posture. Results are cached; the whole
+  chart takes about half a second, at most 10 ms a symbol.
+- **Laryngeal tier**: aspiration where it is written, with a voice onset
+  time by place, 55 ms for labials to 80 ms for uvulars (further back,
+  longer: Cho & Ladefoged 1999), and the short lag of unaspirated stops by
+  place; murmur after a breathy-voiced stop (the folds vibrate apart, with a
+  breathy pulse shape, for 70 ms) and a breathy source through breathy
+  sounds; a pressed source and a pitch 3 semitones lower through creaky
+  ones; the glottis held shut through an ejective's closure and burst; the
+  larynx lowered through an implosive and raised through an ejective; no
+  burst after an unreleased stop.
 - **Sequencer** (src/dsp/speech/sequencer.ts): the phones are syllabified
   (legal onsets, geminates close the syllable before), grouped into words and
   phrases (commas, full stops, questions), and turned into a gestural score.
@@ -746,6 +805,12 @@ in brackets are the adult male targets described under Speech.
 | Fujisaki intonation | final F0: statement 106 Hz, wh-question 101 Hz, yes/no question 180 Hz (base 120 Hz) |
 | Melody | "Every voice you have ever heard is made of just two ingredients.": planned F0 range 10.2 st; the voice follows the plan within 0.58 st (90 %), 1.9 st with the slider smoothing |
 | Log-mel | 80 bands; a 1 kHz tone lands in band 25-29 |
+| IPA places | narrowest passage, cm from the lips: stops p 1.8, t 4.3, ʈ 4.8, c 6.8, k 9.6, q 12.3, ʡ 14.3; fricatives ɸ 0.4, ɕ 3.2, ʂ 4.7, ç 5.6, x 9.0, χ 11.5, ħ 12.3 |
+| IPA degrees | derived stops and nasals closed; fricatives 0.06-0.14 cm²; approximants 0.25-0.4 cm² |
+| Derived vowels | y 252/1869/2395, ø 397/1534/2191, œ 499/1626/2086, ɯ 336/1403/2237, ɨ 399/1679/2306 Hz: rounding lowers F2 and F3 of the front vowels, unrounding raises F2 of the back ones |
+| Czech ř | turbulence during the trill 12 dB above /r/ |
+| Trills | closures of the lips in [aʙa] 2, of the dorsum against the uvula in [aʀa] 2, of the tip in [ara] 2 |
+| Written aspiration | VOT [p] 10 ms, [pʰ] 66 ms, [kʰ] 73 ms |
 
 ## Simplifications and limits
 
@@ -790,6 +855,17 @@ in brackets are the adult male targets described under Speech.
   supralingual cavity, but their F3 stays low: /l/ 2421 Hz and /ɫ/ 2254 Hz
   against about 2600 measured. The palatal /ʎ/ has its lateral channels but
   no midline contact, so no supralingual cavity.
+- The sounds made from rules (derive.ts) are placed and narrowed by rules,
+  not fitted to measurements of each sound: their place, their degree and
+  the order of their formants are checked, not their spectra against
+  recordings. A few symbols are approximated, and the interface says so
+  under the text: ɴ is made as a velar nasal (the nose joins the tube at a
+  fixed place, in front of a uvular closure), ʟ as a velar approximant (the
+  sides of the tongue open only in front of the velum), ʜ ʢ as pharyngeal
+  fricatives (no epiglottis), ɧ as a rounded velar fricative. Ejectives and
+  implosives move the larynx, but the air in front of it does not yet feel
+  the change of volume; clicks make both closures without the rarefied air
+  between them.
 - The piriform fossae have the dimensions of an average adult man, scaled
   with the speaker; real ones differ from person to person, and from the
   left to the right side.
@@ -892,6 +968,8 @@ npx tsx scripts/trace.ts it "il carro"          # every 2 ms: phone, constrictio
 npx tsx scripts/build-lexicon.ts us_gold.json   # rebuild public/lexicon/en-us.lex
 npx tsx scripts/tune-rhotic.ts 490,1350,1690 ɹ  # fit an articulation to F1/F2/F3 with tip and lips free
 npx tsx scripts/areas.ts ɹ ɝ j l w              # narrowest passage and formants of each phoneme's posture
+npx tsx scripts/ipa-chart.ts ʂ r̝ y kʷ          # the IPA chart as the rules make it (no arguments: the whole chart)
+npx tsx scripts/posture.ts '{"from":"k","sweep":"tongueY","lo":0.6,"hi":1.7}'   # narrowest passage of postures, for new places
 npx tsx scripts/melody.ts en "is it raining?"   # planned F0 at each phone
 npx tsx scripts/noisemap.ts en "every voice"    # level of each noise source per phone
 npx tsx scripts/contrast.ts it "il vino"        # how deep each consonant dips below its vowels

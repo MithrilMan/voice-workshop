@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { computeGeometry, CANON_SCALE } from '../src/dsp/tract/geometry';
 import { Anatomy, Articulators, DEFAULT_ANATOMY, DEFAULT_ARTICULATORS, DEFAULT_TEETH } from '../src/dsp/tract/types';
 import { PHONEMES } from '../src/dsp/speech/phonemes';
+import { chartPhonemes } from '../src/dsp/speech/derive';
 import { headScene, guideHead, HeadScene, FILLED_AIR } from '../src/ui/head/scene';
 
 /** Even-odd point in polygon. */
@@ -17,6 +18,8 @@ function inside(x: number, y: number, p: number[]): boolean {
 const POSTURES: [string, Partial<Articulators>][] = [
   ['rest', {}],
   ...Object.values(PHONEMES).map((ph): [string, Partial<Articulators>] => [`/${ph.ipa}/`, ph.art]),
+  // the whole IPA chart as the rules make it
+  ...chartPhonemes().filter((ph) => ph.derived).map((ph): [string, Partial<Articulators>] => [`[${ph.ipa}]`, ph.art]),
   ['jaw shut', { jaw: 0 }], ['jaw wide', { jaw: 1 }], ['jaw past wide', { jaw: 1.2 }],
   ['tongue front high', { tongueX: 1.4, tongueY: 1.6 }], ['tongue back low', { tongueX: -1.6, tongueY: -1.6 }],
   ['tongue back high', { tongueX: -1.6, tongueY: 1.6 }], ['tongue front low', { tongueX: 1.4, tongueY: -1.6 }],

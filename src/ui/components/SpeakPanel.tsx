@@ -5,12 +5,31 @@ import { useLanes } from '../voice/hooks';
 import { useL } from '../i18n';
 import { Slider, Section, Seg, Toggle } from './controls';
 import { C } from '../canvas';
-import { textToPhones, Phone } from '../../dsp/speech/g2p';
+import { textToPhones, Phone, ipaKind } from '../../dsp/speech/g2p';
 import { buildScore, NaturalnessOptions, NATURAL_ALL } from '../../dsp/speech/sequencer';
+import { notesForIpa, SoundNote } from '../../dsp/speech/derive';
+import type { ApproxCode } from '../../dsp/speech/phonemes';
 
 type Bi = { it: string; en: string };
 
-const EXAMPLES: { text: string; lang: 'it' | 'en' }[] = [
+/** What each approximation of a sound made from the IPA chart means. */
+const APPROX: Record<ApproxCode, Bi> = {
+  uvularNasal: { it: 'fatta come nasale velare: il naso si innesta sul tubo in un punto fisso, davanti a una chiusura uvulare', en: 'made as a velar nasal: the nose joins the tube at a fixed place, in front of a uvular closure' },
+  velarLateral: { it: 'fatta come approssimante velare: i lati della lingua si aprono solo davanti al velo', en: 'made as a velar approximant: the sides of the tongue open only in front of the velum' },
+  epiglottalFricative: { it: 'fatta come fricativa faringale: il modello non ha l’epiglottide', en: 'made as a pharyngeal fricative: the model has no epiglottis' },
+  doubleFricative: { it: 'fatta come fricativa velare arrotondata', en: 'made as a rounded velar fricative' },
+  degree: { it: 'il modello non riesce a stringere questo punto quanto chiede il simbolo', en: 'the model cannot narrow this place as much as the symbol asks' },
+  ejective: { it: 'eiettiva: la glottide resta chiusa, ma la laringe che sale non comprime ancora l’aria', en: 'ejective: the glottis stays shut, but the rising larynx does not compress the air yet' },
+  implosive: { it: 'implosiva: la laringe scende, ma non rarefà ancora l’aria', en: 'implosive: the larynx moves down, but does not rarefy the air yet' },
+  click: { it: 'clic: due chiusure, ma senza l’aria rarefatta tra loro; si sente come un’occlusiva', en: 'click: two closures, but without the rarefied air between them; it sounds like a stop' },
+};
+
+const noteText = (n: SoundNote): Bi =>
+  n.kind === 'approximate' && n.code ? APPROX[n.code]
+    : n.kind === 'ignored' ? { it: 'letto ma senza effetto sul suono', en: 'read, without an effect on the sound' }
+      : { it: 'non è un simbolo IPA: saltato', en: 'not an IPA symbol: skipped' };
+
+const EXAMPLES: { text: string; lang: 'it' | 'en'; ipa?: boolean }[] = [
   { text: 'heed', lang: 'en' }, { text: 'father', lang: 'en' }, { text: 'hiss', lang: 'en' }, { text: 'this', lang: 'en' },
   { text: 'a buzz, a hiss and a filter', lang: 'en' },
   { text: 'Every voice you have ever heard is made of just two ingredients.', lang: 'en' },
@@ -18,6 +37,9 @@ const EXAMPLES: { text: string; lang: 'it' | 'en' }[] = [
   { text: 'The little button on the water bottle', lang: 'en' },
   { text: 'sasso', lang: 'it' }, { text: 'mamma', lang: 'it' }, { text: 'voce', lang: 'it' }, { text: 'la voce è fatta di aria', lang: 'it' },
   { text: 'ciao, come stai?', lang: 'it' }, { text: 'il carro corre sulla strada', lang: 'it' }, { text: 'gnocchi e pizza', lang: 'it' },
+  // IPA of other languages, said as written: Czech ř, German ç and x, French front rounded and nasal vowels, Hindi aspirated and murmured stops
+  { text: '[ˈr̝ɛka]', lang: 'en', ipa: true }, { text: '[ˈɪç ˈaxt]', lang: 'en', ipa: true }, { text: '[ly bɔ̃ vɛ̃]', lang: 'en', ipa: true },
+  { text: '[pʰal bʱaːiː]', lang: 'en', ipa: true },
 ];
 
 /** The ingredients of natural speech, each with a plain explanation. */
@@ -77,6 +99,9 @@ export function SpeakPanel() {
   useEffect(() => { if (lang === 'en') void store.ensureLexicon(); }, [lang]);
   let phones: Phone[] = [];
   try { phones = textToPhones(text, lang); } catch { phones = []; }
+  const kind = ipaKind(text);
+  let notes: SoundNote[] = [];
+  if (kind) try { notes = notesForIpa(text.trim().slice(1, -1)); } catch { notes = []; }
   const speak = async (t = text, lg = lang) => {
     if (lg === 'en') await store.ensureLexicon();
     const ph = textToPhones(t, lg);
@@ -97,22 +122,24 @@ export function SpeakPanel() {
     <div className="panel-body">
       <Section title={L({ it: 'Fai parlare la testa', en: 'Make the head speak' })} accent={C.amber}
         info={L({
-          it: 'Il testo diventa fonemi. In italiano con le regole dell’ortografia (la «s» tra vocali è sonora, come al Nord); in inglese con un dizionario americano di 89 mila parole, regole per plurali, passati e parole composte, e regole di lettura per le parole che non conosce. I numeri vengono letti. Ogni fonema è un bersaglio per lingua, labbra, mascella, velo e glottide; il resto lo fa la fisica: la stessa testa che muovi a mano. Scrivi /IPA/ tra barre per dare i fonemi direttamente.',
-          en: 'The text becomes phonemes. Italian uses its spelling rules (an “s” between vowels is voiced, as in the North); English uses an American dictionary of 89 thousand words, rules for plurals, past tenses and compounds, and letter-to-sound rules for words it does not know. Numbers are read out. Each phoneme is a target for tongue, lips, jaw, velum and glottis; everything else is physics: the same head you move by hand. Write /IPA/ between slashes to give phonemes directly.',
+          it: 'Il testo diventa fonemi. In italiano con le regole dell’ortografia (la «s» tra vocali è sonora, come al Nord); in inglese con un dizionario americano di 89 mila parole, regole per plurali, passati e parole composte, e regole di lettura per le parole che non conosce. I numeri vengono letti. Ogni fonema è un bersaglio per lingua, labbra, mascella, velo e glottide; il resto lo fa la fisica: la stessa testa che muovi a mano. Scrivi /IPA/ tra barre per dare i fonemi, detti con le regole dell’italiano o dell’inglese, oppure [IPA] tra parentesi quadre per far dire qualunque lingua così come è scritta: ogni simbolo della tabella IPA, con diacritici, lunghezze, accenti e toni. Un suono che non ha misure su cui tararlo nasce da regole: il suo luogo, il suo modo, i suoi diacritici.',
+          en: 'The text becomes phonemes. Italian uses its spelling rules (an “s” between vowels is voiced, as in the North); English uses an American dictionary of 89 thousand words, rules for plurals, past tenses and compounds, and letter-to-sound rules for words it does not know. Numbers are read out. Each phoneme is a target for tongue, lips, jaw, velum and glottis; everything else is physics: the same head you move by hand. Write /IPA/ between slashes to give phonemes said with the rules of English or Italian, or [IPA] between brackets to have any language said as written: every symbol of the IPA chart, with its diacritics, length, stress and tones. A sound with no measurements to fit it to is made from rules: its place, its manner, its diacritics.',
         })}>
         <div className="row">
           <input className="text-input" value={text} onChange={(e) => store.setSpeech({ text: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') void speak(); }} />
           <Seg value={lang} options={[['en', 'EN'], ['it', 'IT']]} onChange={(v) => store.setSpeech({ lang: v })} />
         </div>
         <div className="ipa-line">{showIpa(phones) || '—'}</div>
-        {lexNote && <p className="small muted">{L(lexNote)}</p>}
+        {kind === 'phonetic' && <p className="small muted">{L({ it: 'Detto così come è scritto, senza le regole di una lingua.', en: 'Said as written, with no language’s rules.' })}</p>}
+        {notes.map((n) => <p key={n.symbol + n.kind} className="small muted"><b>{n.symbol}</b> · {L(noteText(n))}</p>)}
+        {lexNote && !kind && <p className="small muted">{L(lexNote)}</p>}
         <div className="row">
           <button className="btn primary" onClick={() => void speak()}>{L({ it: 'Parla', en: 'Speak' })}</button>
           <button className="btn" onClick={() => voice.stop()}>{L({ it: 'Ferma', en: 'Stop' })}</button>
         </div>
         <div className="chips">
-          {[...EXAMPLES.filter((e) => e.lang === ui.lang), ...EXAMPLES.filter((e) => e.lang !== ui.lang)].map((e) => (
-            <button key={e.text} className="chip" onClick={() => { store.setSpeech({ text: e.text, lang: e.lang }); void speak(e.text, e.lang); }}>{e.text}<small> {e.lang}</small></button>
+          {[...EXAMPLES.filter((e) => !e.ipa && e.lang === ui.lang), ...EXAMPLES.filter((e) => !e.ipa && e.lang !== ui.lang), ...EXAMPLES.filter((e) => e.ipa)].map((e) => (
+            <button key={e.text} className="chip" onClick={() => { const lg = e.ipa ? lang : e.lang; store.setSpeech({ text: e.text, lang: lg }); void speak(e.text, lg); }}>{e.text}<small> {e.ipa ? 'IPA' : e.lang}</small></button>
           ))}
         </div>
         <Slider label={L({ it: 'Velocità', en: 'Rate' })} value={rate} min={0.4} max={1.8} onChange={(v) => store.setSpeech({ rate: v })} format={(v) => `×${v.toFixed(2)}`} />
