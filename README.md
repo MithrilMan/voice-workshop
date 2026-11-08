@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 155 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 163 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -143,7 +143,7 @@ Inspector (Lab) and tools (Learn):
 | Tract: tract & person | Filter (head, tube or none), articulators as sliders, phoneme buttons (IPA), the vowels measured by MRI (Story 2008) loaded as the tube, anatomy (size, pharynx length and width, nasal leak, nasal cycle, each nostril, pinch the nose, air in the piriform fossae), timbre presets, losses. |
 | Tract: teeth & slit | Front view and side view of the incisors with the jet; slit width, extra opening, diastema, overjet, advance, upper / lower incisor length, tongue groove; presets (open bite, gap teeth, overjet, short teeth); s / ʃ / f / θ / z shortcuts; live jet readouts (velocity, Reynolds number, share of the jet hitting the teeth). |
 | Noise | The physical sources (aspiration, constriction jet, teeth obstacle, release bursts) with trims and pulsing; your own noise: colour (white, pink, brown, blue, violet), a drawable 32-point spectrum, band limits, level, pulsing by the glottal flow, injection point (glottis, constriction, teeth, lips or anywhere along the tract) or straight to the ears (bypassing the tract). |
-| Speak | English or Italian text (numbers are read out); /IPA/ between slashes, said with the rules of English or Italian; or [IPA] between brackets, any language said as written (every symbol of the chart with its diacritics, length, stress and tones; what the model only approximates is listed under the text); rate, accent strength; examples in both languages and in IPA; a phone timeline that follows the playback; "what makes it sound natural": timing, intonation, micro-variation, voice quality and coarticulation, each switchable, with a plain explanation and a one-click robot voice. |
+| Speak | Italian or English text (numbers are read out), or text in one of 68 other languages, transcribed by an open pronunciation dictionary and, for the words it lacks, by a neural model, both downloaded at first use (what came from where is listed under the text); /IPA/ between slashes, said with the rules of English or Italian; or [IPA] between brackets, any language said as written (every symbol of the chart with its diacritics, length, stress and tones; what the model only approximates is listed under the text); rate, accent strength; examples in several languages and in IPA; a phone timeline that follows the playback; "what makes it sound natural": timing, intonation, micro-variation, voice quality and coarticulation, each switchable, with a plain explanation and a one-click robot voice. |
 | Melody | Draw a pitch contour (erase = unvoiced) and play it with the buzz alone or through the current vowel; contour presets (sample sentence, question, flat); a two-octave keyboard (mouse or computer keys) with vibrato. |
 | A/B experiment | Nine ready-made experiments (same filter other pitch, same pitch other filter, same vowel another body, dark vs bright, velum closed vs open, one nostril pinched, steady vs pulsed hiss, voice vs whisper, LF vs two-mass) plus your own A/B captures. Each side plays through the live engine, so the head and the views show A or B as you hear it, and the long-term spectra are taken from the samples you heard. |
 | Machine voice | Only the excitation of the speech model of the paper Teacher in the Loop, as the paper describes it: nine sines at 1..9 x F0, locked to the pitch, switched off where the melody is zero and replaced by soft noise, mixed by learned weights (here by hand). |
@@ -175,7 +175,7 @@ src/
     aero/aero.ts          slow aerodynamics, jets, Reynolds number, obstacle
     noise/noise.ts        turbulence sources and user noise shaping
     engine/engine.ts      the voice engine (one sample loop, telemetry)
-    speech/               phonemes, the IPA chart (ipa.ts) and its reader, sounds from rules (derive.ts), G2P (it/en), sequencer, target approximation
+    speech/               phonemes, the IPA chart (ipa.ts) and its reader, sounds from rules (derive.ts), G2P (it/en), the phonemizer of the other languages, sequencer, target approximation
     analysis/             LPC formants, YIN pitch, mel filterbank
     data/vowels.ts        reference vowel formants
     data/mri.ts           vowel area functions measured by MRI (Story 2008)
@@ -593,6 +593,34 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   /t/ held by a glottal stop and not released before a consonant ("it
   rains": the folds close with the tongue, so no pressure builds up behind
   it), dropped between consonants ("just two").
+- **Other languages** (src/dsp/speech/phonemizer.ts, languages.ts): 68
+  languages without rules of their own. The browser's word breaker
+  (Intl.Segmenter, which also splits Chinese, Japanese and Thai) cuts the
+  text into words; each is looked up in the open pronunciation dictionary
+  of its language, ipa-dict (open-dict-data, pinned to one version), where
+  there is one with an open license and a reasonable size: French (France
+  and Quebec), Brazilian Portuguese, Dutch, Swedish, Norwegian, Icelandic,
+  Esperanto, Persian, Malay and Indonesian, Swahili, Japanese, Korean,
+  Mandarin (simplified and traditional), Cantonese, Vietnamese. In Chinese
+  and Japanese a word the dictionary lacks is split into the longest words
+  it has. What no dictionary has is transcribed by CharsiuG2P (Zhu, Zhang &
+  Jurgens 2022), a ByT5 transformer that reads bytes, trained on the
+  pronunciations of 100 languages: the tiny version with 8 layers (phoneme
+  error rate 10.7 %, word error rate 31 % over the 100 languages, as
+  published), run in the browser by ONNX Runtime Web on one thread, word
+  by word, greedily, behind the language prefix ("<fra>: bonjour" gives
+  bɔ̃ʒuʁ). Neither is part of the site: a language's dictionary is fetched
+  from the ipa-dict repository when the language is chosen, the model (29
+  MB, from Hugging Face, pinned to one revision) only when Speak is pressed
+  with words no dictionary has, and both are kept in the browser's cache
+  storage. The transcription is said like [IPA], as written, with the
+  pauses and questions of the punctuation (the Greek question mark is a
+  semicolon). Where the source marks no stress and the language fixes it,
+  it goes there: the first syllable in Czech, Slovak, Hungarian, Finnish,
+  Estonian, Icelandic, Irish; the penultimate in Polish, Welsh, Esperanto,
+  Malay, Swahili; the last in French, Armenian, Persian and the Turkic
+  languages. The model's German r, often a tap, becomes the uvular one of
+  the standard.
 - **IPA** (src/dsp/speech/ipaReader.ts): every symbol of the IPA chart
   (2020), pulmonic and non-pulmonic, with its diacritics and modifier
   letters (voicing, aspiration, breathy and creaky voice, secondary
@@ -886,6 +914,7 @@ in brackets are the adult male targets described under Speech.
 | Voiceless implosive | [ɓ̥] -7.3 cmH2O at the release, mouth flow -1484 cm³/s (the air drawn in) |
 | Mandarin tones | [ma˥ ma˧˥ ma˨˩˦ ma˥˩], F0 at five points of each vowel, semitones from the base, heard (YIN): high level 5.5 5.6 5.4 5.4 5.4; rising 1.9 2.0 2.5 3.4 3.9; dipping -5.1 -5.8 -5.6 -4.2 -2.9; falling 1.6 -0.4 -2.2 -4.4 -5.5 |
 | Downstep | [á ꜜá á]: high tones at 2.2, 0.6, -0.2 st |
+| Phonemizer | French "Bonjour, comment ça va ? Je m'appelle Mireille." bɔ̃ʒˈuʁ kɔmˈɑ̃ sˈa vˈa? ʒˈə mapˈɛl miʁˈɛj (5 words from the dictionary, 2 from the model); Mandarin 你好，世界 ni˨˩˦ xɑʊ˨˩˦ ʂɚ˥˩ tɕjɛ˥˩ (dictionary, tones read); German "Guten Morgen, wie geht es dir?" gˈuːtən mˈɔʁgən viː get ˈɛs dˈiːʁ (model, 6 words in 0.5 s including loading it, Node, one thread); dictionary format, word splitting, the longest dictionary words, greedy decoding and fixed stress tested on a scripted network |
 
 ## Simplifications and limits
 
@@ -973,6 +1002,15 @@ in brackets are the adult male targets described under Speech.
   pronunciation. Italian open and close e/o are only known where an accent is
   written. Prosody is rule-based: it has no idea which word the sentence is
   about, so the nuclear accent always falls on the last content word.
+- The other languages are read word by word, with no context: homographs
+  take one pronunciation, links across words (French liaison, tone sandhi)
+  are not made, and the model's mistakes pass unchecked (привет comes out
+  ɪprʲɪvʲet, with a vowel in front; German geht with a short e). Lexical
+  stress is only where the source writes it (the Russian and Greek
+  transcriptions have none), Japanese pitch accent is not marked, numbers
+  are read out only in Italian and English, and the prosody is the neutral
+  one of [IPA]: no language's own durations or intonation. The first use of
+  a language needs the network.
 - Tones are said as they are written: a transcription carries the tones of
   the surface, so there are no tone sandhi rules; a [phonetic] transcription
   of another language gets neutral durations, not that language's rhythm.
@@ -1056,6 +1094,7 @@ in brackets are the adult male targets described under Speech.
 - Titze, I. R. & Sundberg, J. (1992). Vocal intensity in speakers and singers. JASA 91.
 - Young, S. et al. The HTK Book (mel filterbank).
 - Zhang, Z. & Espy-Wilson, C. Y. (2004). A vocal-tract model of American English /l/. JASA 115.
+- Zhu, J., Zhang, C. & Jurgens, D. (2022). ByT5 model for massively multilingual grapheme-to-phoneme conversion. Interspeech 2022.
 
 ## Developer scripts
 
@@ -1063,6 +1102,7 @@ in brackets are the adult male targets described under Speech.
 npx tsx scripts/say.ts out/            # render example sentences to WAV, print phones, durations and pitch range
 npx tsx scripts/say.ts out/ en "any sentence"   # one sentence; add --flat for the robot version
 npx tsx scripts/g2p.ts en "the water bottle"    # phones of a text and where each English word came from
+npx tsx scripts/phonemize.ts fr "ça va ?"       # another language, with the real dictionary and model (downloaded into out/g2p/)
 npx tsx scripts/trace.ts it "il carro"          # every 2 ms: phone, constriction area, oral pressure, voicing, larynx, mouth flow
 npx tsx scripts/build-lexicon.ts us_gold.json   # rebuild public/lexicon/en-us.lex
 npx tsx scripts/tune-rhotic.ts 490,1350,1690 ɹ  # fit an articulation to F1/F2/F3 with tip and lips free

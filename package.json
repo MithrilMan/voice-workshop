@@ -17,6 +17,7 @@
     "tune": "tsx scripts/tune-vowels.ts"
   },
   "dependencies": {
+    "onnxruntime-web": "^1.30.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "three": "^0.186.1"

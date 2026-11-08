@@ -18,9 +18,24 @@ repository.
 |---|---|---|
 | three.js by mrdoob and contributors | MIT | https://github.com/mrdoob/three.js |
 | React and React DOM by Meta Platforms, Inc. and affiliates | MIT | https://github.com/facebook/react |
+| ONNX Runtime Web by Microsoft (JavaScript and WebAssembly, loaded only by the phonemizer) | MIT | https://github.com/microsoft/onnxruntime |
 
 The development tools (Vite, Vitest, TypeScript, tsx and their dependencies) keep their own licenses; see the
 installed package metadata.
+
+## Fetched by the browser at first use
+
+The phonemizer of the speak panel (`src/dsp/speech/phonemizer.ts`) reads these from their own sources, at the
+versions pinned in `src/ui/voice/phonemizerWeb.ts`. Neither this repository nor the built site contains them.
+
+| component | license | where |
+|---|---|---|
+| ipa-dict by open-dict-data and contributors: the dictionaries fr_FR, fr_QC, pt_BR, eo, fa, ma, nb, sw, vi_N | MIT | https://github.com/open-dict-data/ipa-dict |
+| ipa-dict: nl (Instituut voor de Nederlandse Taal), is (Hjal project) | CC BY | same |
+| ipa-dict: zh_hans, zh_hant (KFCD Pinyin, 開放漢語詞典; Unihan), yue (KFCD Pingyam, 開放粵語詞典) | CC BY 3.0; Unicode License | same |
+| ipa-dict: sv (Folkets lexikon, CC BY-SA 2.5), ja (EDICT, CC BY-SA 3.0), ko (Korean Wiktionary, CC BY-SA) | CC BY-SA | same |
+| CharsiuG2P by Jian Zhu, Cong Zhang and David Jurgens: the model g2p_multilingual_byT5_tiny_8_layers_100 | MIT | https://github.com/lingjzhu/CharsiuG2P |
+| its conversion to ONNX by Jarbas (OpenVoiceOS) | as the model | https://huggingface.co/Jarbas/charsiu_g2p_multilingual_byT5_tiny_8_layers_100_onnx |
 
 ## Measurements from the literature
 

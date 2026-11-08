@@ -7,6 +7,9 @@ import { formants, Formant } from '../dsp/tract/acoustics';
 import { noseOf, portArea } from '../dsp/tract/nasal';
 import { loadEnglishLexicon, englishLexiconSize } from '../dsp/speech/english';
 import { NaturalnessOptions, NATURAL_ALL } from '../dsp/speech/sequencer';
+import { resolve, phonemize } from '../dsp/speech/phonemizer';
+import { speechLanguage } from '../dsp/speech/languages';
+import { phonemizerSources, NeedsDownload } from './voice/phonemizerWeb';
 import { voice } from './voice/voice';
 import type { StreamBlock } from './voice/sink';
 
@@ -52,10 +55,12 @@ export interface UiState {
   info: string | null;
   /** show numeric readouts everywhere (plain words otherwise) */
   numbers: boolean;
-  /** the speak panel: text, its language, rate, accent strength and naturalness ingredients */
-  speech: { text: string; lang: Lang; rate: number; accent: number; natural: NaturalnessOptions };
+  /** the speak panel: text, its language (a code of languages.ts), rate, accent strength and naturalness ingredients */
+  speech: { text: string; lang: string; rate: number; accent: number; natural: NaturalnessOptions };
   /** the American English pronunciation dictionary */
   lexicon: 'idle' | 'loading' | 'ready' | 'error';
+  /** the phonemizer of the other languages: what it is loading, how much of it, and what failed */
+  phonemizer: { stage: 'idle' | 'dictionary' | 'model' | 'error'; progress: number; error?: string };
 }
 
 /** First sentence in the speak panel, in the language of the interface. */
@@ -139,6 +144,7 @@ class Store {
     info: null, numbers: false,
     speech: { text: '', lang: 'en', rate: 1, accent: 5, natural: { ...NATURAL_ALL } },
     lexicon: 'idle',
+    phonemizer: { stage: 'idle', progress: 0 },
   };
   readonly ring = { out: new Float32Array(RING), flow: new Float32Array(RING), noise: new Float32Array(RING), w: 0, total: 0 };
   private listeners = new Set<() => void>();
@@ -209,6 +215,35 @@ class Store {
     } catch {
       this.setUi({ lexicon: 'error' });
     }
+  }
+
+  private phonemizing: Promise<void> = Promise.resolve();
+
+  /**
+   * Fetches what the phonemizer needs to read a text in a language without
+   * rules of its own: its dictionary, then the model for the words the
+   * dictionary lacks, which it downloads only when asked (`download`). One
+   * text at a time; the panel shows each stage.
+   */
+  ensurePhonemes(text: string, code: string, download = false): Promise<void> {
+    if (!speechLanguage(code)) return Promise.resolve();
+    const job = this.phonemizing.then(async () => {
+      try {
+        await resolve(text, code, phonemizerSources((p) => this.phonemizerProgress(p), download), (stage) => this.setUi({ phonemizer: { stage, progress: 0 } }));
+        if (this.ui.phonemizer.stage !== 'idle' || phonemize(text, code).phones.length) this.setUi({ phonemizer: { stage: 'idle', progress: 1 } });
+      } catch (e) {
+        if (e instanceof NeedsDownload) { this.setUi({ phonemizer: { stage: 'idle', progress: 0 } }); return; }
+        this.setUi({ phonemizer: { stage: 'error', progress: 0, error: e instanceof Error ? e.message : String(e) } });
+      }
+    });
+    this.phonemizing = job;
+    return job;
+  }
+
+  /** Download progress, in steps of 2 % (each one redraws the panel). */
+  private phonemizerProgress(p: number): void {
+    const ph = this.ui.phonemizer;
+    if (Math.abs(p - ph.progress) >= 0.02 || p >= 1) this.setUi({ phonemizer: { ...ph, progress: p } });
   }
 
   setSpeech(u: Partial<UiState['speech']>): void { this.setUi({ speech: { ...this.ui.speech, ...u } }); }

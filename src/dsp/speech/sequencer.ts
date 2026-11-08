@@ -57,8 +57,8 @@ export interface ProsodyOptions {
   rate: number;
   /** lung pressure, cm H2O */
   ps: number;
-  /** language: durations, aspiration, accent alignment */
-  lang: Lang;
+  /** language: durations, aspiration, accent alignment (rules for 'it' and 'en'; another language comes as literal phones) */
+  lang: Lang | string;
   /**
    * said as written, with no language's rules: durations from the sounds and
    * the length marks, aspiration only where it is written, syllables from the

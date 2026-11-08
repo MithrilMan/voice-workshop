@@ -1,6 +1,7 @@
 import { PHONEMES } from './phonemes';
 import { englishWord, englishNumber } from './english';
 import { readIpa } from './ipaReader';
+import { phonemize } from './phonemizer';
 
 /** A phone of an utterance after grapheme-to-phoneme conversion. */
 export interface Phone {
@@ -44,6 +45,7 @@ export interface Phone {
   literal?: boolean;
 }
 
+/** the languages with spelling rules of their own; the others (languages.ts) go through the phonemizer */
 export type Lang = 'it' | 'en';
 
 const IT_VOWELS = 'aeiouàèéìíòóùú';
@@ -213,13 +215,17 @@ const WH_WORDS = {
   it: new Set(['che', 'chi', 'cosa', 'come', 'dove', 'quando', 'perché', 'perche', 'quale', 'quali', 'quanto', 'quanta', 'quanti', 'quante']),
 };
 
-/** Text (Italian or English words, or /IPA/) to phones. */
-export function textToPhones(text: string, lang: Lang): Phone[] {
+/**
+ * Text to phones: Italian or English words by their rules, words of another
+ * language (a code of languages.ts) from what the phonemizer knows, or /IPA/.
+ */
+export function textToPhones(text: string, lang: Lang | string): Phone[] {
   const t = text.trim();
   // /phonemic/ IPA goes through the rules of the language; [phonetic] IPA is said as written
   const kind = ipaKind(t);
-  if (kind === 'phonemic') return parseIpa(t.slice(1, -1));
+  if (kind === 'phonemic') return parseIpa(t.slice(1, -1)).map((p) => (lang === 'it' || lang === 'en' ? p : { ...p, literal: true }));
   if (kind === 'phonetic') return parseIpa(t.slice(1, -1)).map((p) => ({ ...p, literal: true }));
+  if (lang !== 'it' && lang !== 'en') return phonemize(t, lang).phones;
   const out: Phone[] = [];
   // numbers become words first
   const spelled = t.replace(/\d+/g, (d) => ' ' + (lang === 'en' ? englishNumber(Number(d)) : italianNumber(Number(d))) + ' ');
