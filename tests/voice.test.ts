@@ -3,7 +3,9 @@ import { VoiceController, BREATH_MS, START_VOLUME } from '../src/ui/voice/voice'
 import { controlOf, leafPaths } from '../src/ui/voice/controls';
 import { VoiceEngine } from '../src/dsp/engine/engine';
 import { defaultParams, Score } from '../src/dsp/engine/params';
-import { contourScore } from '../src/ui/presets';
+import { contourScore, VOICE_PRESETS } from '../src/ui/presets';
+import { builtinVoice } from '../src/dsp/voice/builtin';
+import { cloneVoice } from '../src/dsp/voice/design';
 import { buildScore } from '../src/dsp/speech/sequencer';
 import { textToPhones } from '../src/dsp/speech/g2p';
 import { FakeSink, FakeClock, settle } from './voiceFakes';
@@ -232,4 +234,25 @@ describe('the voice controller', () => {
     expect(v.manual.phonate).toBe(false);
     expect(v.held.phoneme).toBe('u');
   });
+
+  it('becomes a voice: its body and folds for the hands, its habits on the sounds held and in speech', () => {
+    const whisper = builtinVoice('whisper')!.design;
+    expect(v.useVoice(cloneVoice(whisper))).toBe(true);
+    expect(v.active.id).toBe(whisper.id);
+    expect(v.held.speaker).toBe('whisper');
+    expect(v.manual.voicing).toBe(false);
+    // a whispered vowel stays whispered (it used to close the glottis)
+    v.holdPhoneme('a', { blow: false });
+    expect(v.manual.abduction).toBeGreaterThanOrEqual(0.42);
+    expect(v.speechOptions('it').setting?.abduction).toBe(0.42);
+    // a preset is the built-in voice of the same name
+    const deep = VOICE_PRESETS.find((p) => p.id === 'deep')!;
+    v.applyPreset(deep.id, deep.apply, { blow: false });
+    expect(v.active.id).toBe('builtin-deep');
+    v.holdPhoneme('i', { blow: false });
+    expect(v.manual.articulators.larynx).toBeCloseTo(-0.8, 6);
+    v.reset();
+    expect(v.active.id).toBe('reference');
+  });
 });
+

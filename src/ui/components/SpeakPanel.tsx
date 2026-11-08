@@ -149,8 +149,8 @@ export function SpeakPanel() {
     if (speechLanguage(lg) && !ipaKind(t)) await store.ensurePhonemes(t, lg, true);
     const ph = textToPhones(t, lg);
     if (!ph.length) return;
-    const p = voice.manual;
-    const score = buildScore(ph, { lang: lg, f0: p.source.f0, ps: Math.max(6, p.source.ps), rate, accent, natural });
+    // the voice that speaks, with its habits and style; the panel's rate, accent and ingredients
+    const score = buildScore(ph, { ...voice.speechOptions(lg), rate, accent, natural });
     void voice.speak(score, { it: t, en: t });
   };
   const setNatural = (n: Partial<NaturalnessOptions>) => store.setSpeech({ natural: { ...natural, ...n } });

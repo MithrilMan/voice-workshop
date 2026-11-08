@@ -77,8 +77,7 @@ export function SayBox(props: { examples?: boolean }) {
     if (speechLanguage(lang) && !ipaKind(text)) await store.ensurePhonemes(text, lang, true);
     const ph = textToPhones(text, lang);
     if (!ph.length) return;
-    const p = voice.manual;
-    void voice.speak(buildScore(ph, { lang, f0: p.source.f0, ps: Math.max(6, p.source.ps), rate: sp.rate, accent: sp.accent, natural: sp.natural }), { it: text, en: text });
+    void voice.speak(buildScore(ph, { ...voice.speechOptions(lang), rate: sp.rate, accent: sp.accent, natural: sp.natural }), { it: text, en: text });
   };
   const speaking = perf.kind === 'sentence';
   return (

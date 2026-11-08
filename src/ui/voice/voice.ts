@@ -26,6 +26,10 @@ import { DEFAULT_ANATOMY, DEFAULT_ARTICULATORS, DEFAULT_TEETH } from '../../dsp/
 import { PHONEMES } from '../../dsp/speech/phonemes';
 import { colourCurve } from '../../dsp/noise/noise';
 import { applyPhoneme } from '../presets';
+import { VoiceDesign, cloneVoice, applyDesign, settingOfVoice, speechOptions as voiceSpeech } from '../../dsp/voice/design';
+import { builtinVoice } from '../../dsp/voice/builtin';
+import { settle, isNeutral } from '../../dsp/voice/setting';
+import type { ScoreOptions } from '../../dsp/speech/sequencer';
 import { ControlId, touched, cloneParams, DeepReadonly } from './controls';
 import { Bi, Filter, Lanes, Lock, lockOf, Performer } from './drivers';
 import type { VoiceSink, StreamBlock, EndReason } from './sink';
@@ -83,6 +87,8 @@ export class VoiceController {
   private stopRest: (() => void) | null = null;
   /** a hand is dragging the head: its moves give the voice air */
   private dragging = false;
+  /** the voice that speaks: its habits and its way of speaking (its body and folds are in the hands' parameters) */
+  private _active: VoiceDesign = cloneVoice();
 
   constructor(private readonly clock: Clock = realClock) {
     const p = defaultParams();
@@ -104,6 +110,16 @@ export class VoiceController {
 
   /** The hands' parameters, read-only: change them with edit(). */
   get manual(): DeepReadonly<EngineParams> { return this._manual; }
+  /** The voice that speaks. */
+  get active(): DeepReadonly<VoiceDesign> { return this._active; }
+
+  /**
+   * How the voice says a text in a language: its habits and style, with the
+   * pitch and lung pressure the hands have now (the lab's sliders).
+   */
+  speechOptions(lang: string): ScoreOptions {
+    return { ...voiceSpeech(this._active, lang), f0: this._manual.source.f0, ps: Math.max(6, this._manual.source.ps) };
+  }
   get lanes(): Lanes { return this._lanes; }
   get running(): boolean { return !!this.sink?.running; }
   get sampleRate(): number { return this.sink?.sampleRate ?? 48000; }
@@ -184,7 +200,18 @@ export class VoiceController {
   /** Holds a phoneme with the hands (an explicit choice: it takes over by default); `blow: false` only shapes the head. */
   holdPhoneme(ipa: string, opts: { f0?: number; takeOver?: boolean; blow?: boolean } = {}): boolean {
     const blow = opts.blow ?? true;
-    const ok = this.edit((p) => { applyPhoneme(ipa, p); if (opts.f0) p.source.f0 = opts.f0; p.phonate = blow; }, { takeOver: opts.takeOver ?? true });
+    const setting = settingOfVoice(this._active);
+    const ph = PHONEMES[ipa];
+    const ok = this.edit((p) => {
+      applyPhoneme(ipa, p);
+      // the voice's habits on the sound held (its larynx is the habit's, not the one the hands had)
+      if (ph && !isNeutral(setting)) {
+        p.articulators = settle({ ...p.articulators, larynx: ph.art.larynx ?? 0 }, ph, setting);
+        if (ph.manner !== 'glottalStop') p.abduction = Math.max(p.abduction, setting.abduction);
+      }
+      if (opts.f0) p.source.f0 = opts.f0;
+      p.phonate = blow;
+    }, { takeOver: opts.takeOver ?? true });
     if (ok) { this.held = { ...this.held, phoneme: ipa }; this.emit(); if (blow) void this.ensureAudio(); }
     return ok;
   }
@@ -193,13 +220,33 @@ export class VoiceController {
   applyPreset(id: string, apply: (p: EngineParams) => void, opts: { blow?: boolean } = {}): boolean {
     const blow = opts.blow ?? true;
     const ok = this.edit((p) => { apply(p); p.phonate = blow; }, { takeOver: true });
-    if (ok) { this.held = { ...this.held, speaker: id }; this.emit(); if (blow) void this.ensureAudio(); }
+    if (ok) {
+      const b = builtinVoice(id);
+      if (b) this._active = cloneVoice(b.design);
+      this.held = { ...this.held, speaker: id };
+      this.emit();
+      if (blow) void this.ensureAudio();
+    }
+    return ok;
+  }
+
+  /** Becomes a voice (from the library, a file or a link): its body and folds for the hands, its habits and style for speech. */
+  useVoice(d: VoiceDesign, opts: { blow?: boolean } = {}): boolean {
+    const blow = opts.blow ?? false;
+    const ok = this.edit((p) => { applyDesign(p, d); p.phonate = blow; }, { takeOver: true });
+    if (ok) {
+      this._active = cloneVoice(d);
+      this.held = { ...this.held, speaker: d.id.startsWith('builtin-') ? d.id.slice(8) : null };
+      this.emit();
+      if (blow) void this.ensureAudio();
+    }
     return ok;
   }
 
   /** Back to the reference voice and the vowel /a/ (lungs and volume as they are). */
   reset(): void {
     this.stop();
+    this._active = cloneVoice();
     this.edit((p) => {
       p.articulators = { ...DEFAULT_ARTICULATORS, ...PHONEMES.a.art };
       p.anatomy = { ...DEFAULT_ANATOMY };
