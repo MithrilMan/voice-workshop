@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 216 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 219 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -159,7 +159,7 @@ Inspector (Lab) and tools (Learn):
 
 | Block | Controls |
 |---|---|
-| Source | Lungs, voicing, F0, lung pressure, glottal opening, vibrato; voice presets (man, woman, child, deep, whisper, vocal fry, breathy, pressed, raspy); LF (Rd or Oq / alpha_m / Ra) or two-mass (tension, asymmetry, rest area); peak area, source-tract interaction, posterior chink; jitter, shimmer, diplophonia. |
+| Source | Lungs, voicing, F0, lung pressure, glottal opening, vibrato; voice presets (man, woman, child, deep, whisper, vocal fry, breathy, pressed, raspy); LF (Rd or Oq / alpha_m / Ra) or two-mass (tension, asymmetry, rest area); peak area, source-tract interaction, posterior chink, fold thickness (chest to falsetto); jitter, shimmer, diplophonia. |
 | Tract: tract & person | Filter (head, tube or none), articulators as sliders, phoneme buttons (IPA), the vowels measured by MRI (Story 2008) loaded as the tube, anatomy (size, pharynx length and width, vault of the palate, width of the arch, nasal leak, nasal cycle, each nostril, pinch the nose, air in the piriform fossae), timbre presets, losses. |
 | Tract: teeth & slit | Front view and side view of the incisors with the jet; slit width, extra opening, diastema, overjet, advance, upper / lower incisor length, tongue groove; presets (open bite, gap teeth, overjet, short teeth); s / ʃ / f / θ / z shortcuts; live jet readouts (velocity, Reynolds number, share of the jet hitting the teeth). |
 | Noise | The physical sources (aspiration, constriction jet, teeth obstacle, release bursts) with trims and pulsing; your own noise: colour (white, pink, brown, blue, violet), a drawable 32-point spectrum, band limits, level, pulsing by the glottal flow, injection point (glottis, constriction, teeth, lips or anywhere along the tract) or straight to the ears (bypassing the tract). |
@@ -290,7 +290,16 @@ Rk = (22.4 + 11.8 Rd)/100, Rg = Rk / (4 (0.11 Rd / (0.5 + 1.2 Rk) - Ra)),
 tp = 1/(2 Rg), te = tp (1 + Rk), ta = Ra. Rd 0.3-0.7 is pressed, about 1 modal,
 2-2.7 breathy. Advanced mode sets Oq, alpha_m and Ra directly. Cycle-to-cycle
 jitter, shimmer and alternate-cycle diplophonia, a posterior chink (incomplete
-closure) and vibrato complete the source. Only the AC part of the pulse train
+closure) and vibrato complete the source. The thickness of the folds sets
+the register (Hollien 1974): 1 is the chest voice, body and cover vibrating
+together; thinner, only the edge of the cover stretched by the
+cricothyroid vibrates, as in falsetto. The vertical thickness of the medial
+surface sets how long and how firmly the folds close, hence the slope of
+the spectrum (Zhang 2016): per unit of thinness Rd rises by 1.4, the glottis
+keeps a gap of 0.04 cm² and the swing shrinks by 40 %; in the two-mass model
+the lower mass thins (60 % per unit). At 300 Hz, from 1 to 0.3, H1-H2 rises
+from 3.9 to 13.4 dB (two-mass 7.3 to 10.0) and the harmonics near 3 kHz fall
+12 dB further (8). Only the AC part of the pulse train
 is injected into the tract; the mean flow belongs to the aerodynamic model.
 That mean glides over 3 ms: subtracted in one step at each new period (a
 shimmer amplitude, a new Rd), it would put a small click on every period, a
@@ -1084,6 +1093,7 @@ in brackets are the adult male targets described under Speech.
 | Head shapes | 120 sounds on 13 heads (vault 0.6 and 1.45, arch 0.8 and 1.25, pharynx 0.7 and 1.4, tongue 0.92 and 1.08, frenulum 0.6, mouth 0.8 and 1.2, lips 0.7 and 1.4): every stop, nasal and click closes, every other consonant keeps its passage within 0.8-1.15, no vowel narrows below 0.25 cm²; only the laterals closed by the dorsum (ʎ ʟ) under the lowest vault or the biggest tongue are approximate. On a vault of 0.6 "kaka gaga tata cece" builds 42-100 % of the lungs' pressure behind each closure |
 | Palate and arch | F2 of /i/ 2192 Hz: 2036 with a vault of 1.3, 2258 with 0.7; 2140 with an arch of 1.2, 2237 with 0.85 |
 | Language prosody | unstressed against stressed vowels: German 0.46, Spanish 0.78, Japanese 1.00; a long vowel in Japanese 2.0 times a short one (Spanish 1.7); the same four words, Spanish accents the first 4.5 st above French, which accents only the last (3.7 st above the one before); a yes/no question: Spanish rises to the end (112 -> 163 Hz), Hungarian and Greek peak on the last stress and fall (152 -> 98 Hz) |
+| Falsetto | 300 Hz, fold thickness 1 -> 0.3: LF H1-H2 3.9 -> 13.4 dB, H1 over the harmonic near 3 kHz 29.4 -> 41.4 dB, 8.1 dB weaker; two-mass still at 299 Hz, H1-H2 7.3 -> 10.0 dB, slope 36.7 -> 44.6 dB |
 | Fold length | folds 0.7 as long open a glottis 0.70 as wide at its peak; two-mass folds 0.6 as long still follow a 220 Hz target (220 Hz) |
 | Lips | F2 of /u/ 873 Hz: 817 with lips 1.4 times as thick (the tract 0.7 cm longer), 931 with 0.7; 898 with a mouth 1.2 times as wide, 851 with 0.8 |
 | Tongue | F2 of /a/ 1297 Hz: 1228 with a tongue of 1.08, 1412 with 0.92; with a frenulum of 0.6 /t d n/ close with the jaw raised and the tip of /r/ no longer reaches its contact |
@@ -1279,6 +1289,8 @@ in brackets are the adult male targets described under Speech.
 - Honikman, B. (1964). Articulatory settings. In D. Abercrombie et al. (eds.), In Honour of Daniel Jones. Longmans.
 - Lindblom, B. (1990). Explaining phonetic variation: a sketch of the H&H theory. In Speech Production and Speech Modelling. Kluwer.
 - Hollien, H. & Michel, J. F. (1968). Vocal fry as a phonational register. J. Speech Hear. Res. 11.
+- Hollien, H. (1974). On vocal registers. J. Phonetics 2.
+- Zhang, Z. (2016). Cause-effect relationship between vocal fold physiology and voice production in a three-dimensional phonation model. JASA 139.
 - Fletcher, H. (1953). Speech and Hearing in Communication. Van Nostrand.
 - Fry, D. B. (1979). The Physics of Speech. Cambridge University Press.
 - Fujimura, O. (1962). Analysis of nasal consonants. JASA 34.

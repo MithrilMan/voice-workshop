@@ -18,6 +18,10 @@ export interface SourceParams {
   peakArea: number;
   /** posterior glottal chink (incomplete closure), cm^2 */
   chink: number;
+  /** vertical thickness of the part of the folds that vibrates, 1 = body and cover together, as in a chest (modal)
+   *  voice; thin, only the edge of the cover stretched by the cricothyroid: falsetto. Thinner folds close less
+   *  and later, so the pulse is softer and the harmonics fall faster (Hollien 1974; Zhang 2016) */
+  thickness: number;
   /** subglottal (lung) pressure, cm H2O */
   ps: number;
   /** cycle-to-cycle period perturbation, % */
@@ -116,6 +120,7 @@ export const DEFAULT_SOURCE: SourceParams = {
   ra: 0.03,
   peakArea: 0.12,
   chink: 0.01,
+  thickness: 1,
   ps: 8,
   jitter: 0.4,
   shimmer: 2,

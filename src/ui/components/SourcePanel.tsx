@@ -70,6 +70,9 @@ export function SourcePanel() {
           <Slider label={L({ it: 'Asimmetria sinistra/destra', en: 'Left/right asymmetry' })} value={s.asym} control="quality" min={0} max={0.8} onChange={(v) => set((x) => { x.source.asym = v; })} />
           <Slider label={L({ it: 'Apertura a riposo', en: 'Rest opening' })} value={s.restArea} control="quality" min={0} max={0.12} step={0.002} onChange={(v) => set((x) => { x.source.restArea = v; })} format={(v) => `${v.toFixed(3)} cm²`} />
         </>}
+        <Slider label={L({ it: 'Spessore delle corde', en: 'Fold thickness' })} value={s.thickness} control="quality" min={0.2} max={1.2}
+          hint={L({ it: 'Quanta parte delle corde vibra in altezza: 1 la voce di petto, sotto 0,5 il falsetto (solo il bordo sottile vibra, chiude poco, la fondamentale domina).', en: 'How much of the folds vibrates top to bottom: 1 the chest voice, below 0.5 falsetto (only the thin edge vibrates, it barely closes, the fundamental dominates).' })}
+          onChange={(v) => set((x) => { x.source.thickness = v; })} format={(v) => `${v.toFixed(2)} · ${v < 0.5 ? L({ it: 'falsetto', en: 'falsetto' }) : v < 0.85 ? L({ it: 'misto', en: 'mixed' }) : L({ it: 'petto', en: 'chest' })}`} />
         <Slider label={L({ it: 'Fessura posteriore (perdita)', en: 'Posterior chink (leak)' })} value={s.chink} control="quality" min={0} max={0.2} step={0.002} onChange={(v) => set((x) => { x.source.chink = v; })} format={(v) => `${v.toFixed(3)} cm²`} />
         <Readout items={[
           ['Oq', q.oq.toFixed(2)], ['αm', q.alphaM.toFixed(2)], ['Ra', q.ra.toFixed(3)],

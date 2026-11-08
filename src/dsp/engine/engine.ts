@@ -28,6 +28,19 @@ const FULL_SCALE_PA = 0.3;
  * /a/, with jets of the true hydraulic diameter of each passage.
  */
 export const NOISE_K = { aspiration: 0.15, wall: 0.07, obstacle: 1.35, user: 0.04, bypass: 0.004, burst: 0.08 };
+/**
+ * What thin folds change in the LF source (Zhang 2016: the vertical thickness
+ * of the medial surface sets the closed quotient and the slope of the
+ * spectrum): per unit of thinness the pulse softens (Rd up), a gap stays open
+ * (cm^2 in an adult man) and the swing shrinks (a share of the peak opening).
+ * In the two-mass model the lower mass is thinner.
+ */
+const THIN = { rd: 1.4, chink: 0.04, swing: 0.4 };
+/** thinness of the folds: 0 for a chest voice, 0.8 for the thinnest falsetto; thicker than chest is below zero */
+const thinness = (s: { thickness?: number }) => 1 - Math.max(0.2, Math.min(1.2, s.thickness ?? 1));
+/** the posterior gap of the glottis with the gap thin folds leave, cm^2 before scaling */
+const gapOf = (s: { chink: number; thickness?: number }) => Math.max(0, s.chink + THIN.chink * thinness(s));
+
 /** Length of the vocal folds (cm) for the glottal Reynolds number. */
 const FOLD_LENGTH = 1.4;
 
@@ -584,10 +597,10 @@ export class VoiceEngine {
     const abd = 0.55 * s2 * Math.max(0, this.abduction);
     let vib = 0;
     if (p.voicing) {
-      if (p.source.model === 'lf') vib = 0.45 * p.source.peakArea * s2 * this.voicingAmp;
+      if (p.source.model === 'lf') vib = 0.45 * p.source.peakArea * (1 - THIN.swing * thinness(p.source)) * s2 * this.voicingAmp;
       else vib = Math.max(0, this.tm.amin) * 0.5 + 0.5 * Math.max(0, p.source.restArea);
     }
-    return (vib + p.source.chink * s2) * this.gate + abd;
+    return (vib + gapOf(p.source) * s2) * this.gate + abd;
   }
 
   private updateAero(dt: number): void {
@@ -675,7 +688,7 @@ export class VoiceEngine {
     const dip = Math.max(s.diplophonia, 0.6 * c);
     if (dip > 0 && (src.periodIndex & 1)) amp *= 1 - 0.8 * dip;
     this.periodAmp = Math.max(0, amp);
-    const rd = Math.max(0.3, Math.min(2.7, s.rd + this.rdOffset));
+    const rd = Math.max(0.3, Math.min(2.7, s.rd + this.rdOffset + THIN.rd * thinness(s)));
     const timing: LFTiming = s.advanced ? timingFromQuotients(s.oq, s.alphaM, s.ra) : rdToTiming(rd);
     src.setShape(timing);
     // measured F0 (for display)
@@ -703,12 +716,12 @@ export class VoiceEngine {
     const dp = Math.max(ps - po, 0);
     const vg = Math.sqrt((2 * dp) / RHO);
     const z0 = wg.z0;
-    const steadyArea = p.source.chink * s2 * gate + 0.55 * s2 * abduction;
+    const steadyArea = gapOf(p.source) * s2 * gate + 0.55 * s2 * abduction;
     let u = 0; // total glottal flow (cm^3/s)
     let ag = steadyArea;
     if (p.source.model === 'lf') {
       this.lf.step(fs, this.nextPeriod);
-      const amp = p.voicing ? p.source.peakArea * s2 * voicingAmp * this.periodAmp * gate : 0;
+      const amp = p.voicing ? p.source.peakArea * (1 - THIN.swing * thinness(p.source)) * s2 * voicingAmp * this.periodAmp * gate : 0;
       const avib = amp * this.lf.flow;
       ag = avib + steadyArea;
       u = ag * vg;
@@ -731,7 +744,7 @@ export class VoiceEngine {
       const sp = p.source;
       tp.asym = Math.min(1, sp.asym + 0.3 * this.creak);
       tp.a0 = Math.max(0.0, sp.restArea) * s2 + (p.voicing ? 0 : 0.2);
-      tp.d1 = 0.25 * p.anatomy.scale;
+      tp.d1 = 0.25 * p.anatomy.scale * (1 - 0.6 * thinness(sp));
       tp.len = p.anatomy.foldLength ?? 1;
       tp.q = sp.tensionAuto ? this.tmQ : sp.q;
       const uf = this.tm.step(dt, p.voicing ? ps : 0, po, wg.pMinus, z0, this.uMean) * gate;
