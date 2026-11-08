@@ -2,7 +2,7 @@ import { RHO, C_SOUND, CMH2O, NU, AREA_CLOSED } from '../constants';
 import { LFSource, rdToTiming, timingFromQuotients, LFTiming } from '../glottis/lf';
 import { TwoMassGlottis } from '../glottis/twoMass';
 import { Waveguide } from '../tract/waveguide';
-import { computeGeometry, lowerPharynxLength, TractGeometry } from '../tract/geometry';
+import { computeGeometry, lowerPharynxLength, TractGeometry, EPILARYNX_PASSAGE } from '../tract/geometry';
 import { AreaFunction, N_SECTIONS, sectionsFromGeometry, resampleTube } from '../tract/areaFunction';
 import { buildNasal, NasalTract, noseOf, nostrilArea, portArea } from '../tract/nasal';
 import { Aero, newJetInfo, JetInfo, RE_CRIT, kineticResistances } from '../aero/aero';
@@ -460,10 +460,11 @@ export class VoiceEngine {
     } else {
       this.geom = computeGeometry(this.art, p.anatomy, p.teeth, { reuse: this.geom ?? undefined });
       sectionsFromGeometry(this.geom, N_SECTIONS, this.af);
-      // fine-grid minimum above the larynx (aerodynamic constriction)
+      // fine-grid minimum above the larynx (aerodynamic constriction); the
+      // tube above the folds counts only when the sphincter draws it in
       const g = this.geom;
       let m = Infinity, ms = 0, mp = 0, mw = 0;
-      const sStart = 2.6 * p.anatomy.scale;
+      const sStart = this.art.epilarynx > EPILARYNX_PASSAGE ? 0 : 2.6 * p.anatomy.scale;
       for (let i = 0; i <= g.lastRay; i++) {
         if (g.s[i] < sStart) continue;
         const a = g.hits[i].area;

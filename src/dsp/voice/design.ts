@@ -237,6 +237,8 @@ export const VOICE_FIELDS: Field[] = [
   // ----------------------------------------------------------- habits
   n('habits.larynx', 'habits', G.throat, { it: 'Laringe', en: 'Larynx' },
     { it: 'Tenuta bassa (−): tratto più lungo, voce scura e piena; alta (+): chiara, tesa, infantile (Laver 1980).', en: 'Held low (−): a longer tract, a dark, full voice; high (+): bright, tense, childlike (Laver 1980).' }, -1.2, 1, 0.01, 'cm'),
+  n('habits.epilarynx', 'habits', G.throat, { it: 'Twang', en: 'Twang' },
+    { it: 'Il tubo corto sopra le corde tenuto stretto: risuona da solo intorno ai 3 kHz e la voce diventa squillante, metallica, «nasale» anche col naso chiuso (Sundberg 1974; Titze & Story 1997). Sotto zero un po’ più largo.', en: 'The short tube above the folds held narrow: it rings by itself around 3 kHz and the voice turns ringing, brassy, "nasal" even with the nose shut (Sundberg 1974; Titze & Story 1997). Below zero a little wider.' }, -0.3, 0.7, 0.01),
   n('habits.tongueRoot', 'habits', G.throat, { it: 'Radice della lingua', en: 'Tongue root' },
     { it: 'Indietro (−): faringe stretta, voce «faringalizzata», strozzata; avanti (+): gola ampia.', en: 'Back (−): a narrow pharynx, a "pharyngealized", strained voice; forward (+): an open throat.' }, -0.8, 0.8, 0.01, 'cm'),
   n('habits.velum', 'habits', G.throat, { it: 'Nasalità', en: 'Nasality' },
@@ -372,7 +374,7 @@ export function applyDesign(p: EngineParams, d: Readonly<VoiceDesign>): void {
   p.noise = { ...DEFAULT_NOISE, aspiration: ph.aspiration, user: p.noise.user };
   p.voicing = ph.voicing;
   p.abduction = d.habits.abduction;
-  p.articulators = { ...p.articulators, larynx: d.habits.larynx };
+  p.articulators = { ...p.articulators, larynx: d.habits.larynx, epilarynx: d.habits.epilarynx };
 }
 
 /** the voice's setting, as the speech planner takes it */

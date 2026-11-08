@@ -5,7 +5,7 @@ import type { Place } from './ipa';
 export type FlickKey = 'tipY' | 'lipOpen' | 'tongueX';
 
 /** what is approximate about a sound derived from rules (the interface explains each) */
-export type ApproxCode = 'epiglottalFricative' | 'doubleFricative' | 'degree' | 'click' | 'anatomy';
+export type ApproxCode = 'doubleFricative' | 'degree' | 'click' | 'anatomy';
 
 export type Manner =
   | 'vowel' | 'fricative' | 'stop' | 'nasal' | 'approximant' | 'lateral' | 'trill' | 'tap' | 'affricate' | 'glottal' | 'glottalStop' | 'silence';

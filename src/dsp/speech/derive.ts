@@ -1,5 +1,5 @@
 import { Anatomy, Articulators, ARTICULATOR_RANGES, DEFAULT_ANATOMY, DEFAULT_ARTICULATORS, DEFAULT_TEETH, Teeth } from '../tract/types';
-import { computeGeometry } from '../tract/geometry';
+import { computeGeometry, EPILARYNX_PASSAGE } from '../tract/geometry';
 import { PHONEMES, VOWELS, Phoneme, Manner, NASAL_VELUM, FlickKey, ApproxCode } from './phonemes';
 import { IPA_CONSONANTS, IPA_VOWELS, ChartConsonant, ChartVowel, Modifier, Place, ChartManner, IPA_SPELLINGS } from './ipa';
 import { segmentOf, Segment, readIpa } from './ipaReader';
@@ -126,14 +126,14 @@ const RECIPES: Record<Place, Recipe> = {
   pharyngeal: {
     art: { jaw: 0.4, tongueX: -1.0, tongueY: -0.6, tipY: 0, groove: 0 }, key: 'tongueRoot', open: 1.2, closed: -0.2, window: [11.6, 14.6], overshoot: 0.2,
   },
+  // the aryepiglottic sphincter: the arytenoids drawn forward under the
+  // epiglottis, the folds above the vocal folds drawn in, the tongue root
+  // a little back with them (Esling 2005)
   epiglottal: {
-    art: { jaw: 0.4, tongueX: -1.0, tongueY: -0.6, tipY: 0, groove: 0 }, key: 'tongueRoot', open: 0.4, closed: -1.2, window: [14.4, 16.6], overshoot: 0,
+    art: { jaw: 0.4, tongueX: -0.3, tongueY: -0.4, tongueRoot: 0.3, tipY: 0, groove: 0 }, key: 'epilarynx', open: 0, closed: 1, window: [14.6, 17.6], overshoot: 0.1,
   },
   glottal: { art: {}, key: 'jaw', open: 0, closed: 0, window: [0, 30], overshoot: 0 },
 };
-
-/** the tongue body a little forward, so that the root narrows the pharynx just above the larynx, not in its middle */
-const EPIGLOTTAL_FRICATIVE: Recipe = { ...RECIPES.epiglottal, art: { ...RECIPES.epiglottal.art, tongueX: -0.7 }, open: 1.2, window: [12.9, 16.6] };
 
 const CORONAL = new Set<Place>(['dental', 'alveolar', 'postalveolar', 'retroflex']);
 const DORSAL = new Set<Place>(['alveolopalatal', 'palatal', 'velar', 'uvular']);
@@ -182,7 +182,10 @@ function measure(a: Articulators, win?: [number, number], head?: Head): { min: n
     if (area < min) { min = area; at = fromLips; }
     if (win && fromLips >= win[0] && fromLips <= win[1] && area < inWindow) inWindow = area;
   };
-  for (let i = 0; i <= g.lastRay; i++) if (g.s[i] >= S_START) take(g.hits[i].area, g.length - g.s[i]);
+  // the tube above the folds is always narrow (about 0.5 cm²): it is a
+  // sound's constriction only when the sphincter draws it in
+  const from = (a.epilarynx ?? 0) > EPILARYNX_PASSAGE ? 0 : S_START;
+  for (let i = 0; i <= g.lastRay; i++) if (g.s[i] >= from) take(g.hits[i].area, g.length - g.s[i]);
   if (g.teethPos > 0) take(g.slit.area, g.length - g.teethPos);
   return { min: Math.max(0, min), at, inWindow: Math.max(0, inWindow) };
 }
@@ -279,16 +282,13 @@ function consonantFromChart(sym: string, k: ChartConsonant): Built | null {
   const manner = MANNER_OF[k.manner];
   const place: Place = k.place;
   let approx: ApproxCode | undefined;
-  // the model has no aryepiglottic folds: an epiglottal fricative is made by
-  // the root, as low in the pharynx as a passage stays open (below ħ)
-  if (place === 'epiglottal' && k.manner !== 'plosive') approx = 'epiglottalFricative';
   if (place === 'glottal') {
     if (k.manner === 'plosive') return { ph: PHONEMES['ʔ'] };
     return { ph: make(sym, 'glottal', k.voiced, {}, { place }) };
   }
   // a voiceless /w/: the hiss is at the rounded lips
   if (sym === 'ʍ') return { ph: make(sym, 'fricative', false, { ...PHONEMES.w.art }, { place: 'velar' }), place: 'velar' };
-  const r = approx === 'epiglottalFricative' ? EPIGLOTTAL_FRICATIVE : RECIPES[place];
+  const r = RECIPES[place];
   let degree = degreeOf(k.manner);
   const lateral = k.manner === 'lateralApproximant' || k.manner === 'lateralFricative' || k.manner === 'lateralTap';
   let a: Partial<Articulators>;

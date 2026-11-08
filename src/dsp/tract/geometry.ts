@@ -477,7 +477,54 @@ function buildLarynx(a: Articulators): number[] {
     const y = out[i + 1];
     if (y > 1.8 && out[i] < 2) out[i] += (0.5 * a.tongueX + 0.8 * (a.tongueRoot + ROOT_REST)) * Math.min(1, (y - 1.8) / 1.6);
   }
+  // the front of the tube, up to the tip of the epiglottis, drawn back to the
+  // wall by the sphincter (or a little forward, below zero)
+  const e = a.epilarynx ?? 0;
+  if (e) {
+    for (let i = 0; i < 2 * LARYNX_TUBE_POINTS; i += 2) {
+      const w = epilarynxWeight(out[i + 1]);
+      out[i] -= e > 0 ? e * w * (out[i] - wallAt(out[i + 1]) + EPI_PRESS) : e * w * EPI_WIDEN;
+    }
+  }
   return out;
+}
+
+/**
+ * The aryepiglottic sphincter (Esling 2005; Moisik & Esling 2011): the
+ * arytenoids drawn forward under the base of the epiglottis and the
+ * aryepiglottic folds drawn in narrow the tube above the vocal folds (the
+ * epilarynx, about 2-3 cm long) front to back and side to side; shut, it is
+ * the epiglottal stop. Narrowed to a sixth of the pharynx it rings by itself,
+ * the "singer's formant" near 3 kHz and the brassy "twang" (Sundberg 1974;
+ * Titze & Story 1997). How much each height of the tube (canonical cm above
+ * the glottis) takes part: most between 0.6 and 2.4 cm, none at the folds
+ * and at the tip of the epiglottis.
+ */
+export function epilarynxWeight(y: number): number {
+  if (y <= 0 || y >= 3.2) return 0;
+  if (y < 0.6) return y / 0.6;
+  if (y > 2.4) return (3.2 - y) / 0.8;
+  return 1;
+}
+
+/** drawn in this far, the tube above the folds (narrow at rest, about 0.4-0.6 cm²) is a passage of the sound's own: below it, the narrowest passage is looked for above the tube */
+export const EPILARYNX_PASSAGE = 0.3;
+
+/** the points of LARYNX on the back of the tube, from the folds to the tip of the epiglottis */
+const LARYNX_TUBE_POINTS = 5;
+/** how far past the wall a shut sphincter presses (canonical cm), and how far forward the widest tube goes */
+const EPI_PRESS = 0.08;
+const EPI_WIDEN = 0.4;
+/** the share of its width the tube loses side to side when shut */
+const EPI_NARROW = 0.45;
+
+/** the posterior wall of the pharynx at a height (canonical cm), from WALL */
+function wallAt(y: number): number {
+  for (let i = 2; i < WALL.length; i += 2) {
+    const y0 = WALL[i - 1], y1 = WALL[i + 1];
+    if (y1 >= y && y0 <= y) return WALL[i - 2] + ((y - y0) / Math.max(1e-6, y1 - y0)) * (WALL[i] - WALL[i - 2]);
+  }
+  return WALL[0];
 }
 
 // ------------------------------------------------------------- transform
@@ -821,7 +868,8 @@ export function computeGeometry(a: Articulators, an: Anatomy, teeth: Teeth, opts
       if (sc < SC_LARYNX) {
         rule = 'larynx';
         lensFromLaw(law.larynx.alpha, law.larynx.beta, lens);
-        lens.half = LARYNX_HALF;
+        const e = a.epilarynx ?? 0;
+        lens.half = LARYNX_HALF * (1 - (e > 0 ? EPI_NARROW : 0.3) * e * epilarynxWeight(sc));
       } else if (sc <= SC_PHARYNX) {
         rule = 'pharynx';
         lensFromLaw(law.pharynx.alpha * pw, law.pharynx.beta, lens);

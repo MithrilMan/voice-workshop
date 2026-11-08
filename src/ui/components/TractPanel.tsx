@@ -37,6 +37,7 @@ export function TractPanel() {
     lipTuck: { it: 'Labbro sotto i denti (f, v)', en: 'Lip under the teeth (f, v)' },
     velum: { it: 'Velo abbassato (naso)', en: 'Velum lowered (nose)' },
     larynx: { it: 'Altezza della laringe', en: 'Larynx height' },
+    epilarynx: { it: 'Sfintere sopra le corde (epilaringe)', en: 'Sphincter above the folds (epilarynx)' },
   };
   const fm = store.derived().formants;
   const af = store.derived().af;
@@ -118,6 +119,9 @@ export function TractPanel() {
           hint={L({ it: 'Ai lati della laringe ci sono due tasche cieche, profonde circa 2 cm. Il suono ci entra e torna indietro sfasato: intorno a 4-5 kHz cancella quello che arriva, e ogni vocale ha lì una valle. Riempirle (come con l’acqua negli esperimenti) accorcia le tasche: la valle sale e alla fine sparisce.', en: 'Beside the larynx there are two blind pouches, about 2 cm deep. The sound goes in and comes back out of step: around 4-5 kHz it cancels what arrives, and every vowel has a valley there. Filling them (as with water in experiments) shortens the pouches: the valley rises and finally disappears.' })}
           onChange={(v) => voice.edit((x) => { x.anatomy.piriform = v; })} format={(v) => `${Math.round(100 * v)} %`} />
         <Slider label={L(names.larynx)} value={a.larynx} live={live.larynx} control="posture" min={-1.5} max={1.2} onChange={(v) => setA('larynx', v)} format={(v) => `${v.toFixed(1)} cm`} />
+        <Slider label={L(names.epilarynx)} value={a.epilarynx} live={live.epilarynx} control="posture" min={-0.5} max={1}
+          hint={L({ it: 'Sopra le corde vocali c’è un tubo corto, l’epilaringe. Un anello di muscoli lo può stringere: un po’ (0,3-0,5) e risuona da solo intorno ai 3 kHz, la voce «squillante» dei cantanti e il «twang»; del tutto (1) e si chiude, come nell’occlusiva epiglottale [ʡ] dell’agul, nel Caucaso.', en: 'Above the vocal folds there is a short tube, the epilarynx. A ring of muscles can squeeze it: a little (0.3-0.5) and it rings by itself around 3 kHz, the singers’ “ring” and the “twang”; all the way (1) and it shuts, as in the epiglottal stop [ʡ] of Aghul, in the Caucasus.' })}
+          onChange={(v) => setA('epilarynx', v)} format={(v) => (v < 0 ? L({ it: `più largo ${Math.round(-100 * v)} %`, en: `wider ${Math.round(-100 * v)} %` }) : `${Math.round(100 * v)} %`)} />
         <Slider label={L({ it: 'Perdite delle pareti', en: 'Wall losses' })} value={p.losses} control="walls" min={0.3} max={3} onChange={(v) => voice.edit((x) => { x.losses = v; })} format={(v) => `×${v.toFixed(1)}`} />
         <Readout items={[
           [L({ it: 'lunghezza', en: 'length' }), `${af.length.toFixed(2)} cm`],

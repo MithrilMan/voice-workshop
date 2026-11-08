@@ -29,6 +29,10 @@ export interface Articulators {
   velum: number;
   /** larynx height, cm (+ raises the larynx and shortens the tract) */
   larynx: number;
+  /** the aryepiglottic sphincter: the tube above the vocal folds narrowed
+   *  front to back and side to side, 0 = as at rest, 1 = shut (an epiglottal
+   *  stop); below zero a little wider than at rest */
+  epilarynx: number;
 }
 
 /** Speaker anatomy (persistent "person" part of the filter). */
@@ -103,6 +107,7 @@ export const DEFAULT_ARTICULATORS: Articulators = {
   lipTuck: 0,
   velum: 0,
   larynx: 0,
+  epilarynx: 0,
 };
 
 export const DEFAULT_ANATOMY: Anatomy = { scale: 1, pharynx: 1, pharynxWidth: 1, nasalLeak: 0, nasalCycle: 0, nostrilLeft: 1, nostrilRight: 1, piriform: 1, palateHeight: 1, archWidth: 1, tongueSize: 1, tipReach: 1, mouthWidth: 1, lipThickness: 1, foldLength: 1 };
@@ -118,7 +123,7 @@ export const DEFAULT_TEETH: Teeth = {
 };
 
 export const ARTICULATOR_KEYS: (keyof Articulators)[] = [
-  'jaw', 'tongueX', 'tongueY', 'tongueRoot', 'tipX', 'tipY', 'groove', 'tongueSides', 'lipOpen', 'lipRound', 'lipProtrude', 'lipTuck', 'velum', 'larynx',
+  'jaw', 'tongueX', 'tongueY', 'tongueRoot', 'tipX', 'tipY', 'groove', 'tongueSides', 'lipOpen', 'lipRound', 'lipProtrude', 'lipTuck', 'velum', 'larynx', 'epilarynx',
 ];
 
 /** Allowed ranges of the articulators (used by the UI and the sequencer). */
@@ -137,4 +142,5 @@ export const ARTICULATOR_RANGES: Record<keyof Articulators, [number, number]> = 
   lipTuck: [0, 1],
   velum: [0, 1],
   larynx: [-1.5, 1.2],
+  epilarynx: [-0.5, 1],
 };

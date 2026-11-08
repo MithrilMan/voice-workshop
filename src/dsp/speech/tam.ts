@@ -37,6 +37,7 @@ export const TAM_TAU: Record<string, number> = {
   lipTuck: 0.011,
   velum: 0.016,
   larynx: 0.018,
+  epilarynx: 0.012,
   abduction: 0.011,
   f0: 0.025,
   ps: 0.02,

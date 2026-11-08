@@ -29,19 +29,21 @@ export interface Setting {
   lipProtrude: number;
   /** larynx raised (+) or lowered (-), cm */
   larynx: number;
+  /** the tube above the folds held narrowed (+): a ringing, brassy "twang" (Laver's "pharyngealized" and Estill's twang), or wider (-) */
+  epilarynx: number;
   /** the velum never closes more than this on vowels and sonorants: a nasal voice, 0..1 */
   velum: number;
   /** the folds never come closer than this, except where they must shut: a breathy or whispering voice, 0..1 */
   abduction: number;
 }
 
-export const NO_SETTING: Readonly<Setting> = Object.freeze({ jaw: 0, tongueX: 0, tongueY: 0, tongueRoot: 0, lipRound: 0, lipProtrude: 0, larynx: 0, velum: 0, abduction: 0 });
+export const NO_SETTING: Readonly<Setting> = Object.freeze({ jaw: 0, tongueX: 0, tongueY: 0, tongueRoot: 0, lipRound: 0, lipProtrude: 0, larynx: 0, epilarynx: 0, velum: 0, abduction: 0 });
 
 /** the articulators a setting moves by an offset */
-export const SETTING_OFFSETS = ['jaw', 'tongueX', 'tongueY', 'tongueRoot', 'lipRound', 'lipProtrude', 'larynx'] as const;
+export const SETTING_OFFSETS = ['jaw', 'tongueX', 'tongueY', 'tongueRoot', 'lipRound', 'lipProtrude', 'larynx', 'epilarynx'] as const;
 
 /** the setting moves these even where a consonant sets them */
-const ALWAYS = new Set<string>(['larynx', 'lipRound', 'lipProtrude']);
+const ALWAYS = new Set<string>(['larynx', 'epilarynx', 'lipRound', 'lipProtrude']);
 
 export const settingOf = (s?: Partial<Setting>): Setting => ({ ...NO_SETTING, ...(s ?? {}) });
 
@@ -61,6 +63,8 @@ export function adjust(k: keyof Articulators, v: number, ph: Phoneme, own: boole
   if (k === 'velum') return nasalizable(ph) ? Math.max(v, s.velum) : v;
   const off = (s as unknown as Record<string, number>)[k] ?? 0;
   if (!off) return v;
+  // an epiglottal is made by the sphincter itself
+  if (k === 'epilarynx' && own && ph.place === 'epiglottal') return v;
   if (ph.manner === 'vowel' || !own || ALWAYS.has(k)) {
     const [lo, hi] = ARTICULATOR_RANGES[k];
     return Math.max(lo, Math.min(hi, v + off));

@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 209 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 214 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -119,7 +119,7 @@ Four modes, switchable in the header and remembered in the browser:
   tabs hold every field of the voice, each with its range, its unit and
   what it does: the body (size, pharynx, palate and arch, tongue, lips, nose, teeth), the voice (the fold
   model, its quality, irregularity, breath and vibrato), the habits (the
-  posture kept beneath every sound and the precision), the melody (usual
+  posture kept beneath every sound, a twang among it, and the precision), the melody (usual
   pitch, accents, downstep, the ends of statements and questions, with the
   pitch the voice will give the sentence drawn above them) and the rhythm
   and breath (rate, pauses, lengthening, loudness and its fall). The voice
@@ -391,17 +391,27 @@ the tongue. The lips (elliptic opening) and the teeth (the explicit slit
 between the incisor edges) keep their own shapes. The centreline length is
 measured, so lip protrusion and a lowered larynx really lengthen the tube
 (and spread lips, protrusion below zero, shorten it). The geometry and the
-area function cost about 0.1 ms per update. 14 articulators: jaw, tongue body
+area function cost about 0.1 ms per update. 15 articulators: jaw, tongue body
 x/y, tongue root, tip x/y, blade groove, tongue sides (the margins drawn in
 and lowered, for laterals), lip opening, rounding, protrusion, labiodental
-tuck, velum, larynx height. The
+tuck, velum, larynx height and the sphincter above the folds. The
 tongue root moves the back of the tongue below the body centre forward or
 back on its own (as Maeda's tongue-shape parameter), fully at the hyoid and
 fading toward the dorsum: tense /i/ advances it and widens the lower
 pharynx, lax /ɪ ɛ/ pull it back. Its rest position and the epilaryngeal tube
 above the glottis (about 0.45 cm², A = 0.55 d^1.3) follow the area functions
 measured by MRI (Story 2008), where the lower pharynx of most vowels is about
-1 cm². A tucked lower lip keeps its slit under the upper teeth whatever the
+1 cm². The aryepiglottic sphincter (the arytenoids drawn forward under the
+epiglottis and the folds above the vocal folds drawn in: Esling 2005; Moisik
+& Esling 2011) draws the front of that tube back to the wall and narrows it
+side to side, most between 0.6 and 2.4 cm above the glottis: 0.19 cm² at
+0.5, shut at 1 (the epiglottal stop), a little wider below zero. Narrowed to
+a fraction of the pharynx it rings on its own near 3 kHz, the singer's
+formant and the "twang" (Sundberg 1974; Titze & Story 1997): at 0.5 the band
+from 2.4 to 3.6 kHz rises 3.7-8.9 dB against the first formant's in the
+transfer function of /a i u/, 2.3 dB in a held /a/ as the engine makes it.
+The narrowest passage of a sound is looked for above that tube, which is
+narrow even at rest, unless the sphincter is drawn in past 0.3. A tucked lower lip keeps its slit under the upper teeth whatever the
 jaw, as a closing lip does for a bilabial (motor equivalence), and it slides
 out in front of the incisors when it rises above their edge, so that a /v/
 on its way to a rounded /w/ ("vuole") never closes. The anatomy (size,
@@ -740,7 +750,8 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   against the incisors, the ridge, behind it, or up and back for
   retroflexes, the blade and front of the body for alveolo-palatals, the
   body for palatals and velars, the dorsum backed against the uvula with the
-  root forward, the tongue root for pharyngeals and the epiglottal stop).
+  root forward, the tongue root for pharyngeals, the sphincter above the
+  folds for the epiglottals: shut for ʡ, narrowed to a hiss for ʜ ʢ).
   The manner gives the degree: closed for stops and nasals, about 0.1 cm²
   for fricatives (Stevens 1998), 0.3 cm² for approximants, 0.12 cm² between
   the contacts of a trill; a bisection on the geometry finds the value of
@@ -1055,7 +1066,7 @@ in brackets are the adult male targets described under Speech.
 | Fujisaki intonation | final F0: statement 106 Hz, wh-question 101 Hz, yes/no question 180 Hz (base 120 Hz) |
 | Melody | "Every voice you have ever heard is made of just two ingredients.": planned F0 range 10.2 st; the voice follows the plan within 0.58 st (90 %), 1.9 st with the slider smoothing |
 | Log-mel | 80 bands; a 1 kHz tone lands in band 25-29 |
-| IPA places | narrowest passage, cm from the lips: stops p 1.8, t 4.3, ʈ 4.8, c 6.8, k 9.6, q 12.3, ʡ 14.3; fricatives ɸ 0.4, ɕ 3.2, ʂ 4.7, ç 5.6, x 9.0, χ 11.5, ħ 12.3 |
+| IPA places | narrowest passage, cm from the lips: stops p 1.8, t 4.3, ʈ 4.8, c 6.8, k 9.6, q 12.3, ʡ 16.7; fricatives ɸ 0.4, ɕ 3.2, ʂ 4.7, ç 5.6, x 9.0, χ 11.5, ħ 12.3 |
 | IPA degrees | derived stops and nasals closed; fricatives 0.06-0.14 cm²; approximants 0.25-0.4 cm² |
 | Derived vowels | y 252/1869/2395, ø 397/1534/2191, œ 499/1626/2086, ɯ 336/1403/2237, ɨ 399/1679/2306 Hz: rounding lowers F2 and F3 of the front vowels, unrounding raises F2 of the back ones |
 | Czech ř | laminal, its narrowest passage in front of /r/'s; contacts in [ˈr̝eka] 4, in [ˈtr̝̊i] 3; open phases at most 0.16 cm², their hiss 21 dB above /r/'s |
@@ -1071,7 +1082,8 @@ in brackets are the adult male targets described under Speech.
 | Trills | closures of the lips in [aʙa] 3, of the dorsum against the uvula in [aʀa] 4, of the tip in [ara] 1 |
 | Velar lateral | ʟ: midline closed by the dorsum, lateral channels over 10 grid lines, 7.0-9.6 cm from the lips; /l/ F3 still 2421 Hz |
 | Uvular nasal | murmur against the vowel: [ŋ] -4.4 dB, [ɴ] -7.9 dB (-19.3 dB with the nose joined at the velum, in front of the closure) |
-| Epiglottal fricative | ʜ 0.10 cm² at 13.1 cm from the lips, ħ at 12.3 cm |
+| Epilarynx | narrowest section of the tube above the folds 0.43 cm² at rest, 0.19 with the sphincter at 0.5, shut at 1; at 0.5 the band 2.4-3.6 kHz rises against the first formant's by 3.7 dB (/a/), 4.6 (/i/), 8.9 (/u/) in the transfer function and by 2.3 dB in a held /a/ |
+| Epiglottals | ʡ shut 16.7 cm from the lips, its closure about 100 dB below the vowel in [ˈaʡa]; ʜ 0.10 cm² at 16.5 cm (ħ at 12.3), 27 dB below the vowel; a voice with a twang keeps the sphincter at its setting through every other sound |
 | Clicks | cavity between the closures: [ʘ] -19.4 cmH2O, [ǀ] -18.5, [ǃ] -18.7, [ǁ] -17.9; inflow at the front release 848, 294, 297, 227 cm³/s with the back closure still shut |
 | Aeroelastic trills | lungs at 8 cmH2O: [arːa] 4 closures every 34 ms, [aʙːa] 6 every 31 ms, [aʀːa] 6 every 28 ms; at 0.5 cmH2O 1, 1 and 2 |
 | Written aspiration | VOT [p] 10 ms, [pʰ] 66 ms, [kʰ] 73 ms |
@@ -1103,8 +1115,12 @@ in brackets are the adult male targets described under Speech.
   before). The front end of the tract still moves by whole grid lines: when
   the upper lip comes down onto the last line the tract grows by 1.5 mm and
   the formants step by about 1 % (/ʊ/).
-- The epilaryngeal tube has a fixed width: real speakers narrow it for a
-  pressed voice and widen it for a breathy one.
+- The sphincter above the folds narrows and shuts the epilaryngeal tube
+  but does not vibrate: the aryepiglottic trills that often go with ʜ ʢ
+  (Esling 2005) and the growl of some singers are not made. On its own its
+  narrowing adds only 2.3 dB of ring to a held /a/ at 0.5; the twang of a
+  singer also raises the larynx, narrows the pharynx and spreads the lips,
+  which the habits set apart.
 - A held /u/ is probably too weak: 11 dB below /a/, against 4.7 dB for /i/,
   where natural speech has close vowels only a few dB below open ones. Its
   first resonance is damped by the soft walls, which also lift it from
@@ -1131,9 +1147,7 @@ in brackets are the adult male targets described under Speech.
   not fitted to measurements of each sound: their place, their degree and
   the order of their formants are checked, not their spectra against
   recordings. A few symbols are approximated, and the interface says so
-  under the text: ʜ ʢ are made by the tongue root as low in the pharynx as
-  a passage stays open, 0.8 cm below ħ (the model has no aryepiglottic
-  folds), ɧ as a rounded velar fricative, the palatal click ǂ with one
+  under the text: ɧ as a rounded velar fricative, the palatal click ǂ with one
   closure (the model's tongue is one body: it cannot make the palatal and
   the velar closure at once), so it rarefies no air.
 - The pop of a click is the inflow into a small cavity (about 1 cm³ of air
@@ -1270,6 +1284,10 @@ in brackets are the adult male targets described under Speech.
 - Story, B. H., Titze, I. R. & Hoffman, E. A. (1996). Vocal tract area functions from magnetic resonance imaging. JASA 100.
 - Story, B. H. (2008). Comparison of magnetic resonance imaging-based vocal tract area functions obtained from the same speaker in 1994 and 2002. JASA 123.
 - Sundberg, J., Johansson, C., Wilbrand, H. & Ytterbergh, C. (1987). From sagittal distance to area. Phonetica 44.
+- Sundberg, J. (1974). Articulatory interpretation of the "singing formant". JASA 55.
+- Titze, I. R. & Story, B. H. (1997). Acoustic interactions of the voice source with the lower vocal tract. JASA 101.
+- Esling, J. H. (2005). There are no back vowels: the laryngeal articulator model. Canadian Journal of Linguistics 50.
+- Moisik, S. R. & Esling, J. H. (2011). The "whole larynx" approach to laryngeal features. Proceedings of the 17th ICPhS, Hong Kong.
 - Titze, I. R. (1984). Parameterization of the glottal area, glottal flow, and vocal fold contact area. JASA 75.
 - Titze, I. R. & Sundberg, J. (1992). Vocal intensity in speakers and singers. JASA 91.
 - Young, S. et al. The HTK Book (mel filterbank).
