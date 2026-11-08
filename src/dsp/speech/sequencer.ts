@@ -71,6 +71,12 @@ export interface ProsodyOptions {
   /** articulatory lead of targets before the acoustic segment, s */
   lead: number;
   natural: NaturalnessOptions;
+  /**
+   * how much slower (>1) or faster (<1) each articulator moves than usual: its
+   * time constant is multiplied by this while the utterance plays, and the
+   * planner's own runs of the target dynamics use the same
+   */
+  tauScale?: Partial<Record<keyof Articulators, number>>;
 }
 
 /** Options of buildScore: any prosody option, and any subset of the naturalness ingredients. */
@@ -480,6 +486,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   }
   const duration = t + 0.05;
   const lead = o.lead;
+  const tau = (k: keyof Articulators) => TAM_TAU[k] * (o.tauScale?.[k] ?? 1);
 
   // ---------------------------------------------------------- articulation
   // per-key anchor points: (interval, value) at the segments that specify the key
@@ -521,14 +528,14 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
         // nasalized vowel is part of the word
         const prev = anchors[k][anchors[k].length - 1];
         const own = PROTECTED.has(k) && !(en && k === 'velum');
-        const core = own && prev && !prev.cons && prev.mid !== undefined ? prev.mid - CORE * TAM_TAU[k] : -Infinity;
+        const core = own && prev && !prev.cons && prev.mid !== undefined ? prev.mid - CORE * tau(k) : -Infinity;
         // the larynx of an ejective or an implosive stays where it was until
         // the mouth is shut (a piston needs a closed cylinder), then moves
         // through the closure up to the release
         const piston = k === 'larynx' && (s.ph.airstream === 'ejective' || s.ph.airstream === 'implosive');
         const t0 = piston ? s.t0 + 0.4 * (s.t1 - s.t0) : Math.max(core, s.t0 - lead - (m === 'stop' ? 0 : CONS_ONSET));
         if (prev && (prev.t1 > t0 || piston)) prev.t1 = Math.max(prev.t0, t0);
-        const release = (m === 'fricative' ? 2 : 1) * RELEASE_LEAD * (TAM_TAU[k] / TAM_TAU.tipY);
+        const release = (m === 'fricative' ? 2 : 1) * RELEASE_LEAD * (tau(k) / TAM_TAU.tipY);
         anchors[k].push({ t0: Math.max(t0, prev ? prev.t1 : -Infinity), t1: piston ? s.t1 : Math.max(t0 + 0.01, s.t1 - release), v, cons: true, ...(piston ? { piston: s } : {}) });
         // a click opens its front first: the back closure (and the tip of a
         // lateral click) holds on a little longer, while the sides of a
@@ -571,7 +578,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     if (!vowels.length) continue;
     const [lo, hi] = ARTICULATOR_RANGES[k];
     for (let iter = 0; iter < 3; iter++) {
-      const tr = new TamChannel(valueAt(k, 0), TAM_TAU[k]);
+      const tr = new TamChannel(valueAt(k, 0), tau(k));
       const y: number[] = [];
       for (let i = 0; i * FRAME <= duration; i++) y.push(tr.step(valueAt(k, i * FRAME), FRAME));
       const at = (time: number) => y[Math.max(0, Math.min(y.length - 1, Math.round(time / FRAME)))];
@@ -592,7 +599,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   const pistons = anchors.larynx.filter((a) => a.piston);
   if (pistons.length) {
     const trs = {} as Record<keyof Articulators, TamChannel>;
-    for (const k of ARTICULATOR_KEYS) trs[k] = new TamChannel(valueAt(k, 0), TAM_TAU[k]);
+    for (const k of ARTICULATOR_KEYS) trs[k] = new TamChannel(valueAt(k, 0), tau(k));
     const art = { ...DEFAULT_ARTICULATORS };
     const shut = pistons.map((a) => Math.max(0.003, 1.3 * constrictionOf(a.piston!.ph.art).area));
     let p = 0;
@@ -618,7 +625,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   const clicks: { t0: number; t1: number; end: number }[] = [];
   if (clickSegs.length) {
     const trs = {} as Record<keyof Articulators, TamChannel>;
-    for (const k of ARTICULATOR_KEYS) trs[k] = new TamChannel(valueAt(k, 0), TAM_TAU[k]);
+    for (const k of ARTICULATOR_KEYS) trs[k] = new TamChannel(valueAt(k, 0), tau(k));
     const art = { ...DEFAULT_ARTICULATORS };
     let p = 0;
     for (let i = 0; i * FRAME <= duration && p < clickSegs.length; i++) {
@@ -649,7 +656,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // the closure blow it open, as many times as the air allows
   const tracks = {} as Record<FlickKey, number[]>;
   for (const key of ['tipY', 'lipOpen', 'tongueX'] as FlickKey[]) {
-    const tr = new TamChannel(valueAt(key, 0), TAM_TAU[key]);
+    const tr = new TamChannel(valueAt(key, 0), tau(key));
     const y: number[] = [];
     for (let k = 0; k * FRAME <= duration + 0.05; k++) y.push(tr.step(valueAt(key, k * FRAME), FRAME));
     tracks[key] = y;
@@ -970,7 +977,8 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // the melody is already a smooth curve (Fujisaki's filters, the drawn
   // contour): the engine only rounds off the 5 ms frame steps, without the
   // slower glide it gives to a slider, which would shave the accent peaks
-  return { frames, phones: sp, duration, flutter: nat.micro ? 25 : 0, f0Tau: 0.006 };
+  const scaled = o.tauScale && Object.values(o.tauScale).some((v) => v !== undefined && v !== 1);
+  return { frames, phones: sp, duration, flutter: nat.micro ? 25 : 0, f0Tau: 0.006, ...(scaled ? { tauScale: { ...o.tauScale } } : {}) };
 }
 
 /** A sustained vowel or a glide between targets, for the singing / A-B demos. */

@@ -218,4 +218,6 @@ export interface Score {
   flutter?: number;
   /** time constant (s) of the F0 smoothing while the score plays, when its contour is already smooth */
   f0Tau?: number;
+  /** multipliers of the articulators' time constants while the score plays (a slack or a crisp speaker) */
+  tauScale?: Partial<Record<keyof Articulators, number>>;
 }

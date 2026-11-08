@@ -295,9 +295,16 @@ export class VoiceEngine {
     this.scoreTime = 0;
     this.scoreIdx = 0;
     this.tam.f0.tau = score.f0Tau ?? TAM_TAU.f0;
+    for (const k of ARTICULATOR_KEYS) this.tam[k].tau = TAM_TAU[k] * (score.tauScale?.[k] ?? 1);
   }
 
-  stopScore(): void { this.score = null; this.tam.f0.tau = TAM_TAU.f0; }
+  stopScore(): void { this.score = null; this.restoreTau(); }
+
+  /** the time constants of the hands, when a score ends or is stopped */
+  private restoreTau(): void {
+    this.tam.f0.tau = TAM_TAU.f0;
+    for (const k of ARTICULATOR_KEYS) this.tam[k].tau = TAM_TAU[k];
+  }
 
   get isPlaying(): boolean { return this.score !== null; }
 
@@ -306,7 +313,7 @@ export class VoiceEngine {
   private targetFrame(): { art: Articulators | null; abduction: number; f0: number; ps: number; tip: number; lips: number; dorsum: number; rd: number; gate: number; tense: number; trill: number; trillKey?: TrillKey; trillAt: number; click: number } | null {
     const sc = this.score;
     if (!sc) return null;
-    if (this.scoreTime > sc.duration + this.scoreHold) { this.score = null; this.tam.f0.tau = TAM_TAU.f0; return null; }
+    if (this.scoreTime > sc.duration + this.scoreHold) { this.score = null; this.restoreTau(); return null; }
     const fr = sc.frames;
     while (this.scoreIdx < fr.length - 2 && fr[this.scoreIdx + 1].t <= this.scoreTime) this.scoreIdx++;
     const a = fr[this.scoreIdx], b = fr[Math.min(this.scoreIdx + 1, fr.length - 1)];
