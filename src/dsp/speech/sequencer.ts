@@ -7,6 +7,7 @@ import { phonemeFor, constrictionOf, contactPoint, passageIn } from './derive';
 import { IPA_CONSONANTS, IPA_VOWELS, Place } from './ipa';
 import { normalizeIpa } from './ipaReader';
 import { ProsodyStyle, styleOf, lengthen, ST } from './style';
+import { Setting, settingOf, isNeutral, adjust, nasalizable } from '../voice/setting';
 
 /**
  * Turns phones into a gestural score: piecewise targets for every articulator
@@ -80,6 +81,8 @@ export interface ProsodyOptions {
   tauScale?: Partial<Record<keyof Articulators, number>>;
   /** the speaker's way of speaking: melody, pauses, accents, phrase ends (the planner's own values by default) */
   style?: Partial<ProsodyStyle>;
+  /** the speaker's articulatory setting: the posture kept beneath every sound (none by default) */
+  setting?: Partial<Setting>;
 }
 
 /** Options of buildScore: any prosody option, and any subset of the naturalness ingredients. */
@@ -498,22 +501,29 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   const anchors: Record<string, { t0: number; t1: number; v: number; cons?: boolean; mid?: number; piston?: Seg }[]> = {};
   for (const k of ARTICULATOR_KEYS) anchors[k] = [];
   const neutral: Articulators = { ...DEFAULT_ARTICULATORS, ...PHONEMES['ə'].art };
+  // the speaker's setting, on every value a sound gives an articulator (`own`: the sound sets it itself)
+  const setting = settingOf(o.setting);
+  const habit = !isNeutral(setting);
+  const schwa = PHONEMES['ə'];
+  const habitual = (k: keyof Articulators, v: number, ph: Phoneme, own: boolean) => (habit ? adjust(k, v, ph, own, setting) : v);
   for (const s of segs) {
     const m = s.ph.manner;
     if (m === 'silence' || ((m === 'glottal' || m === 'glottalStop') && nat.coarticulation)) continue;
     // at the release the closing articulator opens toward the next vowel: leave it free
     if (s.part === 'release' || s.part === 'aspiration') continue;
     const art = s.ph.art;
-    const keys = m === 'vowel' || !nat.coarticulation ? ARTICULATOR_KEYS : (Object.keys(art) as (keyof Articulators)[]);
+    let keys = m === 'vowel' || !nat.coarticulation ? ARTICULATOR_KEYS : (Object.keys(art) as (keyof Articulators)[]);
+    // a nasal voice still shuts the port for an obstruent, which needs its air
+    if (habit && setting.velum > 0 && !nasalizable(s.ph) && !keys.includes('velum')) keys = [...keys, 'velum'];
     const off = s.ph.offglide ? phonemeFor(s.ph.offglide)?.art ?? null : null;
     for (const k of keys) {
-      const v = art[k] ?? (nat.coarticulation ? DEFAULT_ARTICULATORS[k] : neutral[k]);
+      const v = habitual(k, art[k] ?? (nat.coarticulation ? DEFAULT_ARTICULATORS[k] : neutral[k]), s.ph, art[k] !== undefined);
       if (off) {
         // diphthong: hold the nucleus, then glide to the offglide target
         // (the nucleus is aimed to be reached a quarter of the way in)
         const d = s.t1 - s.t0;
         anchors[k].push({ t0: s.t0 - lead, t1: s.t0 + 0.35 * d - lead, v, mid: s.t0 + 0.25 * d });
-        anchors[k].push({ t0: s.t1 - 0.2 * d - lead, t1: s.t1 - lead, v: off[k] ?? v });
+        anchors[k].push({ t0: s.t1 - 0.2 * d - lead, t1: s.t1 - lead, v: off[k] !== undefined ? habitual(k, off[k]!, s.ph, true) : v });
       } else if (m !== 'vowel') {
         // a consonant gesture starts earlier than its sound (it overlaps the
         // vowel before), so that a short fricative or nasal still reaches its
@@ -553,10 +563,10 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     }
   }
   // after the last sound the mouth relaxes to rest (and a final stop is released)
-  for (const k of ARTICULATOR_KEYS) anchors[k].push({ t0: t + 0.03, t1: t + 1, v: neutral[k] });
+  for (const k of ARTICULATOR_KEYS) anchors[k].push({ t0: t + 0.03, t1: t + 1, v: habitual(k, neutral[k], schwa, false) });
   const valueAt = (k: keyof Articulators, time: number): number => {
     const a = anchors[k];
-    if (!a.length) return DEFAULT_ARTICULATORS[k];
+    if (!a.length) return habitual(k, DEFAULT_ARTICULATORS[k], schwa, false);
     if (time <= a[0].t0) return a[0].v;
     for (let i = 0; i < a.length; i++) {
       if (time >= a[i].t0 && time <= a[i].t1) return a[i].v;
@@ -938,6 +948,8 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       else abd = sg.ph.abduction;
     }
     for (const w of shortLag) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) abd = Math.max(abd, 0.5);
+    // a breathy or whispering speaker's folds never quite meet (except where they must shut)
+    if (habit && gate > 0) abd = Math.max(abd, setting.abduction);
     // and tenses the walls of the pharynx, so that the rising larynx compresses the air instead of stretching them
     let tense = 0;
     for (const w of glottalHold) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) { abd = 0; gate = 0; tense = 1; }
