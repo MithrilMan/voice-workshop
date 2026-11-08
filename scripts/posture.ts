@@ -13,6 +13,7 @@ import { sectionsFromGeometry } from '../src/dsp/tract/areaFunction';
 import { formants } from '../src/dsp/tract/acoustics';
 import { DEFAULT_ANATOMY, DEFAULT_ARTICULATORS, DEFAULT_TEETH, Articulators } from '../src/dsp/tract/types';
 import { PHONEMES } from '../src/dsp/speech/phonemes';
+import { phonemeFor } from '../src/dsp/speech/derive';
 
 export function narrowest(a: Articulators): { area: number; s: number; fromLips: number; rule: string; f: string } {
   const g = computeGeometry(a, DEFAULT_ANATOMY, DEFAULT_TEETH);
@@ -29,7 +30,8 @@ export function narrowest(a: Articulators): { area: number; s: number; fromLips:
 // {"sweep":"tipY","lo":1,"hi":2.2,"n":7, ...posture} prints one line per value
 for (const arg of process.argv.slice(2)) {
   const o = JSON.parse(arg) as Partial<Articulators> & { from?: string; sweep?: keyof Articulators; lo?: number; hi?: number; n?: number };
-  const from = o.from ? PHONEMES[o.from].art : {};
+  // a fitted phoneme, or any IPA symbol made from rules
+  const from = o.from ? phonemeFor(o.from)?.art ?? {} : {};
   const { sweep, lo = 0, hi = 1, n = 6 } = o;
   delete o.from; delete o.sweep; delete o.lo; delete o.hi; delete o.n;
   const a: Articulators = { ...DEFAULT_ARTICULATORS, ...PHONEMES['ə'].art, ...from, ...o };

@@ -31,6 +31,23 @@ export const NOISE_K = { aspiration: 0.15, wall: 0.07, obstacle: 1.35, user: 0.0
 /** Length of the vocal folds (cm) for the glottal Reynolds number. */
 const FOLD_LENGTH = 1.4;
 
+type TrillKey = 'tipY' | 'lipOpen' | 'tongueX';
+/**
+ * The articulators that trill: natural frequency (Hz) and damping of the
+ * spring, the push of the air behind the passage (articulator units per s^2
+ * per cmH2O), how far past the contact the spring holds it (articulator
+ * units), the direction that shuts it and how fast the passage opens near
+ * the contact (cm^2 per unit). The alveolar trill is about 26 Hz (Recasens
+ * 1991; Ladefoged & Maddieson 1996).
+ */
+const TRILL: Record<TrillKey, { f: number; zeta: number; kp: number; press: number; dir: number; slope: number }> = {
+  tipY: { f: 26, zeta: 0.08, kp: 2000, press: 0.1, dir: 1, slope: 0.42 },
+  lipOpen: { f: 24, zeta: 0.08, kp: 2000, press: 0.3, dir: -1, slope: 1.7 },
+  tongueX: { f: 28, zeta: 0.08, kp: 2000, press: 0.3, dir: -1, slope: 0.8 },
+};
+/** stiffness of the tissue pressed against the other side, times the spring */
+const TRILL_CONTACT = 2;
+
 /** Volume of an area function from the glottis to s cm (cm^3). */
 function volumeTo(areas: ArrayLike<number>, dx: number, s: number): number {
   let v = 0;
@@ -155,6 +172,12 @@ export class VoiceEngine {
   private lowerPharynx = 0;
   /** walls of the cavity tensed (1: the pharynx of an ejective does not yield) or let go (-1: that of an implosive gives way) */
   private tense = 0;
+  /** the articulator trilling, its offset from the smoothed posture and its speed */
+  private trillKey: TrillKey | undefined;
+  private trillY = 0;
+  private trillV = 0;
+  /** where the trilling articulator meets the other side, as the geometry shows it */
+  private trillContact = 0;
   private wallJunction = 0;
   private aspJunction = 1;
 
@@ -257,7 +280,7 @@ export class VoiceEngine {
 
   // ------------------------------------------------------------ control
 
-  private targetFrame(): { art: Articulators | null; abduction: number; f0: number; ps: number; tip: number; lips: number; dorsum: number; rd: number; gate: number; tense: number } | null {
+  private targetFrame(): { art: Articulators | null; abduction: number; f0: number; ps: number; tip: number; lips: number; dorsum: number; rd: number; gate: number; tense: number; trill: number; trillKey?: TrillKey; trillAt: number } | null {
     const sc = this.score;
     if (!sc) return null;
     if (this.scoreTime > sc.duration + this.scoreHold) { this.score = null; this.tam.f0.tau = TAM_TAU.f0; return null; }
@@ -275,6 +298,7 @@ export class VoiceEngine {
       art, abduction: mix(a.abduction, b.abduction), f0: mix(a.f0, b.f0), ps: mix(a.ps, b.ps),
       tip: mix(a.tip ?? 0, b.tip ?? 0), lips: mix(a.lips ?? 0, b.lips ?? 0), dorsum: mix(a.dorsum ?? 0, b.dorsum ?? 0),
       rd: mix(a.rd ?? 0, b.rd ?? 0), gate: mix(a.gate ?? 1, b.gate ?? 1), tense: mix(a.tense ?? 0, b.tense ?? 0),
+      trill: mix(a.trill ?? 0, b.trill ?? 0), trillKey: a.trillKey ?? b.trillKey, trillAt: a.trillAt ?? b.trillAt ?? 0,
     };
   }
 
@@ -285,12 +309,13 @@ export class VoiceEngine {
     if (this.score) this.scoreTime += dt;
     const artT = fr?.art ?? p.articulators;
     for (const k of ARTICULATOR_KEYS) this.art[k] = this.tam[k].step(artT[k], dt);
-    // taps and trills: the contacts of the tongue tip are ballistic, added on
-    // top of the smoothed posture (alveolar trill about 26 Hz, Recasens 1991)
+    // taps: the contacts of the tongue tip are ballistic, added on top of the
+    // smoothed posture; the same for the lips (ⱱ) and the dorsum
+    const tk = fr && fr.trill > 0 ? fr.trillKey : undefined;
     if (fr && fr.tip) this.art.tipY += fr.tip;
-    // the same contacts for the lips (ʙ, ⱱ) and for the dorsum against the uvula (ʀ)
     if (fr && fr.lips) this.art.lipOpen += fr.lips;
     if (fr && fr.dorsum) this.art.tongueX += fr.dorsum;
+    this.trillStep(fr, tk, dt);
     this.rdOffset = fr ? fr.rd : 0;
     // a glottal stop closes within a few milliseconds
     this.gate += ((fr ? fr.gate : 1) - this.gate) * (1 - Math.exp(-dt / 0.006));
@@ -322,6 +347,39 @@ export class VoiceEngine {
     this.rWall.set(this.wallAmp);
     this.rObs.set(this.obsAmp);
     this.ctrlPhase = 0;
+  }
+
+  /**
+   * Trills are aeroelastic (McGowan 1992; Solé 2002): the tip, the lips or
+   * the dorsum is a mass on a spring whose rest is lightly past the contact.
+   * Shut, the pressure builds up behind it and blows it open; open, the
+   * pressure falls, a little later than the passage opens, and the spring
+   * closes it again. That lag feeds the oscillation, as in the vocal folds:
+   * the trill needs enough air, and stops when the pressure behind the
+   * passage is too low (a trill said with weak lungs, or with the nose open,
+   * dies into an approximant or a single contact).
+   */
+  private trillStep(fr: { trill: number; trillKey?: TrillKey; trillAt: number } | null, tk: TrillKey | undefined, dt: number): void {
+    if (tk && tk !== this.trillKey && fr) { this.trillKey = tk; this.trillY = 0; this.trillV = 0; this.trillContact = fr.trillAt; }
+    const k = this.trillKey;
+    if (!k) return;
+    const P = TRILL[k];
+    const w = 2 * Math.PI * P.f;
+    const on = tk && fr ? fr.trill : 0;
+    const base = this.art[k];
+    const rest = tk && fr ? this.trillContact + P.dir * P.press - base : 0;
+    let acc = -w * w * (this.trillY - rest) - 2 * (on > 0 ? P.zeta : 1) * w * this.trillV;
+    if (on > 0 && fr) {
+      // the air behind the passage pushes it open (and a suction would pull it shut)
+      acc -= P.dir * P.kp * on * (this.aero.po / CMH2O);
+      // pressed against the other side, the tissue is much stiffer
+      const z = P.dir * (base + this.trillY - this.trillContact);
+      if (z > 0) acc -= P.dir * TRILL_CONTACT * w * w * z + 2 * 0.3 * w * Math.sqrt(TRILL_CONTACT) * this.trillV;
+    }
+    this.trillV += acc * dt;
+    this.trillY += this.trillV * dt;
+    if (!on && Math.abs(this.trillY) < 1e-4 && Math.abs(this.trillV) < 1e-2) { this.trillKey = undefined; this.trillY = 0; this.trillV = 0; return; }
+    this.art[k] = base + this.trillY;
   }
 
   private artKey(): string {
@@ -414,6 +472,16 @@ export class VoiceEngine {
         this.dvRate = this.pendingDV / GEOM_INTERVAL;
       }
       this.lowerPharynx = lb;
+    }
+    // the contact of a trilling articulator moves with the rest of the
+    // posture (a jaw still closing from the vowel before): the geometry tells
+    // where it is. Shut, it is at most where the articulator is; just open,
+    // the articulator is short of it by the passage it leaves
+    if (this.trillKey) {
+      const P = TRILL[this.trillKey];
+      const x = this.art[this.trillKey];
+      if (this.fineMinArea < 0.004) { if (P.dir * (x - this.trillContact) < 0) this.trillContact = x; }
+      else if (this.fineMinArea < 0.3) this.trillContact = x + (P.dir * this.fineMinArea) / P.slope;
     }
     // exit of the constriction: first section downstream that opens up
     let exit = ci;

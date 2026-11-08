@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 150 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 151 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -741,11 +741,24 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   the closure and come together just after the burst, so the voice returns
   after a short lag, shortest for /p/ and longest behind the slower release
   of the tongue body for /k/ (12, 21 and 25 ms; Italian voiceless stops are
-  short-lag, under about 30 ms, with /k/ the longest). Taps and trills are ballistic
-  raised-cosine flicks of the tongue tip added on top of the smoothed posture
-  (one for /ɾ/, two to four contacts at 26 Hz for the Italian /r/, Recasens
-  1991); their height is computed from the tip's smoothed position, so they
-  really close against the ridge and build up oral pressure. After the last
+  short-lag, under about 30 ms, with /k/ the longest). A tap is a ballistic
+  raised-cosine flick of the tongue tip added on top of the smoothed posture
+  (Recasens 1991); its height is computed from the tip's smoothed position,
+  so it really closes against the ridge. A trill is aeroelastic (McGowan
+  1992; Solé 2002): the tip, the lips or the dorsum becomes a mass on a
+  spring (26, 24 and 28 Hz, lightly damped) held a little past its contact,
+  and the air does the rest. Shut, the pressure builds up behind it and
+  blows it open; open, the pressure falls, a little later than the passage
+  opens, and the spring and the softer tissue in contact close it again. The
+  lag of the pressure, set by the compliance of the walls, feeds the
+  oscillation, as in the vocal folds, so a trill needs air: with the lungs
+  at 8 cmH2O the long Italian /rː/ makes 4 contacts 34 ms apart, with almost
+  no pressure only the one on its way, and a voiceless trill, with the
+  glottis open, keeps going on less. The contact moves with the rest of the
+  posture (a jaw still closing from the vowel before), so the engine reads
+  where it is from the geometry: shut, it is at most where the articulator
+  is; just open, the articulator is short of it by the passage it leaves.
+  After the last
   sound the mouth relaxes to rest, releasing a final stop. A drawn contour
   replaces the intonation.
 - **Target approximation** (Birkholz 2007; Prom-on, Xu & Thipakorn 2009):
@@ -836,7 +849,7 @@ in brackets are the adult male targets described under Speech.
 | Klatt durations | /i/ in bead 223 ms vs beat 153 ms; "heed heed heed": first 121 ms, last 223 ms |
 | Italian durations | stressed /a/ in fato 156 ms vs fatto 104 ms |
 | Voice onset time | /t/ English 77 ms, after /s/ 21 ms; Italian /p t k/ 12 / 21 / 25 ms (Lisker & Abramson: English /t/ about 70 ms, range 30-105; Italian voiceless stops short-lag, under about 30 ms, /k/ longest) |
-| Trill and tap | tongue-tip closures: "carro" 4, "caro" 2 |
+| Trill and tap | tongue-tip closures: "carro" 4, "caro" 1 |
 | Consonant dips | nasals 7.0-15.0 dB, /v/ 13.2-19.9 dB below their vowels (natural speech: nasals 6-12 dB, voiced fricatives 12-20 dB; 8.3-17.7 dB without the jet losses) ("la mamma vuole la nonna e il vino", "Every voice you have ever heard is raining in."); no complete closure in /v w l/, the narrowest /v/ 0.08 cm² (0.03 before the lip could slide out from under the teeth); /ŋ/ in front of the nasal port in every vowel context |
 | Vowels in running speech | 15 English and Italian sentences, each vowel in its middle against the same vowel held: front vowels F2 99 % on average, 97 % at the 10th percentile; F3 of non-rhotic vowels 2367 Hz at the 10th percentile, 6.5 % of them 150 Hz below their own (after /ɹ/, before /l/); tip 0.24 at the 90th percentile; F1 100 %; tongue body 0.04 from its target; nasal port 0.002 cm² at most away from nasals, 0.05 cm² on average next to one |
 | Fujisaki intonation | final F0: statement 106 Hz, wh-question 101 Hz, yes/no question 180 Hz (base 120 Hz) |
@@ -846,7 +859,8 @@ in brackets are the adult male targets described under Speech.
 | IPA degrees | derived stops and nasals closed; fricatives 0.06-0.14 cm²; approximants 0.25-0.4 cm² |
 | Derived vowels | y 252/1869/2395, ø 397/1534/2191, œ 499/1626/2086, ɯ 336/1403/2237, ɨ 399/1679/2306 Hz: rounding lowers F2 and F3 of the front vowels, unrounding raises F2 of the back ones |
 | Czech ř | turbulence during the trill 12 dB above /r/ |
-| Trills | closures of the lips in [aʙa] 2, of the dorsum against the uvula in [aʀa] 2, of the tip in [ara] 2 |
+| Trills | closures of the lips in [aʙa] 3, of the dorsum against the uvula in [aʀa] 4, of the tip in [ara] 1 |
+| Aeroelastic trills | lungs at 8 cmH2O: [arːa] 4 closures every 34 ms, [aʙːa] 6 every 31 ms, [aʀːa] 6 every 28 ms; at 0.5 cmH2O 1, 1 and 2 |
 | Written aspiration | VOT [p] 10 ms, [pʰ] 66 ms, [kʰ] 73 ms |
 | Ejective | [kʼ] 9.5 cmH2O behind the shut glottis (lungs 8), larynx up 0.88 cm, no flow from the lungs; mouth flow in the 30 ms after the burst 129 cm³/s against 777 for [k] |
 | Implosive | [ɓ] 2.3 cmH2O behind the lips against 4.3 for [b], voicing amplitude at the release 0.74 against 0.51, larynx down 1.25 cm |
@@ -973,6 +987,14 @@ in brackets are the adult male targets described under Speech.
 - Öhman, S. E. G. (1966). Coarticulation in VCV utterances. JASA 39.
 - Peterson, G. E. & Barney, H. L. (1952). Control methods used in a study of the vowels. JASA 24.
 - Prom-on, S., Xu, Y. & Thipakorn, B. (2009). Modeling tone and intonation in Mandarin and English as a process of target approximation. JASA 125.
+- Browman, C. P. & Goldstein, L. (1992). Articulatory phonology: an overview. Phonetica 49.
+- Chao, Y. R. (1930). A system of tone letters. Le Maître Phonétique 45.
+- Cho, T. & Ladefoged, P. (1999). Variation and universals in VOT: evidence from 18 languages. J. Phonetics 27.
+- Ladefoged, P. & Maddieson, I. (1996). The Sounds of the World’s Languages. Blackwell.
+- Lindau, M. (1984). Phonetic differences in glottalic consonants. J. Phonetics 12.
+- McGowan, R. S. (1992). Tongue-tip trills and vocal-tract wall compliance. JASA 91.
+- Solé, M.-J. (2002). Aerodynamic characteristics of trills and phonological patterning. J. Phonetics 30.
+- Westbury, J. R. (1983). Enlargement of the supraglottal cavity and its relation to stop consonant voicing. JASA 73.
 - Recasens, D. (1991). On the production characteristics of apicoalveolar taps and trills. J. Phonetics 19.
 - Elovitz, H. S., Johnson, R., McHugh, A. & Shore, J. E. (1976). Automatic translation of English text to phonetics by means of letter-to-sound rules. NRL Report 7948.
 - Espy-Wilson, C. Y., Boyce, S. E., Jackson, M., Narayanan, S. & Alwan, A. (2000). Acoustic modeling of American English /r/. JASA 108.

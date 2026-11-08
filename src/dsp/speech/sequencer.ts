@@ -3,7 +3,7 @@ import { PHONEMES, Phoneme, FlickKey } from './phonemes';
 import { Phone, Lang } from './g2p';
 import { Score, ScoreFrame, ScorePhone } from '../engine/params';
 import { TamChannel, TAM_TAU } from './tam';
-import { phonemeFor, constrictionOf } from './derive';
+import { phonemeFor, constrictionOf, contactPoint } from './derive';
 import { IPA_CONSONANTS, IPA_VOWELS, Place } from './ipa';
 import { normalizeIpa } from './ipaReader';
 
@@ -124,6 +124,14 @@ const RELEASE_LEAD = 0.012;
  *  their time constants before that middle a consonant may claim them */
 const PROTECTED = new Set<string>(['tipX', 'tipY', 'tongueX', 'tongueY', 'velum']);
 const CORE = 0.75;
+const trillContacts = new Map<string, number>();
+/** where the trilling articulator of a phoneme meets the other side (cached: it takes a dozen geometries) */
+function trillContact(ph: Phoneme, key: FlickKey, toward: number): number {
+  const id = `${ph.ipa}|${key}|${toward}|${JSON.stringify(ph.art)}`;
+  let c = trillContacts.get(id);
+  if (c === undefined) { c = contactPoint(ph.art, key, toward); trillContacts.set(id, c); }
+  return c;
+}
 /** articulators whose vowel targets are aimed so that the middle of the vowel
  *  reaches them, and how far past the target they may aim, as a share of the
  *  way still to go */
@@ -591,11 +599,13 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     }
   }
 
-  // contacts of taps and trills (raised-cosine flicks up to the contact: the
-  // tongue tip to the ridge, the lips together, the dorsum against the
-  // uvula). Their size is measured from where the smoothed articulator
-  // really is, so the same target dynamics as the engine are run here. The
-  // fitted tap and trill of the tip keep the heights they were tuned with
+  // contacts of taps (raised-cosine flicks up to the contact: the tongue tip
+  // to the ridge, the lips to the teeth). Their size is measured from where
+  // the smoothed articulator really is, so the same target dynamics as the
+  // engine are run here. The fitted tap keeps the height it was tuned with.
+  // Trills are left to the air: the tip, the lips or the dorsum is held on a
+  // spring lightly past its contact, and the engine lets the pressure behind
+  // the closure blow it open, as many times as the air allows
   const tracks = {} as Record<FlickKey, number[]>;
   for (const key of ['tipY', 'lipOpen', 'tongueX'] as FlickKey[]) {
     const tr = new TamChannel(valueAt(key, 0), TAM_TAU[key]);
@@ -605,6 +615,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   }
   const now = (key: FlickKey, time: number) => tracks[key][Math.max(0, Math.min(tracks[key].length - 1, Math.round(time / FRAME)))];
   const flicks: Record<FlickKey, { c: number; w: number; a: number }[]> = { tipY: [], lipOpen: [], tongueX: [] };
+  const trills: { t0: number; t1: number; key: FlickKey; at: number }[] = [];
   for (const s of segs) {
     if (s.ph.manner !== 'tap' && s.ph.manner !== 'trill') continue;
     const fl = s.ph.flick;
@@ -622,15 +633,8 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       const c = 0.5 * (s.t0 + s.t1);
       flicks[key].push({ c, w: Math.max(0.04, (s.t1 - s.t0) * 1.6), a: toward(fl?.contact ?? 2.2, c, 0) });
     } else {
-      const period = 1 / 26;
-      const n = Math.max(1, Math.round((s.t1 - s.t0) / period));
-      const step = (s.t1 - s.t0) / n;
-      for (let k = 0; k < n; k++) {
-        const c = s.t0 + (k + 0.5) * step - lead * 0.3;
-        // the first contact reaches a little further than the next ones
-        const contact = fl ? fl.contact + (up ? 1 : -1) * (k === 0 ? 0.1 : -0.2) : k === 0 ? 2.3 : 2.0;
-        flicks[key].push({ c, w: 0.62 * step, a: toward(contact, c, up ? 0.5 : 0.15) });
-      }
+      const at = trillContact(s.ph, key, fl?.contact ?? 2.3);
+      trills.push({ t0: s.t0 - lead * 0.3, t1: s.t1, key, at });
     }
   }
   const flickAt = (key: FlickKey, time: number): number => {
@@ -908,8 +912,12 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       // a pause is quiet: the lungs hold back instead of blowing through the open glottis
       if (sg?.ph.manner === 'silence' && sg.t1 - sg.t0 > 0.1 && time > sg.t0 + 0.04 && time < sg.t1 - 0.06) ps *= 0.08;
     }
-    const lips = flickAt('lipOpen', time), dorsum = flickAt('tongueX', time);
-    frames.push({ t: time, art, abduction: abd, f0: f0At(time), ps, tip: flickAt('tipY', time), ...(lips ? { lips } : {}), ...(dorsum ? { dorsum } : {}), rd, gate, ...(tense ? { tense } : {}) });
+    const tip = flickAt('tipY', time), lips = flickAt('lipOpen', time), dorsum = flickAt('tongueX', time);
+    const tr = trills.find((w) => time >= w.t0 && time < w.t1);
+    frames.push({
+      t: time, art, abduction: abd, f0: f0At(time), ps, tip, ...(lips ? { lips } : {}), ...(dorsum ? { dorsum } : {}), rd, gate, ...(tense ? { tense } : {}),
+      ...(tr ? { trill: 1, trillKey: tr.key, trillAt: tr.at } : {}),
+    });
   }
   const sp: ScorePhone[] = [];
   for (const s of segs) {

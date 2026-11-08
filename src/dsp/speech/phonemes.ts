@@ -45,7 +45,7 @@ export interface Phoneme {
   phonation?: 'breathy' | 'creaky';
   /** air set in motion by the larynx (ejective, implosive) or by the tongue (click), not the lungs */
   airstream?: 'ejective' | 'implosive' | 'click';
-  /** taps and trills: the articulator that strikes and its value at the contact */
+  /** taps and trills: the articulator that strikes, and a value of it past the contact */
   flick?: { key: FlickKey; contact: number };
   /** a stop held without an audible release (̚) */
   unreleased?: boolean;

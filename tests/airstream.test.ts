@@ -86,3 +86,38 @@ describe('airstreams', () => {
     expect(inflow).toBeLessThan(-50);
   });
 });
+
+/** closures of a trill (shut below 0.004 cm², open again above 0.02) and their mean period */
+function trill(text: string, ps: number) {
+  const score = buildScore(textToPhones(text, 'it'), { lang: 'it', ps });
+  const ph = score.phones.find((q) => q.ipa !== 'a')!;
+  const e = new VoiceEngine(fs, defaultParams());
+  e.snapArticulators(); e.snapPressure(); e.playScore(score);
+  const buf = new Float32Array(48);
+  const starts: number[] = [];
+  let closed = false;
+  for (let t = 0; t < ph.t1 + 0.02; t += 48 / fs) {
+    e.process(buf, 48);
+    const a = e.telemetry().constrictionArea;
+    const c: boolean = closed ? a < 0.02 : a < 0.004;
+    if (t > ph.t0 - 0.02 && c && !closed) starts.push(t);
+    closed = c;
+  }
+  return { n: starts.length, period: starts.length > 1 ? (starts[starts.length - 1] - starts[0]) / (starts.length - 1) : NaN };
+}
+
+describe('aeroelastic trills', () => {
+  it('the air keeps the tip, the lips and the uvula trilling, near 30 Hz, and they stop when the lungs push too little', () => {
+    const rows: string[] = [];
+    for (const text of ['[ˈarːa]', '[ˈaʙːa]', '[ˈaʀːa]']) {
+      const strong = trill(text, 8), weak = trill(text, 0.5);
+      rows.push(`${text} ${strong.n} closures every ${(strong.period * 1000).toFixed(0)} ms, with weak lungs ${weak.n}`);
+      expect(strong.n).toBeGreaterThanOrEqual(3);
+      expect(strong.period).toBeGreaterThan(0.022);
+      expect(strong.period).toBeLessThan(0.045);
+      // the contact the articulator makes on its way, and at most one bounce
+      expect(weak.n).toBeLessThanOrEqual(2);
+    }
+    note('aeroelastic trills', rows.join('; '));
+  });
+});

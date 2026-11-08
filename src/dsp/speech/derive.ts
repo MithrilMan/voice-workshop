@@ -146,6 +146,23 @@ export function constrictionOf(a: Partial<Articulators>): { area: number; fromLi
 }
 
 /**
+ * Where an articulator meets the other side in a posture: the value of `key`,
+ * between the posture's own and `toward` (shut), at which the passage closes.
+ * Returns `toward` if it never closes.
+ */
+export function contactPoint(a: Partial<Articulators>, key: keyof Articulators, toward: number): number {
+  const at = (v: number) => measure(baseArt({ ...a, [key]: v })).min;
+  let lo = baseArt(a)[key], hi = toward;
+  if (at(hi) >= CLOSED) return toward;
+  if (at(lo) < CLOSED) return lo;
+  for (let it = 0; it < 12; it++) {
+    const m = 0.5 * (lo + hi);
+    if (at(m) < CLOSED) hi = m; else lo = m;
+  }
+  return hi;
+}
+
+/**
  * The value of the recipe's key that gives the degree inside the window,
  * by bisection (the area falls as the key goes from open to closed).
  */
@@ -257,7 +274,8 @@ function consonantFromChart(sym: string, k: ChartConsonant): Built | null {
   // taps and trills: the articulator that strikes, and where it touches
   if (k.manner === 'trill' || k.manner === 'tap' || k.manner === 'lateralTap') {
     const key: FlickKey = place === 'bilabial' || place === 'labiodental' ? 'lipOpen' : place === 'uvular' ? 'tongueX' : 'tipY';
-    // past the contact, so that every flick of a trill closes (the uvula closes from tongueX -1.3, the lips from -0.2)
+    // past the contact: where a tap aims, and the bound within which the contact of a trill is looked for
+    // (the uvula closes from tongueX -1.3, the lips from -0.2)
     const contact = place === 'labiodental' ? 0.42 : place === 'bilabial' ? -0.45 : place === 'uvular' ? -1.55 : 2.2;
     extra.flick = { key, contact };
     if (k.manner === 'tap' && place === 'labiodental') a.lipOpen = 0.9;

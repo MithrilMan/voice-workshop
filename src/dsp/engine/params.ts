@@ -190,6 +190,14 @@ export interface ScoreFrame {
   lips?: number;
   /** and for the dorsum against the uvula (added to tongueX: uvular trills) */
   dorsum?: number;
+  /**
+   * a trill (0..1): the articulator `trillKey` becomes a mass on a spring
+   * held lightly past its contact at `trillAt`, and the air behind it blows
+   * it open
+   */
+  trill?: number;
+  trillKey?: 'tipY' | 'lipOpen' | 'tongueX';
+  trillAt?: number;
   /** change of the LF shape parameter Rd (breathier phrase ends, tenser accents) */
   rd?: number;
   /** vocal-fold vibration and leak allowed (1) or folds pressed shut (0, glottal stop) */
