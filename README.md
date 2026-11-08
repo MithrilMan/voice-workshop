@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 180 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 192 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -63,7 +63,7 @@ volume pushed up.
 
 ## What you can do
 
-Three modes, switchable in the header and remembered in the browser:
+Four modes, switchable in the header and remembered in the browser:
 
 - **Learn**, for someone who starts from nothing (a welcome and 11 chapters,
   the first ones following the video), one step at a time. The head and the
@@ -107,6 +107,26 @@ Three modes, switchable in the header and remembered in the browser:
   back to the block you came from. One or two views; each has its own view
   picker and an enlarge button (Esc closes it), and a view changed is
   remembered for that bench in the browser.
+- **Voices**, a studio to make a voice of your own, keep it and share it.
+  On one side the library: your voices, kept in the browser, a new voice,
+  import (a `.voice.json` file, chosen or dropped on the page) and fourteen
+  starting voices (man, woman, child, deep, whisper, vocal fry, breathy,
+  pressed, raspy, dark, bright, nasal, warm, hollow). On the other the voice
+  being edited: its name and notes; save, duplicate, export as a file and
+  a link that opens it; a test sentence in any of the languages, with
+  patterns for a statement, a yes/no question, a question with "where" and
+  a list; "As it was" says it again with the voice before the changes. Five
+  tabs hold every field of the voice, each with its range, its unit and
+  what it does: the body (size, pharynx, nose, teeth), the voice (the fold
+  model, its quality, irregularity, breath and vibrato), the habits (the
+  posture kept beneath every sound and the precision), the melody (usual
+  pitch, accents, downstep, the ends of statements and questions, with the
+  pitch the voice will give the sentence drawn above them) and the rhythm
+  and breath (rate, pauses, lengthening, loudness and its fall). The voice
+  being edited is the voice that sounds, held on a vowel or saying the
+  sentence; the head and a view sit beside the editor. The Speak activity
+  of Play and the Lab's Speak panel say their text with the active voice
+  and lead to the studio.
 
 Who drives the voice is always shown under the header. Your hands (the
 handles, the sliders, the phoneme buttons) drive it unless something else
@@ -150,7 +170,7 @@ Inspector (Lab) and tools (Learn):
 
 | Output | Volume, sample rate and level; harmonics, filter envelope, log-mel, analysis window; numbers everywhere; freeze the views; the microphone (opt-in, analysed locally, never played back). |
 
-The header holds the three modes, the Sound button (and in the Lab, Hold),
+The header holds the four modes, the Sound button (and in the Lab, Hold),
 the volume and EN / IT; reset sits at the end of the Lab's chain. On a
 desktop the page fits the window, with no page scroll: the header and the
 bar at the bottom (Learn's step, Play's controls) stay in view, the stage
@@ -175,7 +195,8 @@ src/
     aero/aero.ts          slow aerodynamics, jets, Reynolds number, obstacle
     noise/noise.ts        turbulence sources and user noise shaping
     engine/engine.ts      the voice engine (one sample loop, telemetry)
-    speech/               phonemes, the IPA chart (ipa.ts) and its reader, sounds from rules (derive.ts), G2P (it/en), the phonemizer of the other languages, sequencer, target approximation
+    speech/               phonemes, the IPA chart (ipa.ts) and its reader, sounds from rules (derive.ts), G2P (it/en), the phonemizer of the other languages, sequencer, target approximation, prosodic style
+    voice/                a voice as data: its fields (design.ts), the starting voices, the file and link codec, the articulatory setting, an utterance (a voice saying something)
     analysis/             LPC formants, YIN pitch, mel filterbank
     data/vowels.ts        reference vowel formants
     data/mri.ts           vowel area functions measured by MRI (Story 2008)
@@ -183,7 +204,8 @@ src/
   audio/worklet.ts        AudioWorkletProcessor wrapping the program runner
   audio/audioEngine.ts    AudioContext, worklet node, microphone (the voice sink)
   ui/voice/               the voice controller, the only door to the sound: hands, performers, filter lanes, locks
-  ui/modes/               Learn, Play and Lab layouts, the view frame, the quick controls
+  ui/modes/               Learn, Play, Lab and the voice studio, the view frame, the quick controls
+  ui/library.ts           your voices, kept in the browser, and a voice received with a link
   ui/ds/                  small design system: card, pills, icon button, value with unit
   ui/                     React 19 views, panels, store, i18n, guided tour
   ui/three/meshes.ts      pure mesh builder for the 3D view (tested in Node); three.js loads only with that view
@@ -857,6 +879,27 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   sections (critically damped, no overshoot), with articulator-specific time
   constants (tip faster than jaw).
 
+### A voice as data
+
+A voice (src/dsp/voice/design.ts) is the four layers of the phonetic
+description of voice quality (Laver 1980; the Vocal Profile Analysis of
+Laver, Wirz, Mackenzie & Hiller 1981): the body (the anatomy and the
+teeth), the phonation (the fold model, its quality, irregularity, breath
+and vibrato), the habits (the articulatory setting and the precision) and
+the way of speaking (the usual pitch, the lung pressure, the accent
+strength, the rate and the prosodic style). Every field has a range, a
+unit, a step and an explanation in both languages; one table serves the
+studio and the validation, which keeps only the fields it knows, each
+within its range, so a file or a link can never carry anything else. The
+speaker presets are built-in voices, checked against the presets they
+were. A voice is saved as readable JSON (`.voice.json`, with its format
+and version, so later versions can add fields) and travels as a link:
+`#voice=v1.` followed by the fields that differ from a reference voice
+frozen for that version, deflated and in base64url (80-181 characters for
+the starting voices). The fragment never leaves the browser, so a shared
+voice needs no server. `utterance()` gives the engine parameters and the
+score of a voice saying something: one turn of a dialogue.
+
 ### Analysis
 
 - Spectrum: Hann-windowed FFT of the output. Predicted harmonics are the LF
@@ -1126,6 +1169,11 @@ in brackets are the adult male targets described under Speech.
 - Lindblom, B. (1963). Spectrographic study of vowel reduction. JASA 35.
 - Klatt, D. H. & Klatt, L. C. (1990). Analysis, synthesis, and perception of voice quality variations among female and male talkers. JASA 87.
 - Lisker, L. & Abramson, A. S. (1964). A cross-language study of voicing in initial stops: acoustical measurements. Word 20.
+- Laver, J. (1980). The Phonetic Description of Voice Quality. Cambridge University Press.
+- Laver, J., Wirz, S., Mackenzie, J. & Hiller, S. M. (1981). A perceptual protocol for the analysis of vocal profiles. Edinburgh University Department of Linguistics, Work in Progress 14.
+- Honikman, B. (1964). Articulatory settings. In D. Abercrombie et al. (eds.), In Honour of Daniel Jones. Longmans.
+- Lindblom, B. (1990). Explaining phonetic variation: a sketch of the H&H theory. In Speech Production and Speech Modelling. Kluwer.
+- Hollien, H. & Michel, J. F. (1968). Vocal fry as a phonational register. J. Speech Hear. Res. 11.
 - Fletcher, H. (1953). Speech and Hearing in Communication. Van Nostrand.
 - Fry, D. B. (1979). The Physics of Speech. Cambridge University Press.
 - Fujimura, O. (1962). Analysis of nasal consonants. JASA 34.
@@ -1155,6 +1203,7 @@ in brackets are the adult male targets described under Speech.
 ```bash
 npx tsx scripts/say.ts out/            # render example sentences to WAV, print phones, durations and pitch range
 npx tsx scripts/say.ts out/ en "any sentence"   # one sentence; add --flat for the robot version
+npx tsx scripts/say.ts out/ it "la luna" --voice=deep   # with a starting voice, or --voice=my.voice.json from the studio
 npx tsx scripts/g2p.ts en "the water bottle"    # phones of a text and where each English word came from
 npx tsx scripts/phonemize.ts fr "ça va ?"       # another language, with the real dictionary and model (downloaded into out/g2p/)
 npx tsx scripts/trace.ts it "il carro"          # every 2 ms: phone, constriction area, oral pressure, voicing, larynx, mouth flow
