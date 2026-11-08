@@ -67,6 +67,12 @@ const without = (a: Partial<Articulators>, ...keys: (keyof Articulators)[]) => {
   return o;
 };
 
+/** where the edge of the upper incisors is, cm from the lips (the default head, lips at rest) */
+const TEETH_FROM_LIPS = (() => {
+  const g = computeGeometry({ ...DEFAULT_ARTICULATORS, ...PHONEMES['ə'].art }, DEFAULT_ANATOMY, DEFAULT_TEETH);
+  return g.length - g.teethPos;
+})();
+
 const RECIPES: Record<Place, Recipe> = {
   // rounded lips narrow with the lip opening; the closure is that of /p/
   bilabial: {
@@ -79,8 +85,11 @@ const RECIPES: Record<Place, Recipe> = {
     window: [0.8, 2.4], overshoot: 0, closure: { jaw: 0.12, lipTuck: 1, lipRound: 0, lipProtrude: 0, lipOpen: -0.25 },
   },
   dental: {
-    // the tip against the back of the upper incisors: raised further it slides back to the ridge
-    art: { jaw: 0.12, tipX: 0.8, groove: 0, lipTuck: 0 }, key: 'tipY', open: -0.3, closed: 0.9, window: [1.4, 3.2], overshoot: 0.15,
+    // the tip against the back of the upper incisors: raised further it
+    // slides back to the ridge. The window runs from just in front of their
+    // edge to where their back meets the gum (the contact of a dental stop
+    // lies there, about 1.5 cm behind the edge: TEETH_FROM_LIPS)
+    art: { jaw: 0.12, tipX: 0.8, groove: 0, lipTuck: 0 }, key: 'tipY', open: -0.3, closed: 0.9, window: [TEETH_FROM_LIPS - 0.55, TEETH_FROM_LIPS + 1.85], overshoot: 0.15,
   },
   alveolar: {
     art: { jaw: 0.12, tipX: 0.25, groove: 0, lipTuck: 0 }, key: 'tipY', open: 0.6, closed: 2.2, window: [3.4, 5.0], overshoot: 0.3,
@@ -278,6 +287,10 @@ function consonantFromChart(sym: string, k: ChartConsonant): Built | null {
     // the closure and opens them to release it. The model's tongue is one
     // body: it cannot make the palatal closure of ǂ and the velar one at once
     extra.airstream = 'click';
+    // a dental click is laminal: the blade seals from the back of the
+    // incisors up to the ridge, which keeps the cavity behind it small
+    // (Ladefoged & Traill 1984); a dental stop needs only the tip on the teeth
+    if (place === 'dental') a.tipY = r.closed;
     a = { ...without(RECIPES.velar.closure!, 'tipY', 'groove'), ...a };
     if (k.lateral) { a.tongueSides = 0; extra.lateralRelease = true; }
     if (DORSAL.has(place)) extra.approx = 'click';

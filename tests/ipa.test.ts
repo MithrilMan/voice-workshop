@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readIpa, segmentOf } from '../src/dsp/speech/ipaReader';
-import { phonemeFor, constrictionOf, chartPhonemes } from '../src/dsp/speech/derive';
+import { phonemeFor, constrictionOf, chartPhonemes, notesForIpa } from '../src/dsp/speech/derive';
 import { textToPhones } from '../src/dsp/speech/g2p';
 import { buildScore } from '../src/dsp/speech/sequencer';
 import { PHONEMES } from '../src/dsp/speech/phonemes';
@@ -221,5 +221,19 @@ describe('derived sounds in speech', () => {
     const s = buildScore(textToPhones('[ˈaᵐba]', 'it'));
     const m = s.phones.find((q) => q.ipa === 'm')!;
     expect(m.t1 - m.t0).toBeLessThan(0.05);
+  });
+});
+
+describe('dental consonants', () => {
+  it('close with the tip on the back of the upper incisors, in front of the alveolars, with no note', () => {
+    const alveolar = constrictionOf(phonemeFor('t')!.art).fromLips;
+    for (const s of ['t̪', 'd̪', 'n̪']) {
+      const c = constrictionOf(phonemeFor(s)!.art);
+      expect(notesForIpa(s), s).toEqual([]);
+      expect(c.area, s).toBeLessThan(0.004);
+      expect(c.fromLips, s).toBeLessThan(alveolar - 1.5);
+    }
+    // the dental click stays laminal, its blade up to the ridge
+    expect(notesForIpa('ǀ')).toEqual([]);
   });
 });
