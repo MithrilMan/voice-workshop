@@ -159,6 +159,11 @@ export class VoiceEngine {
   private aspNoise = new TurbulenceSource(11);
   private wallNoise = new TurbulenceSource(23);
   private obsNoise = new TurbulenceSource(37);
+  /** the jet of a click, rushing in through its front passage: turbulence on the walls of its cavity */
+  private clickNoise = new TurbulenceSource(41);
+  private clickJet = newJetInfo();
+  private clickJetAmp = 0;
+  private clickJetJunction = -1;
   private userNoise = new ShapedNoise(1024);
   private userNoiseKey = '';
   private lpf = new ButterworthLowpass(8);
@@ -264,6 +269,7 @@ export class VoiceEngine {
   private rUg = new Ramp(0);
   private rWall = new Ramp(0);
   private rObs = new Ramp(0);
+  private rClickJet = new Ramp(0);
   private ctrlPhase = 1;
   private userAmp = 0;
   private userJunction = -1;
@@ -396,6 +402,7 @@ export class VoiceEngine {
     this.rUg.set(this.aero.ug);
     this.rClick.set(this.clickAero.uMouth);
     this.rWall.set(this.wallAmp);
+    this.rClickJet.set(this.clickJetAmp);
     this.rObs.set(this.obsAmp);
     this.ctrlPhase = 0;
   }
@@ -567,7 +574,10 @@ export class VoiceEngine {
       this.clickFrontArea = Number.isFinite(m) ? m : 1;
       this.clickFrontIndex = Math.min(n - 2, Math.max(0, Math.floor(ms / dx)));
       this.clickVolume = Math.max(0, volumeTo(af.areas, dx, ms) - volumeTo(af.areas, dx, this.fineMinS));
-    } else this.clickFrontIndex = -1;
+      // the inward jet hits the cavity half a centimetre behind the front passage
+      const back = Math.floor(this.fineMinS / dx) + 1;
+      this.clickJetJunction = Math.max(back, this.clickFrontIndex - Math.max(1, Math.round((0.5 * p.anatomy.scale) / dx)));
+    } else { this.clickFrontIndex = -1; this.clickJetJunction = -1; }
     // exit of the constriction: first section downstream that opens up
     let exit = ci;
     const ac = Math.max(af.areas[ci], 1e-3);
@@ -669,6 +679,12 @@ export class VoiceEngine {
     this.wallAmp = n.fricationOn ? NOISE_K.wall * this.jet.wallSource * db(n.frication) : 0;
     this.obsAmp = n.obstacleOn ? NOISE_K.obstacle * this.jet.obstacleSource * db(n.obstacle) : 0;
     this.wallNoise.configure(this.fsT, this.jet.fc);
+    // a click's jet, inward: the same law as a fricative's, from its own cavity's pressure
+    if (this.clickOn && this.clickJetJunction >= 0 && this.clickAero.po < 0) {
+      this.clickAero.jet(this.clickFrontArea, -1, 0, this.clickJet);
+      this.clickJetAmp = n.fricationOn ? NOISE_K.wall * this.clickJet.wallSource * db(n.frication) : 0;
+      this.clickNoise.configure(this.fsT, this.clickJet.fc);
+    } else this.clickJetAmp = 0;
     // glottal jet: width of the glottis ~0.2-0.3 cm, St ~0.15
     const vgl = Math.sqrt((2 * Math.max(this.psCur - this.aero.po, 0)) / RHO);
     this.aspNoise.configure(this.fsT, (0.15 * vgl) / (0.25 * scale));
@@ -795,18 +811,21 @@ export class VoiceEngine {
     const wallAmp = this.rWall.at(ph), obsAmp = this.rObs.at(ph);
     const wall = wallAmp > 0 ? wallAmp * mod * this.wallNoise.next() : 0;
     const obs = obsAmp > 0 ? obsAmp * mod * this.obsNoise.next() : 0;
+    const clickJetAmp = this.rClickJet.at(ph);
+    const cjet = clickJetAmp > 0 && this.clickJetJunction >= 0 ? clickJetAmp * this.clickNoise.next() : 0;
     let user = 0;
     if (this.userAmp > 0) {
       const fl = p.source.peakArea > 0 ? Math.min(2, u / Math.max(p.source.peakArea * s2 * vg, 1)) : 0;
       const m = n.user.pulse;
       user = this.userAmp * ((1 - m) + m * 2 * fl) * this.userNoise.next(fs);
     }
-    this.lastNoise = asp + wall + obs + user;
+    this.lastNoise = asp + wall + obs + user + cjet;
 
     wg.srcCount = 0;
     if (asp !== 0) { wg.srcJunction[wg.srcCount] = this.aspJunction; wg.srcValue[wg.srcCount++] = asp; }
     if (wall !== 0) { wg.srcJunction[wg.srcCount] = this.wallJunction; wg.srcValue[wg.srcCount++] = wall; }
     if (obs !== 0) { wg.srcJunction[wg.srcCount] = this.teethJunction; wg.srcValue[wg.srcCount++] = obs; }
+    if (cjet !== 0) { wg.srcJunction[wg.srcCount] = this.clickJetJunction; wg.srcValue[wg.srcCount++] = cjet; }
     if (user !== 0 && !n.user.bypassTract && this.userJunction >= 0) {
       wg.srcJunction[wg.srcCount] = this.userJunction; wg.srcValue[wg.srcCount++] = user;
     }

@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 219 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 220 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -365,7 +365,12 @@ falls to about -19 cmH2O; the front then opens first (the back closure, and
 the tip of a lateral click, hold on 25 ms longer; a lateral click keeps its
 sides shut and releases by lowering them), the air rushes in (300 to
 850 cm³/s inward for 2-3 ms) and that inflow, injected at the front
-passage, is the pop. The lungs meanwhile press against the back closure,
+passage, is the pop. The inflow is a jet too, blowing inward: by the same
+law as a fricative's it makes turbulence on the walls of the cavity half a
+centimetre behind the front passage, which gives the dental click its
+hiss (above 3 kHz the 8 ms after the release rise 19 dB, peaking at
+5.8 kHz, where Hadza dental clicks peak near 6 kHz: Demolin, Ghio & Harvey
+2023). The lungs meanwhile press against the back closure,
 which bursts as a plosive a moment later.
 Below the speaking pressure (8 cmH2O) the vibration amplitude falls almost in
 proportion to the transglottal pressure, so that, with the jet speed, the
@@ -1104,6 +1109,7 @@ in brackets are the adult male targets described under Speech.
 | Walls heard | quietest 10 ms of a closure against its vowel: /b/ -26, /d/ -21, /g/ -24 dB, a hum centred at 158 Hz (-132 dB with the walls unheard); /p/ -83 dB; held against /a/: /i/ -3.9 dB, /u/ -8.3 dB (-12.4 unheard), /m/ -7.2 dB |
 | Epilarynx | narrowest section of the tube above the folds 0.43 cm² at rest, 0.19 with the sphincter at 0.5, shut at 1; at 0.5 the band 2.4-3.6 kHz rises against the first formant's by 3.7 dB (/a/), 4.6 (/i/), 8.9 (/u/) in the transfer function and by 2.3 dB in a held /a/ |
 | Epiglottals | ʡ shut 16.7 cm from the lips, its closure about 100 dB below the vowel in [ˈaʡa]; ʜ 0.10 cm² at 16.5 cm (ħ at 12.3), 27 dB below the vowel; a voice with a twang keeps the sphincter at its setting through every other sound |
+| Click jet | [ǀ]: the 8 ms after the front opens, above 3 kHz, 0.6 dB against the vowel with its jet, -18.6 dB without; the hiss peaks at 5.8 kHz |
 | Clicks | cavity between the closures: [ʘ] -19.4 cmH2O, [ǀ] -18.5, [ǃ] -18.7, [ǁ] -17.9; inflow at the front release 848, 294, 297, 227 cm³/s with the back closure still shut |
 | Aeroelastic trills | lungs at 8 cmH2O: [arːa] 4 closures every 34 ms, [aʙːa] 6 every 31 ms, [aʀːa] 6 every 28 ms; at 0.5 cmH2O 1, 1 and 2 |
 | Written aspiration | VOT [p] 10 ms, [pʰ] 66 ms, [kʰ] 73 ms |
@@ -1172,8 +1178,12 @@ in brackets are the adult male targets described under Speech.
   closure (the model's tongue is one body: it cannot make the palatal and
   the velar closure at once), so it rarefies no air.
 - The pop of a click is the inflow into a small cavity (about 1 cm³ of air
-  to refill): 10 dB or more below the burst of [t], where real clicks are
-  among the loudest consonants. Its inward jet makes no turbulence noise.
+  to refill), released through the passage the tongue leaves in one
+  geometry update: its peak is 9-18 dB below the vowel's, where real
+  clicks are among the loudest consonants. The pressure of the cavity
+  (-19 cmH2O) is not fitted to measurements. The inward jet hisses in the
+  dental click, but hardly in the lateral and bilabial ones, whose
+  releases are also noisy in real speech.
 - The velum has no uvula: the uvular closures (q, ɴ, χ) are made by the
   dorsum against the pharynx just below the velum, and the uvular trill ʀ
   is a trill of the dorsum, not of the uvula. The sublingual cavity of a
@@ -1290,6 +1300,7 @@ in brackets are the adult male targets described under Speech.
 - Lindblom, B. (1990). Explaining phonetic variation: a sketch of the H&H theory. In Speech Production and Speech Modelling. Kluwer.
 - Hollien, H. & Michel, J. F. (1968). Vocal fry as a phonational register. J. Speech Hear. Res. 11.
 - Hollien, H. (1974). On vocal registers. J. Phonetics 2.
+- Demolin, D., Ghio, A. & Harvey, A. (2023). Acoustic and aerodynamic features of Hadza clicks. Proceedings of the 20th ICPhS, Prague.
 - Zhang, Z. (2016). Cause-effect relationship between vocal fold physiology and voice production in a three-dimensional phonation model. JASA 139.
 - Fletcher, H. (1953). Speech and Hearing in Communication. Van Nostrand.
 - Fry, D. B. (1979). The Physics of Speech. Cambridge University Press.
