@@ -122,10 +122,12 @@ export class Aero {
   /**
    * Jet and noise-source description for a constriction of area ac, wetted
    * perimeter `perimeter` and lateral width `width` (0 = a round passage).
+   * `share` is the part of the pressure behind the passages that drops across
+   * this one (1 when it is the only one).
    */
-  jet(ac: number, toTeeth: number, slitHeight: number, out: JetInfo, perimeter = 0, width = 0): JetInfo {
+  jet(ac: number, toTeeth: number, slitHeight: number, out: JetInfo, perimeter = 0, width = 0, share = 1): JetInfo {
     // the jet blows out, or in when the pressure behind the passage is below the outside
-    const v = Math.sqrt((2 * Math.abs(this.po)) / RHO);
+    const v = Math.sqrt((2 * share * Math.abs(this.po)) / RHO);
     const a = Math.max(ac, 1e-4);
     const round = 2 * Math.sqrt(a / Math.PI);
     const dh = Math.max(perimeter > 0 ? Math.min((4 * a) / perimeter, round) : round, 0.02);

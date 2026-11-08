@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 220 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 223 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -603,6 +603,13 @@ Flanagan & Cherry 1969; Shadle 1985):
   number, pulsed by the glottal flow (as in real voices) or steady.
 - **Release burst**: a monopole at the constriction proportional to the change
   of the mouth flow when a closure opens.
+- **A second passage**: where the tongue narrows the tract twice, both
+  passages below 0.2 cm², at least 2 cm apart and with a passage 2.5 times
+  wider between them (ɧ, "simultaneous ʃ and x"), the flow goes through
+  both as through one of area (A1^-2 + A2^-2)^-1/2, each takes the share
+  (A / Ak)^2 of the drop of pressure, and the second has a jet source of its
+  own at its exit. The lips and the teeth never count as one: they have
+  sources of their own.
 
 Each noise is Gaussian white noise through a first-order high-pass (dipoles
 radiate little at low frequency) and a first-order low-pass at the Strouhal
@@ -798,7 +805,9 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   back meets the gum, 2.4 cm in front of an alveolar; a dental click stays
   laminal, its blade up to the ridge, which keeps its cavity small, and
   the palatal click's front closure is the blade's, on the ridge and the
-  front of the palate, while the body makes its velar one); palatalization, velarization and
+  front of the palate, while the body makes its velar one; ɧ narrows the
+  passage at the ridge with the tip to 0.1 cm² and at the velum with the
+  body to 0.12 cm², each solved again with the other in place); palatalization, velarization and
   pharyngealization move the tongue body, then relax it until it leaves
   0.3 cm² behind the primary constriction (emphatic /tˤ sˤ/ lower F2 by
   400-600 Hz with the pharynx open); nasalization opens the velum.
@@ -1111,6 +1120,7 @@ in brackets are the adult male targets described under Speech.
 | Walls heard | quietest 10 ms of a closure against its vowel: /b/ -26, /d/ -21, /g/ -24 dB, a hum centred at 158 Hz (-132 dB with the walls unheard); /p/ -83 dB; held against /a/: /i/ -3.9 dB, /u/ -8.3 dB (-12.4 unheard), /m/ -7.2 dB |
 | Epilarynx | narrowest section of the tube above the folds 0.43 cm² at rest, 0.19 with the sphincter at 0.5, shut at 1; at 0.5 the band 2.4-3.6 kHz rises against the first formant's by 3.7 dB (/a/), 4.6 (/i/), 8.9 (/u/) in the transfer function and by 2.3 dB in a held /a/ |
 | Epiglottals | ʡ shut 16.7 cm from the lips, its closure about 100 dB below the vowel in [ˈaʡa]; ʜ 0.10 cm² at 16.5 cm (ħ at 12.3), 27 dB below the vowel; a voice with a twang keeps the sphincter at its setting through every other sound |
+| ɧ | front passage 0.10 cm², back one 0.12 cm², 0.32 cm² at least between them; a second hiss in 57 % of the middle of [ˈaɧa], 0.8 dB below the first; spectral peak 1.3 kHz against 3.9 for [ʃ]; no second hiss in four ordinary sentences |
 | Click jet | [ǀ]: the 8 ms after the front opens, above 3 kHz, 0.6 dB against the vowel with its jet, -18.6 dB without; the hiss peaks at 5.8 kHz |
 | Clicks | cavity between the closures: [ʘ] -19.4 cmH2O, [ǀ] -18.5, [ǃ] -18.7, [ǁ] -17.9, [ǂ] -19.7; inflow at the front release 848, 294, 297, 227, 306 cm³/s with the back closure still shut |
 | Aeroelastic trills | lungs at 8 cmH2O: [arːa] 4 closures every 34 ms, [aʙːa] 6 every 31 ms, [aʀːa] 6 every 28 ms; at 0.5 cmH2O 1, 1 and 2 |
@@ -1175,8 +1185,10 @@ in brackets are the adult male targets described under Speech.
 - The sounds made from rules (derive.ts) are placed and narrowed by rules,
   not fitted to measurements of each sound: their place, their degree and
   the order of their formants are checked, not their spectra against
-  recordings. A few symbols are approximated, and the interface says so
-  under the text: ɧ as a rounded velar fricative. The palatal click ǂ has
+  recordings. Where a rule cannot reach its degree, the interface says so
+  under the text. The Swedish ɧ is made as the IPA chart describes it,
+  "simultaneous ʃ and x", one of the readings of a sound phoneticians
+  still describe in several ways. The palatal click ǂ has
   its two closures, the blade's in front and the body's at the velum, but
   the body cannot also fill the cavity between them as a real tongue's
   front does, nor can it hollow it for ǃ: the two clicks differ only by

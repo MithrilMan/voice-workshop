@@ -136,6 +136,8 @@ const RECIPES: Record<Place, Recipe> = {
 };
 
 const CORONAL = new Set<Place>(['dental', 'alveolar', 'postalveolar', 'retroflex']);
+/** the back passage of ɧ, cm² (its front one is a fricative's) */
+const DOUBLE_BACK = 0.12;
 /** the blade of the palatal click a little forward of a postalveolar's, laminal */
 const PALATAL_CLICK_BLADE = 0.3;
 const DORSAL = new Set<Place>(['alveolopalatal', 'palatal', 'velar', 'uvular']);
@@ -350,7 +352,23 @@ function consonantFromChart(sym: string, k: ChartConsonant): Built | null {
     if (k.manner === 'tap' && place === 'labiodental') a.lipOpen = 0.9;
   }
   if (k.rounded) { a.lipRound = 1; a.lipProtrude = 0.8; a.lipOpen = Math.min(a.lipOpen ?? 0.2, 0.05); }
-  if (k.also === 'velar') { Object.assign(a, { tongueX: -0.25, tongueY: 1.1 }); extra.approx = 'doubleFricative'; }
+  // ɧ, "simultaneous ʃ and x" (the IPA chart): the tip hisses at the ridge
+  // and the body at the velum at once, with air between them; the back
+  // passage a little wider, so that the front one's jet still hits the
+  // teeth; the lips rounded and pushed out. The tip rides on the body, so
+  // each is solved again with the other in place
+  if (k.also === 'velar') {
+    const v = RECIPES.velar;
+    a = { ...a, tongueX: v.art.tongueX! };
+    for (let it = 0; it < 2; it++) {
+      a = { ...a, tongueY: solveDegree(a, v, DOUBLE_BACK, v.window).value };
+      const front = solveDegree(a, r, degree, r.window);
+      a = { ...a, [r.key]: front.value };
+      solved = front.reached;
+    }
+    a.lipRound = 0.5; a.lipProtrude = 0.4;
+    if (!solved) extra.approx = 'degree';
+  }
   return { ph: make(sym, manner, k.voiced, a, extra), recipe: r, win: r.window, degree, place };
 }
 

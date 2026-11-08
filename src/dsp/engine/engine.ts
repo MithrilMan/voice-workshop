@@ -36,6 +36,13 @@ export const NOISE_K = { aspiration: 0.15, wall: 0.07, obstacle: 1.35, user: 0.0
  * In the two-mass model the lower mass is thinner.
  */
 const THIN = { rd: 1.4, chink: 0.04, swing: 0.4 };
+/**
+ * A second narrow passage of the tongue, apart from the narrowest one with
+ * air between them (a doubly articulated fricative: ɧ, "simultaneous ʃ and
+ * x"): narrower than this (cm^2), at least this far from the first (cm in an
+ * adult man), with the passage between them this many times wider.
+ */
+const SECOND = { narrow: 0.2, apart: 2, cavity: 2.5 };
 /** thinness of the folds: 0 for a chest voice, 0.8 for the thinnest falsetto; thicker than chest is below zero */
 const thinness = (s: { thickness?: number }) => 1 - Math.max(0.2, Math.min(1.2, s.thickness ?? 1));
 /** the posterior gap of the glottis with the gap thin folds leave, cm^2 before scaling */
@@ -158,6 +165,13 @@ export class VoiceEngine {
   private jet = newJetInfo();
   private aspNoise = new TurbulenceSource(11);
   private wallNoise = new TurbulenceSource(23);
+  /** the jet of a second narrow passage */
+  private wallNoise2 = new TurbulenceSource(29);
+  private jet2 = newJetInfo();
+  private wallAmp2 = 0;
+  private wallJunction2 = -1;
+  /** the second narrow passage: its area (Infinity when there is none), place, perimeter and width */
+  private second = { area: Infinity, s: 0, perimeter: 0, width: 0 };
   private obsNoise = new TurbulenceSource(37);
   /** the jet of a click, rushing in through its front passage: turbulence on the walls of its cavity */
   private clickNoise = new TurbulenceSource(41);
@@ -269,6 +283,7 @@ export class VoiceEngine {
   private rUg = new Ramp(0);
   private rWall = new Ramp(0);
   private rObs = new Ramp(0);
+  private rWall2 = new Ramp(0);
   private rClickJet = new Ramp(0);
   private ctrlPhase = 1;
   private userAmp = 0;
@@ -402,6 +417,7 @@ export class VoiceEngine {
     this.rUg.set(this.aero.ug);
     this.rClick.set(this.clickAero.uMouth);
     this.rWall.set(this.wallAmp);
+    this.rWall2.set(this.wallAmp2);
     this.rClickJet.set(this.clickJetAmp);
     this.rObs.set(this.obsAmp);
     this.ctrlPhase = 0;
@@ -483,19 +499,37 @@ export class VoiceEngine {
       // fine-grid minimum above the larynx (aerodynamic constriction); the
       // tube above the folds counts only when the sphincter draws it in
       const g = this.geom;
-      let m = Infinity, ms = 0, mp = 0, mw = 0;
+      let m = Infinity, ms = 0, mp = 0, mw = 0, mi = -1;
       const sStart = this.art.epilarynx > EPILARYNX_PASSAGE ? 0 : 2.6 * p.anatomy.scale;
       for (let i = 0; i <= g.lastRay; i++) {
         if (g.s[i] < sStart) continue;
         const a = g.hits[i].area;
-        if (a < m) { m = a; ms = g.s[i]; mp = g.hits[i].perimeter; mw = g.hits[i].width; }
+        if (a < m) { m = a; ms = g.s[i]; mp = g.hits[i].perimeter; mw = g.hits[i].width; mi = i; }
       }
       // the incisal slit is a constriction too
-      if (g.slit.area < m && g.teethPos > 0) { m = g.slit.area; ms = g.teethPos; mp = g.slit.perimeter; mw = g.slit.width; }
+      if (g.slit.area < m && g.teethPos > 0) { m = g.slit.area; ms = g.teethPos; mp = g.slit.perimeter; mw = g.slit.width; mi = -1; }
       this.fineMinArea = Math.max(m, 0);
       this.fineMinS = ms;
       this.fineMinPerimeter = mp;
       this.fineMinWidth = mw;
+      // a second narrow passage of the tongue, with air between it and the
+      // first (the teeth and the lips have sources of their own)
+      const sc = this.second;
+      sc.area = Infinity;
+      const tongue = (r: string) => r !== 'teeth' && r !== 'lips' && r !== 'labiodental' && r !== 'closed';
+      if (m >= 0.004 && m < SECOND.narrow && mi >= 0 && tongue(g.hits[mi].rule)) {
+        let i2 = -1;
+        for (let i = 0; i <= g.lastRay; i++) {
+          const h = g.hits[i];
+          if (g.s[i] < sStart || Math.abs(g.s[i] - ms) < SECOND.apart * p.anatomy.scale) continue;
+          if (!tongue(h.rule)) continue;
+          if (h.area < sc.area) { sc.area = h.area; i2 = i; }
+        }
+        let between = 0;
+        if (i2 >= 0) for (let i = 0; i <= g.lastRay; i++) if ((g.s[i] - ms) * (g.s[i] - g.s[i2]) < 0) between = Math.max(between, g.hits[i].area);
+        if (i2 < 0 || sc.area >= SECOND.narrow || between < SECOND.cavity * sc.area) sc.area = Infinity;
+        else { sc.s = g.s[i2]; sc.perimeter = g.hits[i2].perimeter; sc.width = g.hits[i2].width; }
+      }
     }
     const af = this.af;
     const n = N_SECTIONS;
@@ -583,6 +617,12 @@ export class VoiceEngine {
     const ac = Math.max(af.areas[ci], 1e-3);
     while (exit < n - 1 && af.areas[exit + 1] < 2.2 * ac) exit++;
     this.wallJunction = Math.min(n - 2, exit + Math.max(1, Math.round(0.5 / dx)));
+    if (Number.isFinite(this.second.area)) {
+      let e2 = Math.min(n - 1, Math.max(0, Math.floor(this.second.s / dx)));
+      const a2 = Math.max(af.areas[e2], 1e-3);
+      while (e2 < n - 1 && af.areas[e2 + 1] < 2.2 * a2) e2++;
+      this.wallJunction2 = Math.min(n - 2, e2 + Math.max(1, Math.round(0.5 / dx)));
+    } else this.wallJunction2 = -1;
     this.teethJunction = Math.min(n - 2, Math.max(1, af.teethIndex));
     const u = p.noise.user;
     let uj = -1;
@@ -620,6 +660,10 @@ export class VoiceEngine {
     // the air leaves the nose through the nostrils: pinched, they stop it
     const nasalArea = Math.min(portArea(this.art.velum, p.anatomy.nasalLeak, scale), 1.0 * scale * scale, nostrilArea(scale, noseOf(p.anatomy)));
     const oral = Math.max(0, this.fineMinArea);
+    // two narrow passages in series pass the flow of one of area (A1^-2 + A2^-2)^-1/2,
+    // and each takes the share (A / A_k)^2 of the drop of pressure
+    const a2 = this.second.area;
+    const both = Number.isFinite(a2) && oral > 0 ? 1 / Math.sqrt(1 / (oral * oral) + 1 / (a2 * a2)) : oral;
     // the change of volume of the cavity, spread over a geometry interval
     const want = this.dvRate * dt;
     const take = Math.abs(want) >= Math.abs(this.pendingDV) ? this.pendingDV : want;
@@ -636,7 +680,7 @@ export class VoiceEngine {
     const sub = 4;
     for (let i = 0; i < sub; i++) {
       this.aero.step(dt / sub, {
-        ps: this.psCur, glottalArea: ag, oralArea: oral, nasalArea: nasalArea > 2e-3 ? nasalArea : 0,
+        ps: this.psCur, glottalArea: ag, oralArea: both, nasalArea: nasalArea > 2e-3 ? nasalArea : 0,
         compliance, dVdt: take / dt,
       });
     }
@@ -671,7 +715,8 @@ export class VoiceEngine {
         if (g.hits[i].area > 2.2 * Math.max(this.fineMinArea, 1e-3)) { exitS = g.s[i]; break; }
       }
     }
-    this.aero.jet(oral, g ? teethPos - exitS : -1, slitH, this.jet, this.fineMinPerimeter, this.fineMinWidth);
+    const share1 = oral > 0 ? (both / oral) ** 2 : 1;
+    this.aero.jet(oral, g ? teethPos - exitS : -1, slitH, this.jet, this.fineMinPerimeter, this.fineMinWidth, share1);
     // the jets lose their kinetic pressure where they expand: flow resistances
     kineticResistances(this.af.areas, this.aero.uMouth, this.wg.resTarget, this.constrictionIndex, this.fineMinArea);
     const n = this.params.noise;
@@ -679,6 +724,11 @@ export class VoiceEngine {
     this.wallAmp = n.fricationOn ? NOISE_K.wall * this.jet.wallSource * db(n.frication) : 0;
     this.obsAmp = n.obstacleOn ? NOISE_K.obstacle * this.jet.obstacleSource * db(n.obstacle) : 0;
     this.wallNoise.configure(this.fsT, this.jet.fc);
+    if (this.wallJunction2 >= 0) {
+      this.aero.jet(a2, -1, 0, this.jet2, this.second.perimeter, this.second.width, (both / a2) ** 2);
+      this.wallAmp2 = n.fricationOn ? NOISE_K.wall * this.jet2.wallSource * db(n.frication) : 0;
+      this.wallNoise2.configure(this.fsT, this.jet2.fc);
+    } else this.wallAmp2 = 0;
     // a click's jet, inward: the same law as a fricative's, from its own cavity's pressure
     if (this.clickOn && this.clickJetJunction >= 0 && this.clickAero.po < 0) {
       this.clickAero.jet(this.clickFrontArea, -1, 0, this.clickJet);
@@ -810,6 +860,8 @@ export class VoiceEngine {
     const mod = ug > 1 ? Math.min(3, Math.pow(Math.max(0, u) / Math.max(ug, 1), 1.5)) : 1;
     const wallAmp = this.rWall.at(ph), obsAmp = this.rObs.at(ph);
     const wall = wallAmp > 0 ? wallAmp * mod * this.wallNoise.next() : 0;
+    const wallAmp2 = this.rWall2.at(ph);
+    const wall2 = wallAmp2 > 0 && this.wallJunction2 >= 0 ? wallAmp2 * mod * this.wallNoise2.next() : 0;
     const obs = obsAmp > 0 ? obsAmp * mod * this.obsNoise.next() : 0;
     const clickJetAmp = this.rClickJet.at(ph);
     const cjet = clickJetAmp > 0 && this.clickJetJunction >= 0 ? clickJetAmp * this.clickNoise.next() : 0;
@@ -819,11 +871,12 @@ export class VoiceEngine {
       const m = n.user.pulse;
       user = this.userAmp * ((1 - m) + m * 2 * fl) * this.userNoise.next(fs);
     }
-    this.lastNoise = asp + wall + obs + user + cjet;
+    this.lastNoise = asp + wall + wall2 + obs + user + cjet;
 
     wg.srcCount = 0;
     if (asp !== 0) { wg.srcJunction[wg.srcCount] = this.aspJunction; wg.srcValue[wg.srcCount++] = asp; }
     if (wall !== 0) { wg.srcJunction[wg.srcCount] = this.wallJunction; wg.srcValue[wg.srcCount++] = wall; }
+    if (wall2 !== 0) { wg.srcJunction[wg.srcCount] = this.wallJunction2; wg.srcValue[wg.srcCount++] = wall2; }
     if (obs !== 0) { wg.srcJunction[wg.srcCount] = this.teethJunction; wg.srcValue[wg.srcCount++] = obs; }
     if (cjet !== 0) { wg.srcJunction[wg.srcCount] = this.clickJetJunction; wg.srcValue[wg.srcCount++] = cjet; }
     if (user !== 0 && !n.user.bypassTract && this.userJunction >= 0) {

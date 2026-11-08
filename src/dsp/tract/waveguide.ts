@@ -219,8 +219,8 @@ export class Waveguide {
   private dcCoef = 0.002;
 
   /** dipole sources (pressure, dyn/cm^2) at oral junctions; set before step */
-  srcJunction = new Int32Array(6);
-  srcValue = new Float64Array(6);
+  srcJunction = new Int32Array(8);
+  srcValue = new Float64Array(8);
   srcCount = 0;
   /** monopole (volume velocity) source */
   monoJunction = -1;
