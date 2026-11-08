@@ -40,6 +40,8 @@ const EXAMPLES: { text: string; lang: 'it' | 'en'; ipa?: boolean }[] = [
   // IPA of other languages, said as written: Czech ř, German ç and x, French front rounded and nasal vowels, Hindi aspirated and murmured stops
   { text: '[ˈr̝ɛka]', lang: 'en', ipa: true }, { text: '[ˈɪç ˈaxt]', lang: 'en', ipa: true }, { text: '[ly bɔ̃ vɛ̃]', lang: 'en', ipa: true },
   { text: '[pʰal bʱaːiː]', lang: 'en', ipa: true },
+  // the four tones of Mandarin on one syllable
+  { text: '[ma˥ ma˧˥ ma˨˩˦ ma˥˩]', lang: 'en', ipa: true },
 ];
 
 /** The ingredients of natural speech, each with a plain explanation. */

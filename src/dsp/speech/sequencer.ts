@@ -612,6 +612,60 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
 
   // ---------------------------------------------------------------- melody
   const vowelSeg = (ui: number) => segs.find((s) => s.unit === ui && s.ph.manner === 'vowel');
+
+  // lexical tones. Each toned syllable has pitch targets in the speaker's
+  // range: Chao's five levels over `span` semitones, level 3 in the middle;
+  // a contour tone is a line through its rhyme. The voice approaches them as
+  // a critically damped third-order system (the quantitative target
+  // approximation model, Prom-on, Xu & Thipakorn 2009), so neighbouring
+  // tones shape each other as in speech: a high tone after a low one starts
+  // low. Downstep and upstep move the register by 2 semitones, the global
+  // rise and fall by 3; a toneless syllable continues from the tone before,
+  // drifting down. The targets lead by the system's lag, so that a falling
+  // tone gets near its end within its syllable
+  const toned = units.some((u) => u.vowel && !!u.p.tone?.length);
+  let toneTrack: number[] | null = null;
+  if (toned) {
+    const span = (12 * Math.max(0, o.accent)) / 5;
+    const level = (lv: number) => ((lv - 3) / 4) * span;
+    const lag = 0.015;
+    const pts: { t: number; v: number }[] = [];
+    let register = 0, last = 0;
+    for (let ui = 0; ui < units.length; ui++) {
+      const u = units[ui];
+      if (!u.vowel) continue;
+      register += 2 * (u.p.toneStep ?? 0) + 3 * (u.p.globalPitch ?? 0);
+      const ss = segs.filter((s) => units[s.unit].syl === u.syl && s.ph.manner !== 'silence');
+      const nuc = segs.find((s) => s.unit === ui);
+      if (!nuc || !ss.length) continue;
+      // the target is the syllable's, from its first sound (qTA aligns it with the whole syllable)
+      const r0 = ss[0].t0 - lag, r1 = Math.max(nuc.t1, ss[ss.length - 1].t1) - lag;
+      const lv = u.p.tone;
+      if (!lv?.length) {
+        pts.push({ t: r0, v: last }, { t: r1, v: last - 1 });
+        last -= 1;
+      } else if (lv.length === 1) {
+        last = level(lv[0]) + register;
+        pts.push({ t: r0, v: last }, { t: r1, v: last });
+      } else {
+        lv.forEach((l, k) => { last = level(l) + register; pts.push({ t: r0 + ((r1 - r0) * k) / (lv.length - 1), v: last }); });
+      }
+    }
+    const target = (time: number) => {
+      if (time <= pts[0].t) return pts[0].v;
+      for (let k = 1; k < pts.length; k++) {
+        if (time <= pts[k].t) {
+          const d = pts[k].t - pts[k - 1].t;
+          return d > 1e-9 ? pts[k - 1].v + ((pts[k].v - pts[k - 1].v) * (time - pts[k - 1].t)) / d : pts[k].v;
+        }
+      }
+      return pts[pts.length - 1].v;
+    };
+    const tr = new TamChannel(target(0), 0.011);
+    toneTrack = [];
+    for (let k = 0; k * FRAME <= duration + 0.3; k++) toneTrack.push(tr.step(target(k * FRAME), FRAME));
+  }
+  const toneAt = (time: number) => toneTrack![Math.max(0, Math.min(toneTrack!.length - 1, Math.round(time / FRAME)))];
   const sylStart = (ui: number) => segs.find((s) => units[s.unit].syl === units[ui].syl)?.t0 ?? 0;
   const phraseCmds: { t: number; a: number }[] = [];
   const accentCmds: Command[] = [];
@@ -631,7 +685,8 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       first = false;
       // accents on the stressed vowels of content words
       const acc: number[] = [];
-      for (let j = phraseStart; j <= i; j++) if (units[j].vowel && units[j].p.stress && !units[j].p.func) acc.push(j);
+      // (in a tone language the tones take the place of the pitch accents)
+      if (!toned) for (let j = phraseStart; j <= i; j++) if (units[j].vowel && units[j].p.stress && !units[j].p.func) acc.push(j);
       const boundary = u.boundary;
       const yesNo = boundary === 'question';
       const lastV = (() => { for (let j = i; j >= phraseStart; j--) if (units[j].vowel) return j; return -1; })();
@@ -714,11 +769,13 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
           }
         }
       }
-    } else if (!nat.intonation) f = o.f0;
+    } else if (!nat.intonation) f = o.f0 * (toneTrack ? Math.pow(2, toneAt(time) / 12) : 1);
     else {
       let lf = Math.log(floor);
       for (const pc of phraseCmds) lf += pc.a * gp(time - pc.t);
       for (const ac of accentCmds) lf += ac.a * (ga(time - ac.t1, ac.beta) - ga(time - ac.t2, ac.beta));
+      // the tones ride on the phrase's declination (the tones are lexical: they stay with the intonation off)
+      if (toneTrack) lf += ST * toneAt(time);
       f = Math.exp(lf);
     }
     return f * Math.pow(2, microAt(time) / 12);

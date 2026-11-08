@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 143 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 146 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -617,6 +617,19 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   ones; the glottis held shut through an ejective's closure and burst; the
   larynx lowered through an implosive and raised through an ejective; no
   burst after an unreleased stop.
+- **Lexical tones**: each toned syllable has pitch targets in the speaker's
+  range, Chao's five levels (1930) spread over 12 semitones at the default
+  accent strength (the accent slider scales it), level 3 in the middle; a
+  contour tone (˧˥, ˨˩˦, ˥˩) is a line through the syllable. The voice
+  approaches the targets as a critically damped third-order system, the
+  quantitative target approximation model (Prom-on, Xu & Thipakorn 2009)
+  with a time constant of 11 ms per stage, aligned with the whole syllable,
+  so neighbouring tones shape each other as in speech: a high tone after a
+  low one starts low. Downstep ꜜ and upstep ꜛ move the register by 2
+  semitones, the global rise and fall ↗ ↘ by 3; a toneless syllable continues
+  from the tone before, drifting down. The tones take the place of the pitch
+  accents and ride on the phrase's declination; they are part of the words,
+  so they stay when the intonation is switched off.
 - **Sequencer** (src/dsp/speech/sequencer.ts): the phones are syllabified
   (legal onsets, geminates close the syllable before), grouped into words and
   phrases (commas, full stops, questions), and turned into a gestural score.
@@ -811,6 +824,8 @@ in brackets are the adult male targets described under Speech.
 | Czech ř | turbulence during the trill 12 dB above /r/ |
 | Trills | closures of the lips in [aʙa] 2, of the dorsum against the uvula in [aʀa] 2, of the tip in [ara] 2 |
 | Written aspiration | VOT [p] 10 ms, [pʰ] 66 ms, [kʰ] 73 ms |
+| Mandarin tones | [ma˥ ma˧˥ ma˨˩˦ ma˥˩], F0 at five points of each vowel, semitones from the base, heard (YIN): high level 5.5 5.6 5.4 5.4 5.4; rising 1.9 2.0 2.5 3.4 3.9; dipping -5.1 -5.8 -5.6 -4.2 -2.9; falling 1.6 -0.4 -2.2 -4.4 -5.5 |
+| Downstep | [á ꜜá á]: high tones at 2.2, 0.6, -0.2 st |
 
 ## Simplifications and limits
 
@@ -885,6 +900,9 @@ in brackets are the adult male targets described under Speech.
   pronunciation. Italian open and close e/o are only known where an accent is
   written. Prosody is rule-based: it has no idea which word the sentence is
   about, so the nuclear accent always falls on the last content word.
+- Tones are said as they are written: a transcription carries the tones of
+  the surface, so there are no tone sandhi rules; a [phonetic] transcription
+  of another language gets neutral durations, not that language's rhythm.
 - The machine-voice tab describes only the excitation as the paper Teacher in
   the Loop presents it; it does not model any trained network.
 - The colourful field and particle visualisations are illustrative (the
