@@ -178,13 +178,13 @@ exports[`golden fingerprints of the speech planner > scores of sentences across 
     "duration": 0.9046,
     "frames": 232,
     "phones": "r̝ e k a t r̝ i",
-    "score": "693fa2ee7d4596d0",
+    "score": "130cb8d91834c3f6",
   },
   "it ciao, come stai?": {
     "duration": 1.437559,
     "frames": 339,
     "phones": "tʃ a o _ k o m e s t a i",
-    "score": "a0ba6943346b0c4b",
+    "score": "fa98d0a39dfa153e",
   },
   "it la luna e le stelle": {
     "duration": 1.260089,
@@ -202,7 +202,7 @@ exports[`golden fingerprints of the speech planner > scores of sentences across 
     "duration": 1.524336,
     "frames": 356,
     "phones": "p j o v e i n tʃ i t a o dʒ i",
-    "score": "dbbcb749791d5358",
+    "score": "083866ca29bbbf41",
   },
 }
 `;

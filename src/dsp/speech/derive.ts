@@ -349,6 +349,21 @@ function placeRecipeFor(ph: Phoneme): Place | undefined {
   return ph.place ?? IPA_CONSONANTS[ph.ipa]?.place;
 }
 
+/**
+ * The articulator that closes a consonant at its place, and which way it
+ * goes to close (+1: up or forward; -1: down or back), with the jaw's help
+ * where the jaw carries it (the lips, the tip, the blade and the dorsum).
+ */
+export function closingKey(ph: Phoneme): { key: keyof Articulators; dir: number; jaw: boolean } | undefined {
+  const place = placeRecipeFor(ph);
+  if (!place || place === 'glottal') return undefined;
+  const r = RECIPES[place];
+  return { key: r.key, dir: Math.sign(r.closed - r.open), jaw: place !== 'uvular' && place !== 'pharyngeal' && place !== 'epiglottal' };
+}
+
+/** below this the passage is shut */
+export const CLOSED_AREA = CLOSED;
+
 /** the window around where a fitted posture narrows */
 function windowAround(a: Partial<Articulators>): [number, number] {
   const c = constrictionOf(a);

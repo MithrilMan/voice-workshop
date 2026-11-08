@@ -73,3 +73,43 @@ describe('the voice keeps its habits while it speaks', () => {
     for (const k of Object.keys(peak)) expect(peak[k], k).toBeGreaterThan(0.6);
   });
 });
+
+describe('precision of articulation', () => {
+  /** runs the engine and records where the tongue body really is in the middle of each vowel, and the peak pressure of each stop against the lungs' */
+  const run = (text: string, opts: { precision?: number; rate?: number }) => {
+    const sc = buildScore(textToPhones(text, 'it'), { lang: 'it', ...opts });
+    const e = new VoiceEngine(48000, defaultParams());
+    e.snapArticulators(); e.snapPressure(); e.playScore(sc);
+    const pv = e as unknown as { art: { tongueX: number; tongueY: number; jaw: number }; aero: { po: number }; psCur: number };
+    const buf = new Float32Array(48);
+    const vowels: { x: number; y: number }[] = [];
+    const stops: number[] = [];
+    let next = 0;
+    for (let t = 0; t < sc.duration; t += 0.001) {
+      e.process(buf, 48);
+      const i = sc.phones.findIndex((x) => t >= x.t0 && t < x.t1);
+      const ph = sc.phones[i];
+      if (!ph) continue;
+      if ('aeiou'.includes(ph.ipa) && i >= next && t >= 0.5 * (ph.t0 + ph.t1)) { vowels.push({ x: pv.art.tongueX, y: pv.art.tongueY - 0.5 * pv.art.jaw }); next = i + 1; }
+      if ('ptkg'.includes(ph.ipa)) { if (i >= next) { stops.push(0); next = i + 1; } stops[stops.length - 1] = Math.max(stops[stops.length - 1], pv.aero.po / Math.max(1, pv.psCur)); }
+    }
+    const cx = vowels.reduce((a, v) => a + v.x, 0) / vowels.length, cy = vowels.reduce((a, v) => a + v.y, 0) / vowels.length;
+    return { spread: vowels.reduce((a, v) => a + Math.hypot(v.x - cx, v.y - cy), 0) / vowels.length, stops, tauScale: sc.tauScale };
+  };
+
+  it('a crisp speaker spreads the vowels out, a slack one lets them fall in', () => {
+    const text = 'la pipa e la pupa di Gigi';
+    const slack = run(text, { precision: -1 }), usual = run(text, {}), crisp = run(text, { precision: 1 });
+    expect(usual.tauScale).toBeUndefined();
+    expect(slack.tauScale!.tongueY).toBeGreaterThan(1.4);
+    expect(crisp.spread).toBeGreaterThan(usual.spread * 1.05);
+    expect(slack.spread).toBeLessThan(usual.spread * 0.85);
+  });
+
+  it('every stop closes, /g/ after an open vowel too (the jaw comes up with it)', () => {
+    const { stops } = run('papa tata kaka gaga', {});
+    expect(stops.length).toBe(8);
+    // voiced stops keep some flow through the vibrating folds: less pressure behind them
+    for (const p of stops) expect(p).toBeGreaterThan(0.4);
+  });
+});

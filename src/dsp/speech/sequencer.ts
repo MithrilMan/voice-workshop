@@ -3,7 +3,7 @@ import { PHONEMES, Phoneme, FlickKey } from './phonemes';
 import { Phone, Lang } from './g2p';
 import { Score, ScoreFrame, ScorePhone } from '../engine/params';
 import { TamChannel, TAM_TAU } from './tam';
-import { phonemeFor, constrictionOf, contactPoint, passageIn } from './derive';
+import { phonemeFor, constrictionOf, contactPoint, passageIn, closingKey, CLOSED_AREA } from './derive';
 import { IPA_CONSONANTS, IPA_VOWELS, Place } from './ipa';
 import { normalizeIpa } from './ipaReader';
 import { ProsodyStyle, styleOf, lengthen, ST } from './style';
@@ -83,6 +83,14 @@ export interface ProsodyOptions {
   style?: Partial<ProsodyStyle>;
   /** the speaker's articulatory setting: the posture kept beneath every sound (none by default) */
   setting?: Partial<Setting>;
+  /**
+   * how carefully the speaker articulates, -1 (slack, hypoarticulated) .. 0
+   * (as usual) .. 1 (crisp, hyperarticulated): the tongue body, jaw and lip
+   * rounding move faster or slower, aim further past a short vowel or less
+   * far, and the vowels spread out toward the corners of the vowel space or
+   * fall in toward schwa, the unstressed ones most (Lindblom 1990)
+   */
+  precision?: number;
 }
 
 /** Options of buildScore: any prosody option, and any subset of the naturalness ingredients. */
@@ -154,6 +162,9 @@ function trillContact(ph: Phoneme, key: FlickKey, toward: number): number {
  *  way still to go */
 const COMPENSATED: (keyof Articulators)[] = ['tongueX', 'tongueY', 'tongueRoot', 'jaw', 'lipRound', 'lipProtrude'];
 const OVERSHOOT = 0.6;
+/** precision: the articulators that move faster or slower, and the ones whose vowel targets spread out or fall in toward schwa */
+const SLOW_KEYS: (keyof Articulators)[] = ['tongueX', 'tongueY', 'tongueRoot', 'jaw', 'lipRound', 'lipProtrude'];
+const VOWEL_KEYS = new Set<string>(['tongueX', 'tongueY', 'tongueRoot', 'jaw', 'lipRound', 'lipProtrude', 'lipOpen']);
 /** how far the voice drops into vocal fry, semitones (fry is about 25-70 Hz: Hollien & Michel 1968) */
 const FRY_DROP = 7;
 const isObstruent = (ph: Phoneme | undefined) => !!ph && (ph.manner === 'stop' || ph.manner === 'fricative' || ph.manner === 'affricate');
@@ -494,11 +505,15 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   }
   const duration = t + 0.05;
   const lead = o.lead;
-  const tau = (k: keyof Articulators) => TAM_TAU[k] * (o.tauScale?.[k] ?? 1);
+  const prec = Math.max(-1, Math.min(1, o.precision ?? 0));
+  const tauScale: Partial<Record<keyof Articulators, number>> = { ...(o.tauScale ?? {}) };
+  if (prec) for (const k of SLOW_KEYS) tauScale[k] = (tauScale[k] ?? 1) * Math.pow(2, -0.6 * prec);
+  const tau = (k: keyof Articulators) => TAM_TAU[k] * (tauScale[k] ?? 1);
+  const overshoot = OVERSHOOT * (1 + 0.5 * prec);
 
   // ---------------------------------------------------------- articulation
   // per-key anchor points: (interval, value) at the segments that specify the key
-  const anchors: Record<string, { t0: number; t1: number; v: number; cons?: boolean; mid?: number; piston?: Seg }[]> = {};
+  const anchors: Record<string, { t0: number; t1: number; v: number; cons?: boolean; mid?: number; piston?: Seg; seg?: Seg }[]> = {};
   for (const k of ARTICULATOR_KEYS) anchors[k] = [];
   const neutral: Articulators = { ...DEFAULT_ARTICULATORS, ...PHONEMES['ə'].art };
   // the speaker's setting, on every value a sound gives an articulator (`own`: the sound sets it itself)
@@ -516,14 +531,22 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     // a nasal voice still shuts the port for an obstruent, which needs its air
     if (habit && setting.velum > 0 && !nasalizable(s.ph) && !keys.includes('velum')) keys = [...keys, 'velum'];
     const off = s.ph.offglide ? phonemeFor(s.ph.offglide)?.art ?? null : null;
+    // precision: a vowel falls in toward schwa (slack: unstressed ones most) or spreads out from it (crisp)
+    const strong = !!(units[s.unit].p.stress || units[s.unit].p.stress2);
+    const r = m !== 'vowel' || !prec ? 0 : prec < 0 ? -prec * (strong ? 0.15 : 0.5) : -prec * (strong ? 0.05 : 0.15);
+    const toward = (k: keyof Articulators, v: number) => {
+      if (!r || !VOWEL_KEYS.has(k)) return v;
+      const [lo, hi] = ARTICULATOR_RANGES[k];
+      return Math.max(lo, Math.min(hi, v + (neutral[k] - v) * r));
+    };
     for (const k of keys) {
-      const v = habitual(k, art[k] ?? (nat.coarticulation ? DEFAULT_ARTICULATORS[k] : neutral[k]), s.ph, art[k] !== undefined);
+      const v = habitual(k, toward(k, art[k] ?? (nat.coarticulation ? DEFAULT_ARTICULATORS[k] : neutral[k])), s.ph, art[k] !== undefined);
       if (off) {
         // diphthong: hold the nucleus, then glide to the offglide target
         // (the nucleus is aimed to be reached a quarter of the way in)
         const d = s.t1 - s.t0;
         anchors[k].push({ t0: s.t0 - lead, t1: s.t0 + 0.35 * d - lead, v, mid: s.t0 + 0.25 * d });
-        anchors[k].push({ t0: s.t1 - 0.2 * d - lead, t1: s.t1 - lead, v: off[k] !== undefined ? habitual(k, off[k]!, s.ph, true) : v });
+        anchors[k].push({ t0: s.t1 - 0.2 * d - lead, t1: s.t1 - lead, v: off[k] !== undefined ? habitual(k, toward(k, off[k]!), s.ph, true) : v });
       } else if (m !== 'vowel') {
         // a consonant gesture starts earlier than its sound (it overlaps the
         // vowel before), so that a short fricative or nasal still reaches its
@@ -551,7 +574,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
         const t0 = piston ? s.t0 + 0.4 * (s.t1 - s.t0) : Math.max(core, s.t0 - lead - (m === 'stop' ? 0 : CONS_ONSET));
         if (prev && (prev.t1 > t0 || piston)) prev.t1 = Math.max(prev.t0, t0);
         const release = (m === 'fricative' ? 2 : 1) * RELEASE_LEAD * (tau(k) / TAM_TAU.tipY);
-        anchors[k].push({ t0: Math.max(t0, prev ? prev.t1 : -Infinity), t1: piston ? s.t1 : Math.max(t0 + 0.01, s.t1 - release), v, cons: true, ...(piston ? { piston: s } : {}) });
+        anchors[k].push({ t0: Math.max(t0, prev ? prev.t1 : -Infinity), t1: piston ? s.t1 : Math.max(t0 + 0.01, s.t1 - release), v, cons: true, seg: s, ...(piston ? { piston: s } : {}) });
         // a click opens its front first: the back closure (and the tip of a
         // lateral click) holds on a little longer, while the sides of a
         // lateral click open
@@ -600,10 +623,66 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       for (const w of vowels) {
         if (iter === 0) w.from = at(w.a.t0);
         const miss = w.v0 - at(w.a.mid!);
-        const room = OVERSHOOT * Math.abs(w.v0 - w.from);
+        const room = overshoot * Math.abs(w.v0 - w.from);
         w.a.v = Math.max(lo, Math.min(hi, Math.max(w.v0 - room, Math.min(w.v0 + room, w.a.v + miss))));
       }
     }
+  }
+
+  // a stop or a nasal closes whatever the rate, the setting or the speaker's
+  // precision. Coming from an open vowel, the jaw (the slowest of the
+  // organs that carry the lips, the tip and the dorsum) may still be low
+  // when the closure is due, and the closing articulator falls short of the
+  // other side: a speaker then pushes it further and brings the jaw up (in
+  // fast speech the jaw moves less and the tongue and lips do more: Kuehn &
+  // Moll 1976). The engine's target dynamics are run here, and the targets
+  // of a closure that does not shut are pushed until it does
+  const shutting = segs.filter((s) => (s.part === 'closure' && s.ph.manner === 'stop') || s.ph.manner === 'nasal')
+    // (a click has its own two closures; a glottalized or unreleased stop needs no pressure behind it)
+    .filter((s) => s.ph.airstream !== 'click' && !units[s.unit].p.glottalized && !s.ph.unreleased)
+    .map((s) => ({ s, ck: closingKey(s.ph) }))
+    .filter((c) => c.ck && anchors[c.ck.key].some((a) => a.seg === c.s));
+  for (let iter = 0; iter < 5 && shutting.length; iter++) {
+    const trs = {} as Record<keyof Articulators, TamChannel>;
+    for (const k of ARTICULATOR_KEYS) trs[k] = new TamChannel(valueAt(k, 0), tau(k));
+    const ys = {} as Record<keyof Articulators, number[]>;
+    for (const k of ARTICULATOR_KEYS) ys[k] = [];
+    for (let i = 0; i * FRAME <= duration; i++) for (const k of ARTICULATOR_KEYS) ys[k].push(trs[k].step(valueAt(k, i * FRAME), FRAME));
+    const artAt = (time: number) => {
+      const i = Math.max(0, Math.min(ys.jaw.length - 1, Math.round(time / FRAME)));
+      const a = {} as Articulators;
+      for (const k of ARTICULATOR_KEYS) a[k] = ys[k][i];
+      return a;
+    };
+    let pushed = false;
+    for (const { s, ck } of shutting) {
+      // shut at some point in the second half of the closure
+      let least = Infinity;
+      for (let q = 0; q < 3 && least >= CLOSED_AREA; q++) least = Math.min(least, constrictionOf(artAt(s.t0 + (0.5 + 0.2 * q) * (s.t1 - s.t0))).area);
+      if (least < CLOSED_AREA) continue;
+      const { key, dir, jaw } = ck!;
+      const a = anchors[key].find((x) => x.seg === s)!;
+      const [lo, hi] = ARTICULATOR_RANGES[key];
+      // past its range by up to 0.6: pressed against the other side
+      a.v = dir > 0 ? Math.min(Math.max(a.v, hi + 0.6), a.v + 0.25) : Math.max(Math.min(a.v, lo - 0.6), a.v - 0.25);
+      if (jaw) {
+        let j = anchors.jaw.find((x) => x.seg === s);
+        if (!j) {
+          // a velar sets no jaw of its own: it borrows the vowels'. Here it takes the jaw for the closure
+          const t0 = s.t0 - lead, t1 = Math.max(t0 + 0.01, s.t1 - RELEASE_LEAD * (tau('jaw') / TAM_TAU.tipY));
+          const list = anchors.jaw;
+          let at = list.findIndex((x) => x.t0 > s.t0);
+          if (at < 0) at = list.length;
+          const prev = list[at - 1], next = list[at];
+          j = { t0: prev ? Math.max(t0, Math.min(prev.t1, t0)) : t0, t1: next ? Math.min(t1, next.t0) : t1, v: artAt(0.5 * (s.t0 + s.t1)).jaw, cons: true, seg: s };
+          if (prev && prev.t1 > j.t0) prev.t1 = Math.max(prev.t0, j.t0);
+          list.splice(at, 0, j);
+        }
+        j.v = Math.max(0, j.v - 0.1);
+      }
+      pushed = true;
+    }
+    if (!pushed) break;
   }
 
   // the piston of an ejective or an implosive starts when the mouth is shut,
@@ -1004,8 +1083,8 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // the melody is already a smooth curve (Fujisaki's filters, the drawn
   // contour): the engine only rounds off the 5 ms frame steps, without the
   // slower glide it gives to a slider, which would shave the accent peaks
-  const scaled = o.tauScale && Object.values(o.tauScale).some((v) => v !== undefined && v !== 1);
-  return { frames, phones: sp, duration, flutter: nat.micro ? st.flutter : 0, f0Tau: 0.006, ...(scaled ? { tauScale: { ...o.tauScale } } : {}) };
+  const scaled = Object.values(tauScale).some((v) => v !== undefined && v !== 1);
+  return { frames, phones: sp, duration, flutter: nat.micro ? st.flutter : 0, f0Tau: 0.006, ...(scaled ? { tauScale } : {}) };
 }
 
 /** A sustained vowel or a glide between targets, for the singing / A-B demos. */
