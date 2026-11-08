@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 205 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 209 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -680,7 +680,14 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   Estonian, Icelandic, Irish; the penultimate in Polish, Welsh, Esperanto,
   Malay, Swahili; the last in French, Armenian, Persian and the Turkic
   languages. The model's German r, often a tap, becomes the uvular one of
-  the standard.
+  the standard. Where the model learned SAMPA rather than IPA it is turned
+  into IPA: Swedish (u0 ɵ, } ʉ, 2 ø, 9 œ, the retroflexes n` t` d` s` l`, S
+  for the sj-sound ɧ, % and " for stress), the Amharic ejective mark, the
+  Estonian palatalization mark, the Uzbek S; a capital the model kept from
+  a name is read as its small letter, and the Danish affricated tˢ as t͡s.
+  On the test transcriptions of the model's 60 languages this left about
+  50 symbols unread out of some 4000 (letters of other scripts the model
+  wrote by mistake).
 - **Each language's prosody** (src/dsp/speech/languages.ts,
   LanguageProsody): a language read by the phonemizer is timed and
   intoned by a profile of its own. Its rhythm: by stress feet (German and
@@ -704,11 +711,17 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   (2020), pulmonic and non-pulmonic, with its diacritics and modifier
   letters (voicing, aspiration, breathy and creaky voice, secondary
   articulations ʷ ʲ ˠ ˤ, nasalization, dental, advanced and retracted,
-  raised and lowered, rounding, tongue root, syllabic, no release,
-  ejective, rhotic), tie bars (t͡s, k͡p, a͡ɪ), prenasalized stops (ᵐb),
+  raised and lowered, apical and laminal (the tip a little back or
+  forward: Basque s̺ s̻), rounding, compressed lips (Japanese ɯᵝ), tongue
+  root, syllabic, no release, ejective, rhotic, and the strong articulation
+  ͈ of the Korean tense consonants: a narrow, stiff glottis, the larynx
+  up, no breath, a closure 1.3 times as long and the pitch 3.5 semitones
+  higher after it), tie bars (t͡s, k͡p, a͡ɪ), prenasalized stops (ᵐb),
   stress ˈ ˌ, length ː ˑ ˘, syllable breaks, groups | ‖, tones as tone
   letters (˥˩, ˨˩˦), superscript or plain digits (⁵¹, 214) or diacritics
-  (á à ā ǎ â), downstep ꜜ and upstep ꜛ, the global rise and fall ↗ ↘. The
+  (á à ā ǎ â), a glottal stop letter inside a tone (Vietnamese ˧ˀ˥: the
+  vowel creaks through its contour), downstep ꜜ and upstep ꜛ, the global
+  rise and fall ↗ ↘. The
   text is read in canonical decomposition, so a precomposed ã and a with a
   combining tilde are the same sound. Whatever it cannot read is listed
   under the text, never dropped in silence. Between slashes, /phonemic/ IPA

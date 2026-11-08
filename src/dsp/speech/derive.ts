@@ -429,15 +429,18 @@ function applyConsonantMods(b: Built, mods: Modifier[], sym: string): Phoneme {
   let resolve = false;
   let moved = false;
   for (const m of mods) {
-    if ((m === 'dental' || m === 'advanced' || m === 'retracted') && r && place) {
-      const d = m === 'dental' ? 0.55 : m === 'advanced' ? 0.25 : -0.25;
+    if ((m === 'dental' || m === 'advanced' || m === 'retracted' || m === 'apical' || m === 'laminal') && r && place) {
+      // an apical sibilant is made with the tip a little back and up (the Basque s̺, near [ʃ] to an English ear),
+      // a laminal one with the blade a little forward (s̻)
+      const d = m === 'dental' ? 0.55 : m === 'advanced' ? 0.25 : m === 'retracted' ? -0.25 : m === 'apical' ? -0.2 : 0.2;
       if (CORONAL.has(place) && 'tipX' in ph.art) {
         ph.art.tipX = clampKey('tipX', (ph.art.tipX ?? 0) + d);
-        resolve = true;
+        // (a small shift of the tip: the degree it had is kept)
+        if (m !== 'apical' && m !== 'laminal') resolve = true;
         moved = true;
         if (m === 'dental') { win = RECIPES.dental.window; r = RECIPES.dental; }
       }
-      else if (DORSAL.has(place) && m !== 'dental') { ph.art.tongueX = clampKey('tongueX', (ph.art.tongueX ?? 0) + (m === 'advanced' ? 0.3 : -0.3)); resolve = true; moved = true; }
+      else if (DORSAL.has(place) && (m === 'advanced' || m === 'retracted')) { ph.art.tongueX = clampKey('tongueX', (ph.art.tongueX ?? 0) + (m === 'advanced' ? 0.3 : -0.3)); resolve = true; moved = true; }
     }
     if ((m === 'raised' || m === 'lowered') && degree !== undefined && ph.manner !== 'lateral') {
       const nd = stepDegree(degree, m === 'raised');
@@ -516,6 +519,13 @@ function applyCommonMods(ph: Phoneme, mods: Modifier[], place?: Place): Phoneme 
       case 'atr': a.tongueRoot = clampKey('tongueRoot', (a.tongueRoot ?? 0) + 0.5); break;
       case 'rtr': a.tongueRoot = clampKey('tongueRoot', (a.tongueRoot ?? 0) - 0.5); break;
       case 'syllabic': ph.syllabic = true; break;
+      // a tense consonant: the glottis narrow and stiff, the larynx up, no breath after it
+      case 'fortis':
+        ph.fortis = true; ph.aspirated = false;
+        if (!ph.voiced) ph.abduction = Math.min(ph.abduction, 0.2);
+        a.larynx = clampKey('larynx', (a.larynx ?? 0) + 0.5);
+        break;
+      case 'compressed': a.lipRound = Math.max(a.lipRound ?? 0, 0.55); a.lipProtrude = Math.min(a.lipProtrude ?? 0, -0.1); if (vowel) a.lipOpen = Math.min(a.lipOpen ?? 0.3, 0.2); break;
       case 'nonSyllabic': ph.nonSyllabic = true; ph.dur *= 0.5; break;
       default: break;
     }

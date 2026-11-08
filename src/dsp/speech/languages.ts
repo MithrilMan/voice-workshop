@@ -20,7 +20,20 @@ export interface SpeechLanguage {
   stress?: 'first' | 'penult' | 'last';
   /** symbols the sources write for a sound of this language that the model makes better with another */
   fix?: [string, string][];
+  /**
+   * the SAMPA the neural model writes for this language (it learned it from
+   * its training lexicon), turned into IPA: applied to a transcription that
+   * has any of its letters, before the dictionary's tone digits are dropped
+   */
+  sampa?: [string, string][];
 }
+
+/** Swedish SAMPA (Wells; the NST lexicon): ɵ ʉ ø œ and the retroflexes, ɧ for the sj-sound, stress marks and diphthong links */
+const SWEDISH_SAMPA: [string, string][] = [
+  ['u0', 'ɵ'], ['n`', 'ɳ'], ['t`', 'ʈ'], ['d`', 'ɖ'], ['s`', 'ʂ'], ['l`', 'ɭ'], ['}', 'ʉ'], ['2', 'ø'], ['9', 'œ'], ['{', 'æ'],
+  ['@', 'ə'], ['A', 'ɑ'], ['O', 'ɔ'], ['Y', 'ʏ'], ['U', 'ʊ'], ['I', 'ɪ'], ['E', 'ɛ'], ['N', 'ŋ'], ['S', 'ɧ'],
+  ['%', 'ˌ'], ['"', 'ˈ'], ['*', ''], ['`', ''],
+];
 
 /**
  * How a language is spoken beyond its sounds, as the planner reads it:
@@ -92,7 +105,7 @@ export const SPEECH_LANGUAGES: SpeechLanguage[] = [
   { code: 'nl', name: { it: 'Olandese', en: 'Dutch' }, model: 'dut', dict: 'nl' },
   { code: 'af', name: { it: 'Afrikaans', en: 'Afrikaans' }, model: 'afr' },
   { code: 'lb', name: { it: 'Lussemburghese', en: 'Luxembourgish' }, model: 'ltz', stress: 'first' },
-  { code: 'sv', name: { it: 'Svedese', en: 'Swedish' }, model: 'swe', dict: 'sv' },
+  { code: 'sv', name: { it: 'Svedese', en: 'Swedish' }, model: 'swe', dict: 'sv', sampa: SWEDISH_SAMPA },
   { code: 'nb', name: { it: 'Norvegese', en: 'Norwegian' }, model: 'nob', dict: 'nb' },
   { code: 'da', name: { it: 'Danese', en: 'Danish' }, model: 'dan' },
   { code: 'is', name: { it: 'Islandese', en: 'Icelandic' }, model: 'ice', dict: 'is', stress: 'first' },
@@ -113,7 +126,7 @@ export const SPEECH_LANGUAGES: SpeechLanguage[] = [
   { code: 'lt', name: { it: 'Lituano', en: 'Lithuanian' }, model: 'lit' },
   { code: 'hu', name: { it: 'Ungherese', en: 'Hungarian' }, model: 'hun', stress: 'first' },
   { code: 'fi', name: { it: 'Finlandese', en: 'Finnish' }, model: 'fin', stress: 'first' },
-  { code: 'et', name: { it: 'Estone', en: 'Estonian' }, model: 'est', stress: 'first' },
+  { code: 'et', name: { it: 'Estone', en: 'Estonian' }, model: 'est', stress: 'first', fix: [['^', 'ʲ']] },
   { code: 'eu', name: { it: 'Basco', en: 'Basque' }, model: 'eus' },
   { code: 'ga', name: { it: 'Irlandese', en: 'Irish' }, model: 'gle', stress: 'first' },
   { code: 'cy', name: { it: 'Gallese', en: 'Welsh' }, model: 'wel-nw', stress: 'penult' },
@@ -124,7 +137,7 @@ export const SPEECH_LANGUAGES: SpeechLanguage[] = [
   { code: 'tr', name: { it: 'Turco', en: 'Turkish' }, model: 'tur' },
   { code: 'az', name: { it: 'Azero', en: 'Azerbaijani' }, model: 'aze', stress: 'last' },
   { code: 'kk', name: { it: 'Kazako', en: 'Kazakh' }, model: 'kaz', stress: 'last' },
-  { code: 'uz', name: { it: 'Uzbeko', en: 'Uzbek' }, model: 'uzb', stress: 'last' },
+  { code: 'uz', name: { it: 'Uzbeko', en: 'Uzbek' }, model: 'uzb', stress: 'last', fix: [['S', 'ʃ']] },
   { code: 'tt', name: { it: 'Tataro', en: 'Tatar' }, model: 'tat', stress: 'last' },
   { code: 'ar', name: { it: 'Arabo', en: 'Arabic' }, model: 'ara' },
   { code: 'fa', name: { it: 'Persiano', en: 'Persian' }, model: 'fas', dict: 'fa', stress: 'last' },
@@ -144,8 +157,8 @@ export const SPEECH_LANGUAGES: SpeechLanguage[] = [
   { code: 'ms', name: { it: 'Malese', en: 'Malay' }, model: 'msa', dict: 'ma', stress: 'penult' },
   { code: 'tl', name: { it: 'Tagalog', en: 'Tagalog' }, model: 'tgl' },
   { code: 'sw', name: { it: 'Swahili', en: 'Swahili' }, model: 'swa', dict: 'sw', stress: 'penult' },
-  { code: 'am', name: { it: 'Amarico', en: 'Amharic' }, model: 'amh' },
-  { code: 'mi', name: { it: 'Maori', en: 'Maori' }, model: 'mri', stress: 'first' },
+  { code: 'am', name: { it: 'Amarico', en: 'Amharic' }, model: 'amh', fix: [['`', 'ʼ']] },
+  { code: 'mi', name: { it: 'Maori', en: 'Maori' }, model: 'mri', stress: 'first', fix: [['"', '']] },
 ];
 
 export function speechLanguage(code: string): SpeechLanguage | undefined {

@@ -41,6 +41,8 @@ export interface Phoneme {
   place?: Place;
   /** released into a voiceless interval before the voice (ʰ) */
   aspirated?: boolean;
+  /** a tense (fortis) consonant, as the Korean ones: a stiff, narrow glottis, no aspiration, a longer closure and a high pitch after it */
+  fortis?: boolean;
   /** voice quality of the segment: breathy (murmured) or creaky (laryngealized) */
   phonation?: 'breathy' | 'creaky';
   /** air set in motion by the larynx (ejective, implosive) or by the tongue (click), not the lungs */

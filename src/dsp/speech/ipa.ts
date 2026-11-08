@@ -105,7 +105,8 @@ export type Modifier =
   | 'labialized' | 'palatalized' | 'velarized' | 'pharyngealized' | 'nasalized' | 'rhotic'
   | 'dental' | 'apical' | 'laminal' | 'advanced' | 'retracted' | 'centralized' | 'midCentralized'
   | 'moreRounded' | 'lessRounded' | 'atr' | 'rtr' | 'halfLong' | 'extraShort'
-  | 'syllabic' | 'nonSyllabic' | 'noRelease' | 'ejective' | 'glottalized' | 'nasalRelease' | 'lateralRelease';
+  | 'syllabic' | 'nonSyllabic' | 'noRelease' | 'ejective' | 'glottalized' | 'nasalRelease' | 'lateralRelease'
+  | 'fortis' | 'compressed';
 
 /** Combining diacritics (after a symbol), with what they change. */
 export const IPA_DIACRITICS: Record<string, Modifier> = {
@@ -115,6 +116,8 @@ export const IPA_DIACRITICS: Record<string, Modifier> = {
   '̈': 'centralized', '̽': 'midCentralized', '̹': 'moreRounded', '̜': 'lessRounded',
   '̘': 'atr', '̙': 'rtr', '̆': 'extraShort',
   '̩': 'syllabic', '̍': 'syllabic', '̯': 'nonSyllabic', '̑': 'nonSyllabic', '̚': 'noRelease',
+  // extIPA's strong articulation, written for the Korean tense (fortis) consonants: s͈ p͈ t͈ k͈ t͡ɕ͈
+  '͈': 'fortis',
 };
 
 /** Spacing modifier letters (after a symbol), with what they change. */
@@ -123,13 +126,15 @@ export const IPA_MODIFIER_LETTERS: Record<string, Modifier[]> = {
   'ˤ': ['pharyngealized'], 'ˀ': ['glottalized'], '˞': ['rhotic'], 'ʴ': ['rhotic'], 'ˑ': ['halfLong'],
   '˔': ['raised'], '˕': ['lowered'], 'ʼ': ['ejective'], '’': ['ejective'], 'ˡ': ['lateralRelease'], 'ⁿ': ['nasalRelease'],
   'ᶣ': ['labialized', 'palatalized'],
+  // compressed lips (the Japanese u: ɯᵝ), rounded without protrusion
+  'ᵝ': ['compressed'],
 };
 
 /** Superscript nasals before a consonant: a prenasalized stop (ᵐb, ⁿd, ᵑg). */
 export const PRENASALS: Record<string, string> = { 'ᵐ': 'm', 'ⁿ': 'n', 'ᵑ': 'ŋ', 'ᶮ': 'ɲ', 'ᶯ': 'ɳ', 'ᶬ': 'ɱ', 'ᶰ': 'ɴ' };
 
 /** Diacritics read but without an effect on the sound in this model. */
-export const NO_EFFECT: ReadonlySet<Modifier> = new Set<Modifier>(['apical', 'laminal', 'nasalRelease', 'lateralRelease']);
+export const NO_EFFECT: ReadonlySet<Modifier> = new Set<Modifier>(['nasalRelease', 'lateralRelease']);
 
 /** Tie bars: two symbols spoken as one sound (affricates, double articulations, diphthongs). */
 export const TIE_BARS = ['͡', '͜'];
@@ -152,6 +157,8 @@ export const GLOBAL_PITCH: Record<string, number> = { '↗': 1, '↘': -1 };
 /** Other spellings of the same sound. */
 export const IPA_SPELLINGS: Record<string, string> = {
   'ɡ': 'g', 'ʤ': 'dʒ', 'ʧ': 'tʃ', 'ʦ': 'ts', 'ʣ': 'dz', 'ᵊ': 'ə', 'ᵻ': 'ɪ', 'ɩ': 'ɪ', 'ɷ': 'ʊ', 'ʚ': 'ɞ', 'ɼ': 'r̝', 'ɿ': 'z̩', 'ʅ': 'ʐ̩',
+  // the turned e, written for schwa by some sources (Khmer)
+  'ǝ': 'ə',
 };
 
 const PLACE_NAMES: Record<Place, string> = {

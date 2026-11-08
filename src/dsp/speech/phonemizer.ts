@@ -42,14 +42,21 @@ export function parseIpaDict(text: string): Dictionary {
  * sounds, spaces between the syllables of a word; and the fixes of a language.
  */
 export function normalizeIpa(ipa: string, lang?: SpeechLanguage): string {
-  let s = ipa
+  let s = ipa;
+  // the model's SAMPA (Swedish): before the digits go, as some of them are vowels (2 ø, 9 œ, u0 ɵ)
+  if (lang?.sampa && /[A-Z%}{`"@*]|u0/.test(s)) for (const [from, to] of lang.sampa) s = s.split(from).join(to);
+  for (const [from, to] of lang?.fix ?? []) s = s.split(from).join(to);
+  s = s
     .replace(/:/g, 'ː')
     .replace(/[0-9¹²³]/g, '')
     .replace(/[()⁽⁾-]/g, '')
     .replace(/'/g, 'ˈ')
     .trim()
-    .replace(/\s+/g, '.');
-  for (const [from, to] of lang?.fix ?? []) s = s.split(from).join(to);
+    .replace(/\s+/g, '.')
+    // a capital that is no IPA letter (a name the model kept as written)
+    .replace(/[A-Z]/g, (c) => c.toLowerCase())
+    // the Danish affricated /t/: tˢ
+    .replace(/([td])ˢ/g, '$1͡s');
   return s;
 }
 

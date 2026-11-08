@@ -168,6 +168,14 @@ export function readIpa(input: string): IpaReading {
       i++;
       continue;
     }
+    // a glottalized tone (Vietnamese ˧ˀ˥, ˨ˀ˩): the creak belongs to the syllable's vowel
+    // (set by close(), which the compiler does not follow)
+    const nucleusNow = lastNucleus as Phone | null;
+    if (toneOpen && ch === 'ˀ' && nucleusNow) {
+      nucleusNow.ipa = (nucleusNow.ipa + ch).normalize('NFC');
+      i++;
+      continue;
+    }
     toneOpen = false;
     // a combining mark or modifier letter on the sound being written
     if (cur && (isMark(ch) || ch in IPA_MODIFIER_LETTERS) && !(ch in PRENASALS && consonantAt(i + 1))) {

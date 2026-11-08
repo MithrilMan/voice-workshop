@@ -431,6 +431,8 @@ function neutralDuration(u: Unit, next: Unit | undefined, prev: Unit | undefined
     if (pc || nc) d *= 0.85;
     if (u.phraseFinal && u.coda) d *= final(1.25);
     if (u.p.long) d *= lp?.rhythm === 'mora' ? 2.2 : 1.85;
+    // a tense (fortis) consonant holds its closure longer (Korean: Cho, Jun & Ladefoged 2002)
+    if (u.ph.fortis) d *= 1.3;
   }
   return d;
 }
@@ -944,7 +946,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       const intrinsic = h === undefined ? 0 : h >= 0.85 ? 0.7 : h <= 0.17 ? -0.5 : 0;
       if (intrinsic) micro.push({ t0: s.t0, t1: s.t1, st: st.micro * intrinsic });
       const prevSeg = segs[segs.indexOf(s) - 1];
-      if (prevSeg && isObstruent(prevSeg.ph)) micro.push({ t0: s.t0, t1: s.t0 + 0.12, st: st.micro * (prevSeg.ph.voiced ? -0.8 : 1.3), decay: 0.035 });
+      if (prevSeg && isObstruent(prevSeg.ph)) micro.push({ t0: s.t0, t1: s.t0 + 0.12, st: st.micro * (prevSeg.ph.voiced ? -0.8 : prevSeg.ph.fortis ? 3.5 : 1.3), decay: prevSeg.ph.fortis ? 0.08 : 0.035 });
     }
   }
   // a creaky (laryngealized) sound is said low in the voice
