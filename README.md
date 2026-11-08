@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 199 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 200 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -303,7 +303,11 @@ Steinecke & Herzel 1995):
     a_i = a0_i + l (x_left + x_right),   F_1 = l d_1 P_1,   F_2 = 0
 
 Pitch comes from the tension Q (k -> Q k, m -> m / Q); with automatic tension
-the model follows the requested F0. Left/right asymmetry gives subharmonics
+the model follows the requested F0. The length of the folds (1 = an adult
+man's 1.4 cm; a woman's about 0.7, a child's 0.5) scales their masses,
+stiffnesses and the area per displacement, and in either model every area
+of the glottis (the pulses, the chink, the abduction) and its Reynolds
+number: shorter folds give smaller pulses and less air at the same pitch. Left/right asymmetry gives subharmonics
 and raspy voice. The flow is solved each sample against the tract input
 impedance, dP = rho U²/(2 a_min²) + (Z + R_visc) U (Titze 1984), so the tract
 loads the folds.
@@ -1027,6 +1031,7 @@ in brackets are the adult male targets described under Speech.
 | Stops close | "papa tata kaka gaga": every closure builds its pressure (/g/ after /a/ did not close before) |
 | Head shapes | 120 sounds on 13 heads (vault 0.6 and 1.45, arch 0.8 and 1.25, pharynx 0.7 and 1.4, tongue 0.92 and 1.08, frenulum 0.6, mouth 0.8 and 1.2, lips 0.7 and 1.4): every stop, nasal and click closes, every other consonant keeps its passage within 0.8-1.15, no vowel narrows below 0.25 cm²; only the laterals closed by the dorsum (ʎ ʟ) under the lowest vault or the biggest tongue are approximate. On a vault of 0.6 "kaka gaga tata cece" builds 42-100 % of the lungs' pressure behind each closure |
 | Palate and arch | F2 of /i/ 2192 Hz: 2036 with a vault of 1.3, 2258 with 0.7; 2140 with an arch of 1.2, 2237 with 0.85 |
+| Fold length | folds 0.7 as long open a glottis 0.70 as wide at its peak; two-mass folds 0.6 as long still follow a 220 Hz target (220 Hz) |
 | Lips | F2 of /u/ 873 Hz: 817 with lips 1.4 times as thick (the tract 0.7 cm longer), 931 with 0.7; 898 with a mouth 1.2 times as wide, 851 with 0.8 |
 | Tongue | F2 of /a/ 1297 Hz: 1228 with a tongue of 1.08, 1412 with 0.92; with a frenulum of 0.6 /t d n/ close with the jaw raised and the tip of /r/ no longer reaches its contact |
 | Speaking habits | a setting with a low larynx and rounded lips keeps both through every sound; a nasal one never lowers the velum on an obstruent; a whispering voice speaks its vowels 24 dB above the near silence it had; with every habit at its extreme /p t k/ still close |

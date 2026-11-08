@@ -62,6 +62,9 @@ export interface Anatomy {
   mouthWidth: number;
   /** thickness of the lips front to back, 1 = the drawing's (about 1 cm): thicker lips make a longer front tube */
   lipThickness: number;
+  /** length of the vocal folds, 1 = an adult man's (about 1.4 cm with their cartilages); a woman's about 0.7, a child's 0.5.
+   *  The glottis opens in proportion (smaller pulses, less air), the two-mass folds have the mass and stiffness of their length */
+  foldLength: number;
 }
 
 /**
@@ -102,7 +105,7 @@ export const DEFAULT_ARTICULATORS: Articulators = {
   larynx: 0,
 };
 
-export const DEFAULT_ANATOMY: Anatomy = { scale: 1, pharynx: 1, pharynxWidth: 1, nasalLeak: 0, nasalCycle: 0, nostrilLeft: 1, nostrilRight: 1, piriform: 1, palateHeight: 1, archWidth: 1, tongueSize: 1, tipReach: 1, mouthWidth: 1, lipThickness: 1 };
+export const DEFAULT_ANATOMY: Anatomy = { scale: 1, pharynx: 1, pharynxWidth: 1, nasalLeak: 0, nasalCycle: 0, nostrilLeft: 1, nostrilRight: 1, piriform: 1, palateHeight: 1, archWidth: 1, tongueSize: 1, tipReach: 1, mouthWidth: 1, lipThickness: 1, foldLength: 1 };
 
 export const DEFAULT_TEETH: Teeth = {
   slitWidth: 2.2,

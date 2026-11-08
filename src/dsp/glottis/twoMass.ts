@@ -33,6 +33,8 @@ export interface TwoMassParams {
   a0: number;
   /** thickness of the lower mass, cm */
   d1: number;
+  /** length of the folds relative to L_FOLD: the masses, the stiffnesses and the area per displacement scale with it */
+  len: number;
 }
 
 const M1 = 0.125, M2 = 0.025; // g
@@ -47,7 +49,7 @@ export class TwoMassGlottis {
   // displacements (cm) and velocities (cm/s): [left1, left2, right1, right2]
   x = new Float64Array(4);
   v = new Float64Array(4);
-  params: TwoMassParams = { q: 1, asym: 0, a0: 0.05, d1: 0.25 };
+  params: TwoMassParams = { q: 1, asym: 0, a0: 0.05, d1: 0.25, len: 1 };
   /** glottal areas at the two masses and their minimum, cm^2 */
   a1 = 0.05;
   a2 = 0.05;
@@ -86,7 +88,7 @@ export class TwoMassGlottis {
     const ql = p.q * (1 + p.asym / 2);
     const qr = p.q * (1 - p.asym / 2);
     const x = this.x, v = this.v;
-    const l = L_FOLD;
+    const l = L_FOLD * p.len;
     const a0 = p.a0;
     this.a1 = a0 + l * (x[0] + x[2]);
     this.a2 = a0 + l * (x[1] + x[3]);
@@ -122,8 +124,8 @@ export class TwoMassGlottis {
     for (let side = 0; side < 2; side++) {
       const q = side === 0 ? ql : qr;
       const i1 = side * 2, i2 = i1 + 1;
-      const m1 = M1 / q, m2 = M2 / q;
-      const k1 = K1 * q, k2 = K2 * q, kc = KC * q;
+      const m1 = (M1 * p.len) / q, m2 = (M2 * p.len) / q;
+      const k1 = K1 * p.len * q, k2 = K2 * p.len * q, kc = KC * p.len * q;
       let force1 = f1 - k1 * x[i1] - R_DAMP * v[i1] - kc * (x[i1] - x[i2]);
       let force2 = f2 - k2 * x[i2] - R_DAMP * v[i2] - kc * (x[i2] - x[i1]);
       if (a1 < 0) force1 -= COLL * k1 * (a1 / (2 * l)) + 2 * R_DAMP * v[i1];

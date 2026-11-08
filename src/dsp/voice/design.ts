@@ -208,6 +208,8 @@ export const VOICE_FIELDS: Field[] = [
   },
   { path: 'phonation.voicing', tab: 'phonation', group: G.folds, kind: 'boolean', label: { it: 'Le corde vibrano', en: 'The folds vibrate' },
     hint: { it: 'Spento: un sussurro, solo fruscio (apri anche la glottide nelle Abitudini).', en: 'Off: a whisper, only hiss (open the glottis in the Habits too).' } },
+  n('body.anatomy.foldLength', 'phonation', G.folds, { it: 'Lunghezza delle corde', en: 'Length of the folds' },
+    { it: 'Le corde vocali rispetto a quelle di un uomo adulto (circa 1,4 cm): una donna circa 0,7, un bambino 0,5. Più corte, la glottide si apre meno: impulsi più piccoli, meno aria, una voce più sottile; l’altezza resta quella della melodia.', en: 'The vocal folds against an adult man’s (about 1.4 cm): a woman’s about 0.7, a child’s 0.5. Shorter, the glottis opens less: smaller pulses, less air, a thinner voice; the pitch stays the melody’s.' }, 0.45, 1.15, 0.01),
   n('phonation.rd', 'phonation', G.folds, { it: 'Qualità (Rd)', en: 'Quality (Rd)' },
     { it: 'La forma dell’impulso (Fant 1995): 0,3-0,7 pressata, 1 modale, 1,4-2,7 soffiata.', en: 'The shape of the pulse (Fant 1995): 0.3-0.7 pressed, 1 modal, 1.4-2.7 breathy.' }, 0.3, 2.7, 0.01),
   n('phonation.peakArea', 'phonation', G.folds, { it: 'Apertura massima', en: 'Peak opening' },

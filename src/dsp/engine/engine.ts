@@ -578,7 +578,8 @@ export class VoiceEngine {
 
   private meanGlottalArea(): number {
     const p = this.params;
-    const s2 = p.anatomy.scale * p.anatomy.scale;
+    // the glottis: its areas scale with the size of the head and the length of the folds
+    const s2 = p.anatomy.scale * p.anatomy.scale * (p.anatomy.foldLength ?? 1);
     const abd = 0.55 * s2 * Math.max(0, this.abduction);
     let vib = 0;
     if (p.voicing) {
@@ -686,7 +687,7 @@ export class VoiceEngine {
     const fs = this.fsT;
     const dt = 1 / fs;
     this.tractTime += dt;
-    const s2 = p.anatomy.scale * p.anatomy.scale;
+    const s2 = p.anatomy.scale * p.anatomy.scale * (p.anatomy.foldLength ?? 1);
     // control-rate values, ramped across the control period
     const ph = this.ctrlPhase = Math.min(1, this.ctrlPhase + 1 / (CTRL * this.ratio));
     const voicingAmp = this.rVoicing.at(ph);
@@ -730,6 +731,7 @@ export class VoiceEngine {
       tp.asym = Math.min(1, sp.asym + 0.3 * this.creak);
       tp.a0 = Math.max(0.0, sp.restArea) * s2 + (p.voicing ? 0 : 0.2);
       tp.d1 = 0.25 * p.anatomy.scale;
+      tp.len = p.anatomy.foldLength ?? 1;
       tp.q = sp.tensionAuto ? this.tmQ : sp.q;
       const uf = this.tm.step(dt, p.voicing ? ps : 0, po, wg.pMinus, z0, this.uMean) * gate;
       ag = Math.max(0, this.tm.amin) + steadyArea;
@@ -761,7 +763,7 @@ export class VoiceEngine {
     const n = p.noise;
     let asp = 0;
     if (n.aspirationOn && ag > 1e-5) {
-      const re = u / (FOLD_LENGTH * p.anatomy.scale * NU);
+      const re = u / (FOLD_LENGTH * p.anatomy.scale * (p.anatomy.foldLength ?? 1) * NU);
       this.glottalRe = re;
       // turbulence grows once the glottal jet is clearly above the critical
       // Reynolds number: modal pulses (peak Re ~2000) stay mostly laminar,

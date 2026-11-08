@@ -10,6 +10,7 @@ import { textToPhones } from '../src/dsp/speech/g2p';
 import { buildScore } from '../src/dsp/speech/sequencer';
 import { VoiceEngine } from '../src/dsp/engine/engine';
 import { defaultParams } from '../src/dsp/engine/params';
+import { renderOffline } from '../src/dsp/engine/engine';
 import { note } from './helpers';
 
 const head = (an: Partial<Anatomy>) => ({ anatomy: { ...DEFAULT_ANATOMY, ...an }, teeth: { ...DEFAULT_TEETH } });
@@ -106,6 +107,38 @@ describe('the shape of the head', () => {
     expect(narrow).toBeLessThan(u2 - 15);
     const len = (an: Partial<Anatomy>) => computeGeometry({ ...DEFAULT_ARTICULATORS, ...PHONEMES.u.art }, head(an).anatomy, DEFAULT_TEETH).length;
     expect(len({ lipThickness: 1.4 }) - len({})).toBeGreaterThan(0.4);
+  });
+
+  it('shorter folds open a smaller glottis, and the two-mass folds of any length follow the pitch', () => {
+    const peak = (fold: number, model: 'lf' | 'twomass') => {
+      const p = defaultParams();
+      p.articulators = { ...p.articulators, ...PHONEMES.a.art };
+      p.phonate = true;
+      p.source.model = model;
+      p.source.tensionAuto = true;
+      p.source.f0 = 220;
+      p.anatomy.foldLength = fold;
+      const { engine } = renderOffline(p, 0.8);
+      return { f0: engine.telemetry().f0 };
+    };
+    const area = (fold: number) => {
+      const p = defaultParams();
+      p.articulators = { ...p.articulators, ...PHONEMES.a.art };
+      p.phonate = true;
+      p.anatomy.foldLength = fold;
+      const e = new VoiceEngine(48000, p);
+      e.snapArticulators(); e.snapPressure();
+      const buf = new Float32Array(48);
+      let max = 0;
+      for (let t = 0; t < 0.6; t += 0.001) { e.process(buf, 48); if (t > 0.3) max = Math.max(max, (e as unknown as { glottalArea: number }).glottalArea); }
+      return max;
+    };
+    const ratio = area(0.7) / area(1);
+    const tm = peak(0.6, 'twomass');
+    note('folds', `peak glottal area with folds 0.7 as long: ${ratio.toFixed(2)} of a man's; two-mass folds 0.6 as long at 220 Hz: ${tm.f0.toFixed(0)} Hz`);
+    expect(ratio).toBeGreaterThan(0.6);
+    expect(ratio).toBeLessThan(0.8);
+    expect(Math.abs(tm.f0 - 220) / 220).toBeLessThan(0.05);
   });
 
   it('speaking with a low palate, every stop still closes and builds its pressure', () => {
