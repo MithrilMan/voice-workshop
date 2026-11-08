@@ -46,7 +46,7 @@ export interface Phoneme {
   /** air set in motion by the larynx (ejective, implosive) or by the tongue (click), not the lungs */
   airstream?: 'ejective' | 'implosive' | 'click';
   /** taps and trills: the articulator that strikes, and a value of it past the contact */
-  flick?: { key: FlickKey; contact: number };
+  flick?: { key: FlickKey; contact: number; open?: number };
   /** a lateral click: released by lowering the sides of the tongue (ǁ) */
   lateralRelease?: boolean;
   /** a stop held without an audible release (̚) */

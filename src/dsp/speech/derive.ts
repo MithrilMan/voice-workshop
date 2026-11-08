@@ -39,6 +39,10 @@ const APPROXIMANT = 0.3;
 const TRILL = 0.12;
 /** a raised fricative (ř: the trill's passage narrow enough to hiss) */
 const NARROW = 0.05;
+/** how far a fricative trill opens between its contacts, cm² (about a fricative's channel) */
+const TRILL_OPEN = 0.12;
+/** the body of the tongue behind the blade of a fricative trill (ř) */
+const LAMINAL_TRILL: Partial<Articulators> = { tongueX: 0.7, tongueY: 1.0, tongueRoot: 1.2, tipX: 0.5 };
 const WIDE = 0.6;
 /** the narrowest passage is looked for above the epilaryngeal tube (engine.ts) */
 const S_START = 2.6;
@@ -411,12 +415,34 @@ function applyConsonantMods(b: Built, mods: Modifier[], sym: string): Phoneme {
   if (resolve && r && place && degree !== undefined && ph.manner !== 'lateral' && place !== 'glottal') {
     // a fitted posture is solved again around where it narrows; a derived one in its place's window
     if (!b.recipe && !(moved && win)) win = moved ? [0, 30] : windowAround(ph.art);
+    const fricTrill = ph.manner === 'trill' && degree !== 'closed' && degree <= FRICATIVE;
+    // a coronal trill narrowed until it hisses (Czech ř) is laminal, with the
+    // body of the tongue raised and fronted behind the blade, as for [ʒ]: the
+    // blade runs along the front of the ridge (Dankovičová 1999; Howson,
+    // Komova & Gick 2014)
+    if (fricTrill && CORONAL.has(place)) Object.assign(ph.art, LAMINAL_TRILL);
     const s = solveDegree(ph.art, r, degree, win ?? r.window);
     ph.art[r.key] = s.value;
     if (!s.reached) ph.approx = ph.approx ?? 'degree';
-    // a trill narrowed until it hisses between its contacts (Czech ř) lets more air
-    // through the glottis, as a voiced fricative does, or the jet is too slow to hiss
-    if (ph.manner === 'trill' && degree !== 'closed' && degree <= FRICATIVE) ph.abduction = Math.max(ph.abduction, abductionOf('fricative', ph.voiced));
+    if (fricTrill) {
+      // it lets more air through the glottis, as a voiced fricative does, or
+      // the jet is too slow to hiss; and between its contacts it opens only
+      // into a narrow channel: how far from the contact that is
+      ph.abduction = Math.max(ph.abduction, abductionOf('fricative', ph.voiced));
+      // (a fitted trill strikes with the tip up to 2.3, as the sequencer assumes)
+      const fl = ph.flick ?? (r.key === 'tipY' ? { key: 'tipY' as FlickKey, contact: 2.3 } : undefined);
+      if (fl && fl.key === r.key) {
+        const contact = contactPoint(ph.art, r.key, fl.contact);
+        const dir = Math.sign(r.closed - r.open);
+        const w = win ?? r.window;
+        let lo = 0, hi = 1;
+        for (let it = 0; it < 12; it++) {
+          const m = 0.5 * (lo + hi);
+          if (passageIn({ ...ph.art, [r.key]: contact - dir * m }, w) > TRILL_OPEN) hi = m; else lo = m;
+        }
+        ph.flick = { ...fl, open: Math.round(0.5 * (lo + hi) * 1000) / 1000 };
+      }
+    }
     if (ph.manner !== 'trill' && ph.manner !== 'tap') {
       // the degree sets the manner: a raised approximant hisses, a lowered fricative does not
       const manner: Manner = degree === 'closed' ? ph.manner : degree <= FRICATIVE ? 'fricative' : 'approximant';

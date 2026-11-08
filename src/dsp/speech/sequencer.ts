@@ -757,7 +757,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   }
   const now = (key: FlickKey, time: number) => tracks[key][Math.max(0, Math.min(tracks[key].length - 1, Math.round(time / FRAME)))];
   const flicks: Record<FlickKey, { c: number; w: number; a: number }[]> = { tipY: [], lipOpen: [], tongueX: [] };
-  const trills: { t0: number; t1: number; key: FlickKey; at: number }[] = [];
+  const trills: { t0: number; t1: number; key: FlickKey; at: number; open?: number }[] = [];
   for (const s of segs) {
     if (s.ph.manner !== 'tap' && s.ph.manner !== 'trill') continue;
     const fl = s.ph.flick;
@@ -776,7 +776,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       flicks[key].push({ c, w: Math.max(0.04, (s.t1 - s.t0) * 1.6), a: toward(fl?.contact ?? 2.2, c, 0) });
     } else {
       const at = trillContact(s.ph, key, fl?.contact ?? 2.3);
-      trills.push({ t0: s.t0 - lead * 0.3, t1: s.t1, key, at });
+      trills.push({ t0: s.t0 - lead * 0.3, t1: s.t1, key, at, ...(fl?.open ? { open: fl.open } : {}) });
     }
   }
   const flickAt = (key: FlickKey, time: number): number => {
@@ -1070,7 +1070,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     const tr = trills.find((w) => time >= w.t0 && time < w.t1);
     frames.push({
       t: time, art, abduction: abd, f0: f0At(time) * (fry > 0 ? Math.pow(2, (-FRY_DROP * fry) / 12) : 1), ps, ...(Math.max(creak, fry) > 0 ? { creak: Math.max(creak, fry) } : {}), tip, ...(lips ? { lips } : {}), ...(dorsum ? { dorsum } : {}), rd, gate, ...(tense ? { tense } : {}),
-      ...(tr ? { trill: 1, trillKey: tr.key, trillAt: tr.at } : {}),
+      ...(tr ? { trill: 1, trillKey: tr.key, trillAt: tr.at, ...(tr.open ? { trillOpen: tr.open } : {}) } : {}),
       ...(clickAt(time) > 0 ? { click: clickAt(time) } : {}),
     });
   }

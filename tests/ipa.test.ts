@@ -237,3 +237,40 @@ describe('dental consonants', () => {
     expect(notesForIpa('ǀ')).toEqual([]);
   });
 });
+
+describe('Czech ř', () => {
+  /** the contacts of a trill, and its open phases between the first and the last contact: widest passage and mean hiss */
+  const phases = (text: string, ipa: string) => {
+    const { score, tel } = play(text);
+    const ph = score.phones.find((q) => q.ipa === ipa)!;
+    const xs = tel.filter((x) => x.t >= ph.t0 && x.t <= ph.t1);
+    const shut = xs.map((x) => x.area < 0.004);
+    const first = shut.indexOf(true), last = shut.lastIndexOf(true);
+    const open = xs.slice(first, last + 1).filter((x) => x.area >= 0.004);
+    return {
+      contacts: closures(text, ipa),
+      widest: open.reduce((m, x) => Math.max(m, x.area), 0),
+      hiss: open.length ? open.reduce((s, x) => s + x.wall, 0) / open.length : 0,
+    };
+  };
+
+  it('is laminal, with the body of the tongue raised behind the blade', () => {
+    const r = phonemeFor('r')!, ř = phonemeFor('r̝')!;
+    expect(ř.art.tongueY!).toBeGreaterThan(0.8);
+    expect(constrictionOf(ř.art).fromLips).toBeLessThan(constrictionOf(r.art).fromLips);
+    expect(ř.flick?.open).toBeGreaterThan(0);
+  });
+
+  it('trills with one to a few contacts, and between them opens only into a narrow channel that hisses', () => {
+    const r = phases('[ˈreka]', 'r'), ř = phases('[ˈr̝eka]', 'r̝'), tři = phases('[ˈtr̝̊i]', 'r̝̊');
+    note('Czech ř', `contacts: ř in [ˈr̝eka] ${ř.contacts}, r̝̊ in [ˈtr̝̊i] ${tři.contacts}, r in [ˈreka] ${r.contacts}; widest open phase ř ${ř.widest.toFixed(2)} cm² against r ${r.widest.toFixed(2)}; hiss of the open phases ${(20 * Math.log10(ř.hiss / Math.max(r.hiss, 1e-12))).toFixed(1)} dB above r`);
+    for (const x of [ř, tři]) {
+      expect(x.contacts).toBeGreaterThanOrEqual(1);
+      expect(x.contacts).toBeLessThanOrEqual(4);
+      // a fricative's channel, not an approximant's (0.3 cm²)
+      expect(x.widest).toBeLessThan(0.2);
+    }
+    expect(ř.contacts).toBeGreaterThanOrEqual(2);
+    expect(ř.hiss).toBeGreaterThan(3 * r.hiss);
+  });
+});

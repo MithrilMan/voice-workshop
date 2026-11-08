@@ -312,7 +312,7 @@ export class VoiceEngine {
 
   // ------------------------------------------------------------ control
 
-  private targetFrame(): { art: Articulators | null; abduction: number; f0: number; ps: number; tip: number; lips: number; dorsum: number; rd: number; gate: number; tense: number; creak: number; trill: number; trillKey?: TrillKey; trillAt: number; click: number } | null {
+  private targetFrame(): { art: Articulators | null; abduction: number; f0: number; ps: number; tip: number; lips: number; dorsum: number; rd: number; gate: number; tense: number; creak: number; trill: number; trillKey?: TrillKey; trillAt: number; trillOpen: number; click: number } | null {
     const sc = this.score;
     if (!sc) return null;
     if (this.scoreTime > sc.duration + this.scoreHold) { this.score = null; this.restoreTau(); return null; }
@@ -330,7 +330,7 @@ export class VoiceEngine {
       art, abduction: mix(a.abduction, b.abduction), f0: mix(a.f0, b.f0), ps: mix(a.ps, b.ps),
       tip: mix(a.tip ?? 0, b.tip ?? 0), lips: mix(a.lips ?? 0, b.lips ?? 0), dorsum: mix(a.dorsum ?? 0, b.dorsum ?? 0),
       rd: mix(a.rd ?? 0, b.rd ?? 0), gate: mix(a.gate ?? 1, b.gate ?? 1), tense: mix(a.tense ?? 0, b.tense ?? 0), creak: mix(a.creak ?? 0, b.creak ?? 0),
-      trill: mix(a.trill ?? 0, b.trill ?? 0), trillKey: a.trillKey ?? b.trillKey, trillAt: a.trillAt ?? b.trillAt ?? 0,
+      trill: mix(a.trill ?? 0, b.trill ?? 0), trillKey: a.trillKey ?? b.trillKey, trillAt: a.trillAt ?? b.trillAt ?? 0, trillOpen: a.trillOpen ?? b.trillOpen ?? 0,
       click: mix(a.click ?? 0, b.click ?? 0),
     };
   }
@@ -397,7 +397,7 @@ export class VoiceEngine {
    * passage is too low (a trill said with weak lungs, or with the nose open,
    * dies into an approximant or a single contact).
    */
-  private trillStep(fr: { trill: number; trillKey?: TrillKey; trillAt: number } | null, tk: TrillKey | undefined, dt: number): void {
+  private trillStep(fr: { trill: number; trillKey?: TrillKey; trillAt: number; trillOpen: number } | null, tk: TrillKey | undefined, dt: number): void {
     if (tk && tk !== this.trillKey && fr) { this.trillKey = tk; this.trillY = 0; this.trillV = 0; this.trillContact = fr.trillAt; }
     const k = this.trillKey;
     if (!k) return;
@@ -413,6 +413,13 @@ export class VoiceEngine {
       // pressed against the other side, the tissue is much stiffer
       const z = P.dir * (base + this.trillY - this.trillContact);
       if (z > 0) acc -= P.dir * TRILL_CONTACT * w * w * z + 2 * 0.3 * w * Math.sqrt(TRILL_CONTACT) * this.trillV;
+      // a fricative trill (ř): the body of the tongue, raised behind the
+      // blade, lets it open only so far, into a narrow channel that hisses
+      // (Ladefoged & Maddieson 1996: a trill and a fricative at once). The
+      // blade bounces off that limit back toward its contact: an elastic
+      // stop, or the bounce would eat the energy that keeps it trilling
+      const zo = fr.trillOpen > 0 ? -z - fr.trillOpen : 0;
+      if (zo > 0) acc += P.dir * TRILL_CONTACT * w * w * zo;
     }
     this.trillV += acc * dt;
     this.trillY += this.trillV * dt;
