@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 198 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 199 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -117,7 +117,7 @@ Four modes, switchable in the header and remembered in the browser:
   patterns for a statement, a yes/no question, a question with "where" and
   a list; "As it was" says it again with the voice before the changes. Five
   tabs hold every field of the voice, each with its range, its unit and
-  what it does: the body (size, pharynx, palate and arch, nose, teeth), the voice (the fold
+  what it does: the body (size, pharynx, palate and arch, tongue, lips, nose, teeth), the voice (the fold
   model, its quality, irregularity, breath and vibrato), the habits (the
   posture kept beneath every sound and the precision), the melody (usual
   pitch, accents, downstep, the ends of statements and questions, with the
@@ -402,19 +402,21 @@ jaw, as a closing lip does for a bilabial (motor equivalence), and it slides
 out in front of the incisors when it rises above their edge, so that a /v/
 on its way to a rounded /w/ ("vuole") never closes. The anatomy (size,
 pharynx length and width, the vault of the palate and the width of the
-dental arch, the size of the tongue and its frenulum, nasal leak) is the
-persistent "person" part of the filter. The vault rises or sinks over the
+dental arch, the size of the tongue and its frenulum, the width of the mouth
+and the thickness of the lips, nasal leak) is the persistent "person" part
+of the filter. The vault rises or sinks over the
 line from the velum to the alveolar ridge, so the seams with the velum and
 the incisors stay where they are; the arch widens or narrows every section
 of the mouth; the tongue's body is a larger or smaller circle; the frenulum
 ties the underside of the tip to the floor of the mouth, which turns with
 the jaw, so a short one (tongue-tie) holds the tip down and only closing
-the jaw lifts it.
+the jaw lifts it; thicker lips reach further in front of the teeth and
+lengthen the tube, a wider mouth widens the opening between them.
 
 **A head of another shape** (src/dsp/speech/derive.ts, adapt()): every
 posture of the tables and every recipe was made on the drawing's head. On a
 head whose mouth or throat has another shape (the vault, the arch, the
-width of the pharynx, the tongue) each sound is aimed again, as a speaker aims at the
+width of the pharynx, the tongue, the lips) each sound is aimed again, as a speaker aims at the
 constriction and not at a posture (motor equivalence; Perkell et al. 1993):
 a stop or a nasal closes, pressing as far past its new contact as it
 pressed past the old one (where its articulator cannot reach, the jaw comes
@@ -1023,8 +1025,9 @@ in brackets are the adult male targets described under Speech.
 | Czech ř | laminal, its narrowest passage in front of /r/'s; contacts in [ˈr̝eka] 4, in [ˈtr̝̊i] 3; open phases at most 0.16 cm², their hiss 21 dB above /r/'s |
 | Dentals | t̪ d̪ n̪ closed 2.4 cm in front of /t/, with no note |
 | Stops close | "papa tata kaka gaga": every closure builds its pressure (/g/ after /a/ did not close before) |
-| Head shapes | 120 sounds on nine heads (vault 0.6 and 1.45, arch 0.8 and 1.25, pharynx 0.7 and 1.4, tongue 0.92 and 1.08, frenulum 0.6): every stop, nasal and click closes, every other consonant keeps its passage within 0.8-1.15, no vowel narrows below 0.25 cm²; only the laterals closed by the dorsum (ʎ ʟ) under the lowest vault or the biggest tongue are approximate. On a vault of 0.6 "kaka gaga tata cece" builds 42-100 % of the lungs' pressure behind each closure |
+| Head shapes | 120 sounds on 13 heads (vault 0.6 and 1.45, arch 0.8 and 1.25, pharynx 0.7 and 1.4, tongue 0.92 and 1.08, frenulum 0.6, mouth 0.8 and 1.2, lips 0.7 and 1.4): every stop, nasal and click closes, every other consonant keeps its passage within 0.8-1.15, no vowel narrows below 0.25 cm²; only the laterals closed by the dorsum (ʎ ʟ) under the lowest vault or the biggest tongue are approximate. On a vault of 0.6 "kaka gaga tata cece" builds 42-100 % of the lungs' pressure behind each closure |
 | Palate and arch | F2 of /i/ 2192 Hz: 2036 with a vault of 1.3, 2258 with 0.7; 2140 with an arch of 1.2, 2237 with 0.85 |
+| Lips | F2 of /u/ 873 Hz: 817 with lips 1.4 times as thick (the tract 0.7 cm longer), 931 with 0.7; 898 with a mouth 1.2 times as wide, 851 with 0.8 |
 | Tongue | F2 of /a/ 1297 Hz: 1228 with a tongue of 1.08, 1412 with 0.92; with a frenulum of 0.6 /t d n/ close with the jaw raised and the tip of /r/ no longer reaches its contact |
 | Speaking habits | a setting with a low larynx and rounded lips keeps both through every sound; a nasal one never lowers the velum on an obstruent; a whispering voice speaks its vowels 24 dB above the near silence it had; with every habit at its extreme /p t k/ still close |
 | Trills | closures of the lips in [aʙa] 3, of the dorsum against the uvula in [aʀa] 4, of the tip in [ara] 1 |

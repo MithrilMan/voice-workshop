@@ -58,6 +58,10 @@ export interface Anatomy {
   tongueSize: number;
   /** how far the frenulum lets the tip go from the floor of the mouth, 1 = never in the way; less is a short frenulum (tongue-tie) */
   tipReach: number;
+  /** width of the mouth at the corners of the lips, 1 = the drawing's (4.6 cm spread in an adult man) */
+  mouthWidth: number;
+  /** thickness of the lips front to back, 1 = the drawing's (about 1 cm): thicker lips make a longer front tube */
+  lipThickness: number;
 }
 
 /**
@@ -98,7 +102,7 @@ export const DEFAULT_ARTICULATORS: Articulators = {
   larynx: 0,
 };
 
-export const DEFAULT_ANATOMY: Anatomy = { scale: 1, pharynx: 1, pharynxWidth: 1, nasalLeak: 0, nasalCycle: 0, nostrilLeft: 1, nostrilRight: 1, piriform: 1, palateHeight: 1, archWidth: 1, tongueSize: 1, tipReach: 1 };
+export const DEFAULT_ANATOMY: Anatomy = { scale: 1, pharynx: 1, pharynxWidth: 1, nasalLeak: 0, nasalCycle: 0, nostrilLeft: 1, nostrilRight: 1, piriform: 1, palateHeight: 1, archWidth: 1, tongueSize: 1, tipReach: 1, mouthWidth: 1, lipThickness: 1 };
 
 export const DEFAULT_TEETH: Teeth = {
   slitWidth: 2.2,

@@ -156,7 +156,7 @@ export interface Head { anatomy: Anatomy; teeth: Teeth }
  * a consonant are measured at the drawing's size); nor do the teeth, whose
  * effect on a hiss (a lisp through an open bite) is theirs to give.
  */
-const SHAPE: (keyof Anatomy)[] = ['pharynxWidth', 'palateHeight', 'archWidth', 'tongueSize', 'tipReach'];
+const SHAPE: (keyof Anatomy)[] = ['pharynxWidth', 'palateHeight', 'archWidth', 'tongueSize', 'tipReach', 'mouthWidth', 'lipThickness'];
 
 /** The shape of a head at the drawing's size, or undefined when it is the drawing's own. */
 export function shapeOf(head?: { anatomy: Partial<Anatomy> }): Head | undefined {
@@ -679,7 +679,7 @@ function reach(key: keyof Articulators, v0: number): [number, number] {
  * false if the articulator cannot get there.
  */
 function aim(a: Articulators, key: keyof Articulators, dir: number, open: (x: Articulators) => boolean,
-  tooWide?: (x: Articulators) => boolean): { value: number; ok: boolean } | undefined {
+  tooWide?: (x: Articulators) => boolean): { value: number; ok: boolean; opening: boolean } | undefined {
   const v0 = a[key];
   const [lo, hi] = reach(key, v0);
   // opening, no further than OPENING from where it is (past that a posture stops making sense: a tongue pushed into the teeth)
@@ -695,15 +695,15 @@ function aim(a: Articulators, key: keyof Articulators, dir: number, open: (x: Ar
   };
   const isOpen = (v: number) => open(at(v));
   if (!isOpen(v0)) {
-    if (!isOpen(openEnd)) return { value: openEnd, ok: false };
-    return { value: edge(isOpen, openEnd, v0), ok: true };
+    if (!isOpen(openEnd)) return { value: openEnd, ok: false, opening: true };
+    return { value: edge(isOpen, openEnd, v0), ok: true, opening: true };
   }
   if (tooWide && tooWide(at(v0))) {
     const narrow = (v: number) => !tooWide(at(v));
     let v = narrow(shutEnd) ? edge(narrow, shutEnd, v0) : shutEnd;
     const ok = narrow(v);
     if (!isOpen(v)) v = edge(isOpen, v0, v);
-    return { value: v, ok };
+    return { value: v, ok, opening: false };
   }
   return undefined;
 }
@@ -717,6 +717,7 @@ const TIP: Lever = ['tipY', 1];
 const ROOT: Lever = ['tongueRoot', -1];
 /** the whole body of the tongue back narrows the pharynx */
 const FRONT: Lever = ['tongueX', -1];
+const LIPS: Lever = ['lipOpen', -1];
 const DORSAL_KEYS = new Set<keyof Articulators>(['tongueY', 'tongueX', 'tongueRoot']);
 
 /**
@@ -733,7 +734,8 @@ function withLevers(ph: Phoneme, levers: Lever[], open: (x: Articulators) => boo
     const r = aim(a, key, dir, open, tooWide);
     if (!r) return ph;
     if (r.ok) return rounded(ph, key, r.value);
-    best ??= rounded(ph, key, r.value);
+    // as open as it gets, rather than shut; an articulator that cannot narrow the passage is not moved for nothing
+    if (r.opening) best ??= rounded(ph, key, r.value);
   }
   return { ...(best ?? ph), approx: ph.approx ?? 'anatomy' };
 }
@@ -840,7 +842,8 @@ function adapt(ph: Phoneme, head: Head): Phoneme {
   const atPlace = dorsal ? anywhere : (x: Articulators) => measure(x, win, head).inWindow;
   let out = ph;
   if (Math.abs(atPlace(a) - own) > SAME_PASSAGE * own) {
-    const levers: Lever[] = dorsal ? [[key, dir], key === 'tongueX' ? BODY : FRONT] : [[key, dir], BODY];
+    // (a rounded one, [w], also narrows at the lips)
+    const levers: Lever[] = dorsal ? [[key, dir], key === 'tongueX' ? BODY : FRONT, LIPS] : [[key, dir], BODY, LIPS];
     out = withLevers(ph, levers, (x) => atPlace(x) >= (1 - SAME_PASSAGE) * own, (x) => atPlace(x) > (1 + SAME_PASSAGE) * own);
   }
   if (dorsal) return out;
@@ -862,7 +865,7 @@ function adaptVowel(ph: Phoneme, head: Head): Phoneme {
     return m.inWindow >= NARROWEST * own && m.min >= safe;
   };
   const tooWide = mouth ? (x: Articulators) => measure(x, win, head).inWindow > WIDEST * own : undefined;
-  return withLevers(ph, mouth ? [BODY, TIP, ROOT, FRONT] : [ROOT, FRONT, BODY], open, tooWide);
+  return withLevers(ph, mouth ? [BODY, LIPS, TIP, ROOT, FRONT] : [ROOT, FRONT, BODY], open, tooWide);
 }
 
 /** Something about a transcription the listener should know: a symbol not read, or a sound only approximated. */

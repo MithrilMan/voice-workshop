@@ -38,7 +38,7 @@ describe('the shape of the head', () => {
 
   it('on a low or a high palate, a narrow or a wide arch or pharynx, every sound keeps its constriction', () => {
     const shapes: Partial<Anatomy>[] = [{ palateHeight: 0.6 }, { palateHeight: 1.45 }, { archWidth: 0.8 }, { archWidth: 1.25 }, { pharynxWidth: 0.7 }, { pharynxWidth: 1.4 },
-      { tongueSize: 0.92 }, { tongueSize: 1.08 }, { tipReach: 0.6 }];
+      { tongueSize: 0.92 }, { tongueSize: 1.08 }, { tipReach: 0.6 }, { mouthWidth: 0.8 }, { mouthWidth: 1.2 }, { lipThickness: 0.7 }, { lipThickness: 1.4 }];
     const marked: string[] = [];
     for (const an of shapes) {
       const h = head(an), shape = shapeOf(h)!;
@@ -94,6 +94,18 @@ describe('the shape of the head', () => {
     // the tip of a trill no longer reaches its contact
     expect(contactPoint(PHONEMES.r.art, 'tipY', 2.3, shape)).toBe(2.3);
     expect(contactPoint(PHONEMES.r.art, 'tipY', 2.3)).toBeLessThan(2.3);
+  });
+
+  it('thicker lips lengthen the tract and darken the rounded vowels; a wider mouth brightens them', () => {
+    const [, u2] = formantsOf('u', {}), [, thick] = formantsOf('u', { lipThickness: 1.4 }), [, thin] = formantsOf('u', { lipThickness: 0.7 });
+    const [, wide] = formantsOf('u', { mouthWidth: 1.2 }), [, narrow] = formantsOf('u', { mouthWidth: 0.8 });
+    note('lips', `/u/ F2: ${Math.round(u2)} Hz; lips 1.4 thick ${Math.round(thick)}, 0.7 ${Math.round(thin)}; mouth 1.2 wide ${Math.round(wide)}, 0.8 ${Math.round(narrow)}`);
+    expect(thick).toBeLessThan(u2 - 30);
+    expect(thin).toBeGreaterThan(u2 + 30);
+    expect(wide).toBeGreaterThan(u2 + 15);
+    expect(narrow).toBeLessThan(u2 - 15);
+    const len = (an: Partial<Anatomy>) => computeGeometry({ ...DEFAULT_ARTICULATORS, ...PHONEMES.u.art }, head(an).anatomy, DEFAULT_TEETH).length;
+    expect(len({ lipThickness: 1.4 }) - len({})).toBeGreaterThan(0.4);
   });
 
   it('speaking with a low palate, every stop still closes and builds its pressure', () => {

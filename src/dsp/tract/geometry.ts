@@ -403,16 +403,25 @@ function lipProtrusion(a: Articulators): number {
   return Math.min(0.9, 0.65 * a.lipProtrude + 0.25 * a.lipRound);
 }
 
-function buildUpperLip(a: Articulators): number[] {
-  const p = lipProtrusion(a);
-  const y = LIP_CONTACT_Y + 0.3 * a.lipOpen;
-  return [
-    7.38 + 0.3 * p, 9.65, 7.42 + 0.5 * p, 8.8, 7.5 + 0.8 * p, y + 0.06, 7.8 + p, y, 8.22 + p, y + 0.02,
-    8.42 + p, y + 0.25, 8.55 + 0.9 * p, 8.9, 8.42 + 0.5 * p, 9.6, 8.1, 10.15, 7.45, 10.2,
-  ];
+/** a lip made thicker or thinner front to back, from its side against the teeth (canonical x) */
+function thicker(pts: number[], inner: number, an: Anatomy): number[] {
+  const t = an.lipThickness ?? 1;
+  if (t === 1) return pts;
+  const out = pts.slice();
+  for (let q = 0; q < out.length; q += 2) out[q] = inner + (out[q] - inner) * t;
+  return out;
 }
 
-function buildLowerLip(a: Articulators, jawAngle: number): number[] {
+function buildUpperLip(a: Articulators, an: Anatomy): number[] {
+  const p = lipProtrusion(a);
+  const y = LIP_CONTACT_Y + 0.3 * a.lipOpen;
+  return thicker([
+    7.38 + 0.3 * p, 9.65, 7.42 + 0.5 * p, 8.8, 7.5 + 0.8 * p, y + 0.06, 7.8 + p, y, 8.22 + p, y + 0.02,
+    8.42 + p, y + 0.25, 8.55 + 0.9 * p, 8.9, 8.42 + 0.5 * p, 9.6, 8.1, 10.15, 7.45, 10.2,
+  ], 7.42, an);
+}
+
+function buildLowerLip(a: Articulators, jawAngle: number, an: Anatomy): number[] {
   const p = lipProtrusion(a);
   const t = a.lipTuck;
   // Lip closure is a motor goal: for a bilabial (lipOpen well below zero) the
@@ -437,7 +446,7 @@ function buildLowerLip(a: Articulators, jawAngle: number): number[] {
     7.05 - 0.5 * tx, 7.0, 7.1 - 0.5 * tx, 7.6, 7.25 - 0.55 * tx, y - 0.12, 7.5 - 0.55 * tx, y,
     8.15 + p - 0.3 * tx, y - 0.02, 8.38 + p - 0.2 * tx, y - 0.3, 8.4 + 0.8 * p, 7.4, 8.2, 6.6, 7.7, 6.0, 7.0, 6.2,
   ];
-  return rotPts(pts, J, jawAngle);
+  return rotPts(thicker(pts, 7.05 - 0.5 * tx, an), J, jawAngle);
 }
 
 function buildUpperIncisor(t: Teeth): number[] {
@@ -704,11 +713,11 @@ export function computeGeometry(a: Articulators, an: Anatomy, teeth: Teeth, opts
     ['palate', buildPalate(an)],
     ['upperIncisor', upperInc],
     ['velum', buildVelum(a)],
-    ['upperLip', buildUpperLip(a)],
+    ['upperLip', buildUpperLip(a, an)],
     ['larynx', buildLarynx(a)],
     ['tongue', tongue.pts],
     ['lowerIncisor', lowerInc],
-    ['lowerLip', buildLowerLip(a, jawAngle)],
+    ['lowerLip', buildLowerLip(a, jawAngle, an)],
     ['floor', rotPts(FLOOR, J, jawAngle)],
   ];
   const solids = solidsCanon.map(([id, pts]) => makeSolid(id, xfPts(pts, xf)));
@@ -735,7 +744,7 @@ export function computeGeometry(a: Articulators, an: Anatomy, teeth: Teeth, opts
   hits.length = GRID_SC.length;
 
   const slit = computeSlit(xfPts(upperInc, xf), xfPts(lowerInc, xf), teeth, s, a.groove);
-  const wLip = lipWidth(a, s);
+  const wLip = lipWidth(a, s) * (an.mouthWidth ?? 1);
   const law = AREA_LAW;
   const scaleArea = (alpha: number, beta: number) => alpha * Math.pow(s, 2 - beta);
   const pw = an.pharynxWidth;
