@@ -1,57 +1,20 @@
-import { EngineParams, Score, ScoreFrame, DEFAULT_SOURCE, DEFAULT_NOISE } from '../dsp/engine/params';
+import { EngineParams, Score, ScoreFrame } from '../dsp/engine/params';
 import { PHONEMES } from '../dsp/speech/phonemes';
-import { DEFAULT_ANATOMY, DEFAULT_ARTICULATORS } from '../dsp/tract/types';
+import { DEFAULT_ARTICULATORS } from '../dsp/tract/types';
+import { BUILTIN_VOICES } from '../dsp/voice/builtin';
+import { applyDesign } from '../dsp/voice/design';
 import { colourCurve, NoiseColour, NOISE_CURVE_POINTS, noiseCurveFreq } from '../dsp/noise/noise';
 
 type Bi = { it: string; en: string };
 
 export interface Preset { id: string; name: Bi; hint: Bi; apply: (p: EngineParams) => void }
 
-const base = (p: EngineParams) => {
-  p.source = { ...DEFAULT_SOURCE };
-  p.anatomy = { ...DEFAULT_ANATOMY };
-  p.noise = { ...DEFAULT_NOISE, user: p.noise.user };
-  p.voicing = true;
-  p.abduction = 0;
-  p.articulators.larynx = 0;
-};
-
-/** Speaker presets: source and anatomy together. */
-export const VOICE_PRESETS: Preset[] = [
-  { id: 'man', name: { it: 'Uomo', en: 'Man' }, hint: { it: 'tratto di 17,5 cm, circa 110 Hz', en: '17.5 cm tract, about 110 Hz' }, apply: (p) => { base(p); p.source.f0 = 110; } },
-  {
-    id: 'woman', name: { it: 'Donna', en: 'Woman' }, hint: { it: 'tratto più corto (faringe relativamente più corta), circa 210 Hz, un po’ soffiata', en: 'shorter tract (relatively shorter pharynx), about 210 Hz, a little breathy' },
-    apply: (p) => { base(p); p.anatomy.scale = 0.87; p.anatomy.pharynx = 0.86; p.source.f0 = 210; p.source.rd = 1.3; p.source.chink = 0.03; p.source.peakArea = 0.09; },
-  },
-  {
-    id: 'child', name: { it: 'Bambino', en: 'Child' }, hint: { it: 'tratto di circa 12,5 cm, circa 290 Hz', en: 'about 12.5 cm tract, about 290 Hz' },
-    apply: (p) => { base(p); p.anatomy.scale = 0.72; p.anatomy.pharynx = 0.8; p.source.f0 = 290; p.source.rd = 1.4; p.source.chink = 0.025; p.source.peakArea = 0.06; },
-  },
-  {
-    id: 'deep', name: { it: 'Profonda', en: 'Deep' }, hint: { it: 'tratto lungo, laringe bassa, faringe ampia, circa 80 Hz', en: 'long tract, low larynx, wide pharynx, about 80 Hz' },
-    apply: (p) => { base(p); p.anatomy.scale = 1.08; p.anatomy.pharynx = 1.1; p.anatomy.pharynxWidth = 1.2; p.articulators.larynx = -0.8; p.source.f0 = 80; p.source.rd = 0.85; },
-  },
-  {
-    id: 'whisper', name: { it: 'Sussurro', en: 'Whisper' }, hint: { it: 'corde aperte che non vibrano: solo fruscio filtrato', en: 'open folds that do not vibrate: filtered hiss only' },
-    apply: (p) => { base(p); p.voicing = false; p.abduction = 0.42; p.noise.aspiration = 4; },
-  },
-  {
-    id: 'creak', name: { it: 'Cricchiata (vocal fry)', en: 'Creak (vocal fry)' }, hint: { it: 'impulsi lenti e irregolari, cicli alterni', en: 'slow, irregular pulses, alternating cycles' },
-    apply: (p) => { base(p); p.source.f0 = 48; p.source.rd = 0.45; p.source.diplophonia = 0.55; p.source.jitter = 5; p.source.shimmer = 10; p.source.ps = 5.5; },
-  },
-  {
-    id: 'breathy', name: { it: 'Soffiata', en: 'Breathy' }, hint: { it: 'le corde non chiudono del tutto: fruscio tra le armoniche', en: 'the folds do not close fully: hiss between the harmonics' },
-    apply: (p) => { base(p); p.source.chink = 0.12; p.source.rd = 2.2; },
-  },
-  {
-    id: 'pressed', name: { it: 'Pressata', en: 'Pressed' }, hint: { it: 'chiusura rapida e lunga: più armoniche acute', en: 'fast, long closure: stronger high harmonics' },
-    apply: (p) => { base(p); p.source.rd = 0.4; p.source.ps = 11; p.source.chink = 0; },
-  },
-  {
-    id: 'raspy', name: { it: 'Rauca', en: 'Raspy' }, hint: { it: 'corde auto-oscillanti asimmetriche: subarmoniche e irregolarità', en: 'asymmetric self-oscillating folds: subharmonics and roughness' },
-    apply: (p) => { base(p); p.source.model = 'twomass'; p.source.asym = 0.4; p.source.ps = 10; p.source.f0 = 120; p.source.chink = 0.02; },
-  },
-];
+/**
+ * Speaker presets: the first nine voices that come with the simulator
+ * (src/dsp/voice/builtin.ts), applied to the hands as a whole voice: body,
+ * folds, usual pitch and loudness, larynx and glottis.
+ */
+export const VOICE_PRESETS: Preset[] = BUILTIN_VOICES.slice(0, 9).map((v) => ({ id: v.id, name: v.name, hint: v.hint, apply: (p: EngineParams) => applyDesign(p, v.design) }));
 
 /** Persistent, person-specific parts of the filter (timbre). */
 export const TIMBRE_PRESETS: Preset[] = [
