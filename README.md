@@ -35,7 +35,7 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 164 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 180 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
 npm run preview    # serves dist/
@@ -669,8 +669,13 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   sound moves one step along closed, 0.05, 0.1, 0.3 and 0.6 cm² (a lowered
   fricative is an approximant, Spanish β̞ ð̞; a raised trill narrows until
   it hisses between its contacts and lets the glottis open as a voiced
-  fricative does, Czech ř); dental, advanced and retracted move the tip or
-  the body and solve the degree again; palatalization, velarization and
+  fricative does, Czech ř, made laminal with the body of the tongue raised
+  and fronted behind the blade, as for [ʒ], its contact on the front of the
+  ridge); dental, advanced and retracted move the tip or
+  the body and solve the degree again (a dental closes with the tip on the
+  back of the upper incisors, in a window from their edge to where their
+  back meets the gum, 2.4 cm in front of an alveolar; a dental click stays
+  laminal, its blade up to the ridge, which keeps its cavity small); palatalization, velarization and
   pharyngealization move the tongue body, then relax it until it leaves
   0.3 cm² behind the primary constriction (emphatic /tˤ sˤ/ lower F2 by
   400-600 Hz with the pharynx open); nasalization opens the velum.
@@ -750,7 +755,14 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   Consonant gestures are timed so that their sound happens when planned
   (scripts/landmarks.ts): fricatives, nasals and approximants start 20 ms
   ahead and overlap the vowel before, so a 50 ms /v/ still reaches its slit;
-  stops aim beyond the contact and close in time anyway. Every consonant lets
+  stops aim beyond the contact. Coming from an open vowel the jaw, the
+  slowest of the organs that carry the lips, the tip and the dorsum, may
+  still be low when a closure is due: the sequencer runs the engine's target
+  dynamics over every stop and nasal, and where one would not shut it pushes
+  the closing articulator further past its contact and the jaw up (a velar,
+  which sets no jaw of its own, takes it for the closure), as speakers do in
+  fast speech (Kuehn & Moll 1976). /g/ after an open vowel now closes, and at
+  1.5 times the usual rate so do /t/ and /k/. Every consonant lets
   its target go just before the planned release, earlier for the slower
   articulators (tongue body, jaw, velum, in proportion to their time
   constants), so that all of them open together. In the tract model the
@@ -806,9 +818,40 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   posture (a jaw still closing from the vowel before), so the engine reads
   where it is from the geometry: shut, it is at most where the articulator
   is; just open, the articulator is short of it by the passage it leaves.
-  After the last
+  A fricative trill (Czech ř) opens between its contacts only into a
+  fricative's channel, about 0.12 cm², and bounces off that limit back to its
+  contact (an elastic stop: a damped one eats the energy that keeps it
+  trilling): [ˈr̝eka] makes four contacts, [ˈtr̝̊i] three, and the hiss of
+  its open phases is 21 dB above that of a plain r. After the last
   sound the mouth relaxes to rest, releasing a final stop. A drawn contour
   replaces the intonation.
+- **A speaker's way of speaking** (src/dsp/speech/style.ts,
+  src/dsp/voice/setting.ts): what makes one voice speak unlike another,
+  beyond its body and its source, is part of the score, and none of it
+  changes the speech planner's own defaults (tests/golden.test.ts keeps
+  fingerprints of eleven scores and of every sound's posture).
+  - *Prosodic style*: the pitch floor, the strength of the phrase commands,
+    the downstep and its floor, the final fall, the rises of questions and of
+    commas, the microprosody, the flutter, the pauses, the final lengthening,
+    the fall of the lung pressure, the push of an accent and the way a phrase
+    ends. A style can end its statements in creak (vocal fry): over the last
+    stretch of the phrase the source makes slow, irregular pulses with
+    alternate ones weaker, about seven semitones lower, pressed rather than
+    breathy (fry is about 25-70 Hz: Hollien & Michel 1968); questions and
+    commas never creak. Laryngealized sounds creak the same way.
+  - *Articulatory setting* (Laver 1980; Honikman 1964): the posture kept
+    beneath every sound. Offsets of the jaw, the tongue body and root, the
+    lips and the larynx, a floor for the velum and one for the glottal
+    opening. Vowels take all of it; a consonant keeps the articulators that
+    make its constriction as they are and takes the larynx and the lips; the
+    velum comes down only on vowels and sonorants, so an obstruent keeps its
+    air. Before, a voice lost its low larynx or rounded lips as soon as it
+    spoke, and a whispering voice fell nearly silent (its folds closed on
+    every vowel); now its vowels are whispered, 24 dB above that.
+  - *Precision* (Lindblom 1990): a crisp speaker's tongue body, jaw and lip
+    rounding move faster, aim further past a short vowel, and the vowels
+    spread out from schwa; a slack speaker's move slower and fall in toward
+    it, the unstressed vowels most.
 - **Target approximation** (Birkholz 2007; Prom-on, Xu & Thipakorn 2009):
   every articulator follows its targets through three identical first-order
   sections (critically damped, no overshoot), with articulator-specific time
@@ -907,7 +950,10 @@ in brackets are the adult male targets described under Speech.
 | IPA places | narrowest passage, cm from the lips: stops p 1.8, t 4.3, ʈ 4.8, c 6.8, k 9.6, q 12.3, ʡ 14.3; fricatives ɸ 0.4, ɕ 3.2, ʂ 4.7, ç 5.6, x 9.0, χ 11.5, ħ 12.3 |
 | IPA degrees | derived stops and nasals closed; fricatives 0.06-0.14 cm²; approximants 0.25-0.4 cm² |
 | Derived vowels | y 252/1869/2395, ø 397/1534/2191, œ 499/1626/2086, ɯ 336/1403/2237, ɨ 399/1679/2306 Hz: rounding lowers F2 and F3 of the front vowels, unrounding raises F2 of the back ones |
-| Czech ř | turbulence during the trill 12 dB above /r/ |
+| Czech ř | laminal, its narrowest passage in front of /r/'s; contacts in [ˈr̝eka] 4, in [ˈtr̝̊i] 3; open phases at most 0.16 cm², their hiss 21 dB above /r/'s |
+| Dentals | t̪ d̪ n̪ closed 2.4 cm in front of /t/, with no note |
+| Stops close | "papa tata kaka gaga": every closure builds its pressure (/g/ after /a/ did not close before) |
+| Speaking habits | a setting with a low larynx and rounded lips keeps both through every sound; a nasal one never lowers the velum on an obstruent; a whispering voice speaks its vowels 24 dB above the near silence it had; with every habit at its extreme /p t k/ still close |
 | Trills | closures of the lips in [aʙa] 3, of the dorsum against the uvula in [aʀa] 4, of the tip in [ara] 1 |
 | Velar lateral | ʟ: midline closed by the dorsum, lateral channels over 10 grid lines, 7.0-9.6 cm from the lips; /l/ F3 still 2421 Hz |
 | Uvular nasal | murmur against the vowel: [ŋ] -4.4 dB, [ɴ] -7.9 dB (-19.3 dB with the nose joined at the velum, in front of the closure) |
