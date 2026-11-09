@@ -37,6 +37,20 @@ export const NOISE_K = { aspiration: 0.15, wall: 0.07, obstacle: 1.35, user: 0.0
  */
 const THIN = { rd: 1.4, chink: 0.04, swing: 0.4 };
 /**
+ * What the pressure changes in the LF source, whose pulse shape and pitch are
+ * given rather than computed. A louder voice closes more sharply: Rd falls by
+ * this much per doubling of the lung pressure from the speaking pressure, so
+ * that the level and the upper spectrum rise together (with it /a/ gains
+ * about 8.5 dB per doubling above 8 cmH2O; Titze & Sundberg 1992 measured
+ * 8-9 per doubling of the pressure above the threshold). With less pressure
+ * across them the folds vibrate more slowly: the pitch falls by this share
+ * per cmH2O of pressure above the glottis, which lowers it in voiced stops
+ * and fricatives (1.2 Hz per cmH2O at 120 Hz, below the 2-6 Hz of Titze
+ * 1989: the planned pitch already dips after a voiced consonant). The
+ * two-mass folds do both by themselves.
+ */
+const PRESSURE = { rd: 0.2, octaves: 1.5, f0: 0.01, back: 8 };
+/**
  * A second narrow passage of the tongue, apart from the narrowest one with
  * air between them (a doubly articulated fricative: ɧ, "simultaneous ʃ and
  * x"): narrower than this (cm^2), at least this far from the first (cm in an
@@ -648,7 +662,7 @@ export class VoiceEngine {
     let vib = 0;
     if (p.voicing) {
       if (p.source.model === 'lf') vib = 0.45 * p.source.peakArea * (1 - THIN.swing * thinness(p.source)) * s2 * this.voicingAmp;
-      else vib = Math.max(0, this.tm.amin) * 0.5 + 0.5 * Math.max(0, p.source.restArea);
+      else vib = (Math.max(0, this.tm.amin) * 0.5 + 0.5 * Math.max(0, p.source.restArea)) * (1 - smoothstep(0.25, 0.6, this.abduction));
     }
     return (vib + gapOf(p.source) * s2) * this.gate + abd;
   }
@@ -696,7 +710,8 @@ export class VoiceEngine {
     // proportion, so that with the jet speed (sqrt of the pressure) the voice
     // loses 8-9 dB per halving of the pressure, as measured (Titze & Sundberg
     // 1992): a voiced fricative, with pressure behind its constriction, is
-    // much weaker than its vowels. Above it the amplitude grows more slowly.
+    // much weaker than its vowels. Above it the amplitude grows more slowly,
+    // and the sharper closure of a louder voice (PRESSURE) adds the rest.
     const dp = Math.max(0, this.psCur - this.aero.po) / CMH2O;
     const adduction = 1 - smoothstep(0.25, 0.6, this.abduction);
     const pressureGate = smoothstep(1.2, 3.5, dp);
@@ -749,12 +764,14 @@ export class VoiceEngine {
     // creak adds irregularity and weakens alternate pulses
     const c = this.creak;
     const j = ((s.jitter + 6 * c) / 100) * this.rng.gauss();
-    src.periodF0 = Math.max(20, Math.min(1500, this.f0 * (1 + Math.max(-0.3, Math.min(0.3, j)))));
+    const back = Math.max(0, Math.min(PRESSURE.back, this.aero.po / CMH2O));
+    src.periodF0 = Math.max(20, Math.min(1500, this.f0 * (1 - PRESSURE.f0 * back) * (1 + Math.max(-0.3, Math.min(0.3, j)))));
     let amp = 1 + ((s.shimmer + 10 * c) / 100) * this.rng.gauss();
     const dip = Math.max(s.diplophonia, 0.6 * c);
     if (dip > 0 && (src.periodIndex & 1)) amp *= 1 - 0.8 * dip;
     this.periodAmp = Math.max(0, amp);
-    const rd = Math.max(0.3, Math.min(2.7, s.rd + this.rdOffset + THIN.rd * thinness(s)));
+    const effort = Math.max(-PRESSURE.octaves, Math.min(PRESSURE.octaves, Math.log2(Math.max(this.psCur, 1) / (8 * CMH2O))));
+    const rd = Math.max(0.3, Math.min(2.7, s.rd + this.rdOffset + THIN.rd * thinness(s) - PRESSURE.rd * effort));
     const timing: LFTiming = s.advanced ? timingFromQuotients(s.oq, s.alphaM, s.ra) : rdToTiming(rd);
     src.setShape(timing);
     // measured F0 (for display)
@@ -813,12 +830,18 @@ export class VoiceEngine {
       tp.d1 = 0.25 * p.anatomy.scale * (1 - 0.6 * thinness(sp));
       tp.len = p.anatomy.foldLength ?? 1;
       tp.q = sp.tensionAuto ? this.tmQ : sp.q;
-      const uf = this.tm.step(dt, p.voicing ? ps : 0, po, wg.pMinus, z0, this.uMean) * gate;
-      ag = Math.max(0, this.tm.amin) + steadyArea;
+      // folds drawn apart: the air passes beside them (steadyArea) and their
+      // pulses fade from the flow, as the voice of the LF source does. The
+      // masses go on moving unheard: their rest position is not widened, as
+      // this model's flow equation is not stable with a wide glottis
+      const grip = 1 - smoothstep(0.25, 0.6, abduction);
+      const um = this.tm.step(dt, p.voicing ? ps : 0, po, wg.pMinus, z0, this.uMean) * gate;
+      const uf = um * grip;
+      ag = Math.max(0, this.tm.amin) * grip + steadyArea;
       u = uf + steadyArea * vg;
-      this.uMean = this.uMeanCoef * this.uMean + (1 - this.uMeanCoef) * uf;
+      this.uMean = this.uMeanCoef * this.uMean + (1 - this.uMeanCoef) * um;
       wg.rg = 1;
-      wg.glottalInjection = z0 * (uf - this.uMean);
+      wg.glottalInjection = z0 * (um - this.uMean) * grip;
       if (this.tm.openingEvent && this.tm.lastPeriod > 0) {
         const f = 1 / this.tm.lastPeriod;
         this.measuredF0 = f;

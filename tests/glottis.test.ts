@@ -4,7 +4,10 @@ import { linearFit } from '../src/dsp/util/math';
 import { renderOffline } from '../src/dsp/engine/engine';
 import { defaultParams } from '../src/dsp/engine/params';
 import { VOWELS } from '../src/dsp/speech/phonemes';
-import { note } from './helpers';
+import { yin } from '../src/dsp/analysis/pitch';
+import { textToPhones } from '../src/dsp/speech/g2p';
+import { buildScore } from '../src/dsp/speech/sequencer';
+import { note, bandPower } from './helpers';
 
 const N = 960; // samples per period, F0 = 100 Hz at 96 kHz: harmonics fall exactly on DFT bins
 
@@ -115,5 +118,70 @@ describe('self-oscillating two-mass vocal folds', () => {
   it('no airflow, no voice', () => {
     const r = run(1, 0);
     expect(r.rms).toBeLessThan(1e-4);
+  });
+
+  it('folds drawn apart give breath, not voice, as with the LF source', () => {
+    const held = (model: 'lf' | 'twomass', abduction: number) => {
+      const p = defaultParams();
+      p.articulators = { ...p.articulators, ...VOWELS.a.art };
+      p.phonate = true;
+      p.source.model = model;
+      p.abduction = abduction;
+      const seg = renderOffline(p, 1.0).out.subarray(24000, 48000);
+      let s = 0;
+      for (const v of seg) s += v * v;
+      return { db: 10 * Math.log10(s / seg.length), low: 10 * Math.log10(bandPower(seg, 48000, 80, 1000)), f0: yin(seg.subarray(0, 4096), 48000, 70, 400).f0 };
+    };
+    const voice = held('twomass', 0), breathy = held('twomass', 0.3), breath = held('twomass', 1), lf = held('lf', 1);
+    note('two-mass folds drawn apart', `level ${voice.db.toFixed(1)} dB together, ${breathy.db.toFixed(1)} dB a little apart, ${breath.db.toFixed(1)} dB wide apart (LF source: ${lf.db.toFixed(1)} dB)`);
+    expect(voice.f0).toBeGreaterThan(100);
+    // a little apart: still a voice, weaker
+    expect(breathy.f0).toBeGreaterThan(100);
+    expect(breathy.db).toBeLessThan(voice.db - 2);
+    // wide apart: no pitch, the voice band empties, and what is left is the breath of the LF source
+    expect(breath.f0).toBe(0);
+    expect(breath.low).toBeLessThan(voice.low - 20);
+    expect(Math.abs(breath.db - lf.db)).toBeLessThan(6);
+  });
+});
+
+describe('what the pressure does to the LF source', () => {
+  it('a louder voice is also brighter: level and upper spectrum rise together with the lung pressure', () => {
+    const held = (ps: number) => {
+      const p = defaultParams();
+      p.articulators = { ...p.articulators, ...VOWELS.a.art };
+      p.phonate = true;
+      p.source.ps = ps;
+      const seg = renderOffline(p, 1.0).out.subarray(24000, 48000);
+      let s = 0;
+      for (const v of seg) s += v * v;
+      const db = (x: number) => 10 * Math.log10(x);
+      return { db: db(s / seg.length), tilt: db(bandPower(seg, 48000, 2000, 4000)) - db(bandPower(seg, 48000, 80, 1000)) };
+    };
+    const soft = held(4), speaking = held(8), loud = held(16);
+    note('LF source and lung pressure', `4, 8, 16 cmH2O: level ${[soft, speaking, loud].map((x) => x.db.toFixed(1)).join(', ')} dB; 2-4 kHz against 0-1 kHz ${[soft, speaking, loud].map((x) => x.tilt.toFixed(1)).join(', ')} dB`);
+    // 8-9 dB per doubling above the speaking pressure (Titze & Sundberg 1992), a little more below it
+    expect(loud.db - speaking.db).toBeGreaterThan(7.5);
+    expect(loud.db - speaking.db).toBeLessThan(9.5);
+    expect(speaking.db - soft.db).toBeGreaterThan(8);
+    expect(speaking.db - soft.db).toBeLessThan(11.5);
+    expect(loud.tilt).toBeGreaterThan(speaking.tilt + 1.5);
+    expect(soft.tilt).toBeLessThan(speaking.tilt - 1);
+  });
+
+  it('the pitch dips in a voiced stop or fricative, with the pressure behind it, not in a nasal', () => {
+    const dip = (word: string) => {
+      const sc = buildScore(textToPhones(word, 'it'), { f0: 120 });
+      const { out } = renderOffline(defaultParams(), sc.duration + 0.1, 48000, sc);
+      const c = sc.phones.find((p) => p.ipa !== 'a')!;
+      const t = c.t0 + 0.6 * (c.t1 - c.t0), i = Math.round(t * 48000);
+      return yin(out.subarray(i - 1024, i + 1024), 48000, 70, 400).f0 / sc.frames[Math.round(t / 0.005)].f0 - 1;
+    };
+    const b = dip('[aˈbːa]'), z = dip('[aˈzːa]'), m = dip('[aˈmːa]');
+    note('pitch in voiced consonants', `against the plan: /b/ ${(100 * b).toFixed(1)} %, /z/ ${(100 * z).toFixed(1)} %, /m/ ${(100 * m).toFixed(1)} %`);
+    expect(b).toBeLessThan(-0.025);
+    expect(b).toBeGreaterThan(-0.09);
+    expect(z).toBeLessThan(-0.015);
+    expect(Math.abs(m)).toBeLessThan(0.012);
   });
 });

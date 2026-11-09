@@ -11,7 +11,7 @@ import { RHO, MU } from '../constants';
  *   m_i x_i'' + r_i x_i' + k_i x_i + H(-a_i) c_i a_i / (2 l) + k_c (x_i - x_j) = F_i
  *   a_i = a0_i + l (x_i,left + x_i,right)
  *   F_1 = l d_1 P_1,  P_1 = dP (1 - (a_min / a_1)^2) if open, dP if closed above,
- *   F_2 = 0 (flow separation at the narrowest point)
+ *   F_2 = l d_2 P_2,  P_2 = the pressure above the glottis (the flow separates at the narrowest point)
  *
  * Pitch is set by the tension parameter Q, which scales stiffness up and mass
  * down (k -> Q k, m -> m / Q), so every natural frequency scales with Q.
