@@ -1,7 +1,7 @@
 import type { Phone } from './g2p';
 import { readIpa } from './ipaReader';
 import { phonemeFor } from './derive';
-import { speechLanguage, SpeechLanguage } from './languages';
+import { speechLanguage, SpeechLanguage, isClitic } from './languages';
 
 /**
  * Text and language to phones, for the languages without rules of their own
@@ -199,6 +199,15 @@ export function phonemize(text: string, code: string): Phonemized {
   const lang = speechLanguage(code);
   if (!lang) return res;
   const out = res.phones;
+  // the function word just read, if it was one: it leans on the word after it
+  let weak: { phones: Phone[]; stressed: Phone[] } | null = null;
+  // left at the end of its phrase it has no word to lean on, and keeps its stress
+  const stranded = () => {
+    if (!weak) return;
+    for (const p of weak.phones) delete p.func;
+    for (const p of weak.stressed) p.stress = true;
+    weak = null;
+  };
   for (const t of tokenize(text, code)) {
     if (t.number) { res.numbers.push(t.number); continue; }
     if (t.word) {
@@ -206,14 +215,22 @@ export function phonemize(text: string, code: string): Phonemized {
       if (r.missing.length) { res.missing.push(...r.missing); continue; }
       if (r.pieces.some((p) => p.source === 'model')) res.modelWords.push(t.word);
       if (r.pieces.some((p) => p.source === 'dictionary')) res.dictionaryWords++;
-      out.push(...wordPhones(r.pieces, lang));
+      const ph = wordPhones(r.pieces, lang);
+      weak = null;
+      if (isClitic(code, t.word)) {
+        weak = { phones: ph, stressed: ph.filter((p) => p.stress) };
+        for (const p of ph) { p.func = true; delete p.stress; }
+      }
+      out.push(...ph);
       continue;
     }
     const last = out[out.length - 1];
     if (!last) continue;
+    stranded();
     if (t.pause && last.pause !== 'long') last.pause = t.pause;
     if (t.question) last.question = true;
   }
+  stranded();
   return res;
 }
 

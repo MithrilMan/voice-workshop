@@ -68,11 +68,11 @@ function baseVowel(c: string): { ipa: string; accent: boolean } {
 
 /**
  * Unstressed Italian function words (articles, clitic pronouns, simple and
- * articulated prepositions, conjunctions): in running speech they lean on the
- * next word and carry no accent.
+ * articulated prepositions, conjunctions, the short forms of "to be" and "to
+ * have"): in running speech they lean on the next word and carry no accent.
  */
 const IT_FUNCTION_WORDS = new Set((
-  'il lo la i gli le un uno una l di a da in con su per tra fra e ed o od ma se che non mi ti si ci vi ne li ' +
+  'il lo la i gli le un uno una l di a ad da in con su per tra fra e ed o od ma se che non mi ti si ci vi ne li è ha ho hai ' +
   'del dello della dei degli delle al allo alla ai agli alle dal dallo dalla dai dagli dalle ' +
   'nel nello nella nei negli nelle sul sullo sulla sui sugli sulle col coi'
 ).split(' '));
@@ -262,7 +262,36 @@ export function textToPhones(text: string, lang: Lang | string): Phone[] {
     out.push(...phones);
   }
   if (lang === 'en') americanLinking(out);
+  else italianLinking(out);
   return out;
+}
+
+/**
+ * What Italian speakers do between the words of a phrase (the rules give
+ * the words one by one). An /n/ takes the place of the consonant after it,
+ * inside a word and across words: "banco" [ŋk], "un bacio" [mb], "in fondo"
+ * [ɱf] (the tongue or the lips are already where the next sound needs
+ * them). And a function word left at the end of its phrase has no word to
+ * lean on: it keeps its stress ("che cos'è?", "chi ce l'ha?", "non so se").
+ */
+function italianLinking(out: Phone[]): void {
+  for (let i = 0; i < out.length - 1; i++) {
+    const p = out[i], next = out[i + 1].ipa;
+    if (p.ipa !== 'n' || p.long || p.pause) continue;
+    if (next === 'k' || next === 'g') p.ipa = 'ŋ';
+    else if (next === 'p' || next === 'b' || next === 'm') p.ipa = 'm';
+    else if (next === 'f' || next === 'v') p.ipa = 'ɱ';
+  }
+  for (let i = 0; i < out.length; i++) {
+    if (!out[i].func || (!out[i].pause && i < out.length - 1)) continue;
+    let w0 = i;
+    while (w0 > 0 && !out[w0].wordStart) w0--;
+    const word = out.slice(w0, i + 1);
+    const vowels = word.filter((p) => PHONEMES[p.ipa]?.manner === 'vowel');
+    if (!vowels.length) continue;
+    for (const p of word) delete p.func;
+    vowels[Math.max(0, vowels.length - 2)].stress = true;
+  }
 }
 
 /**

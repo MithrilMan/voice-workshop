@@ -39,6 +39,16 @@ describe('a way of speaking', () => {
     // flutter goes to the engine
     expect(say(text, { flutter: 60 }).flutter).toBe(60);
   });
+
+  it('the breath falls over each sentence and is taken again at a full stop', () => {
+    // how much of the pressure the declination has left at a time
+    const left = (text: string, t: (sc: Score) => number) => { const sc = say(text), flat = say(text, { declination: 0 }); return at(sc, t(sc)).ps / at(flat, t(sc)).ps; };
+    const second = (sc: Score) => sc.phones.filter((p) => p.ipa === 'l')[2].t0 + 0.02;
+    expect(left('la luna. le stelle', second)).toBeGreaterThan(0.97);
+    expect(left('la luna, le stelle', second)).toBeLessThan(0.95);
+    // one sentence: the fall takes all of it, as before
+    expect(left('la luna e le stelle', (sc) => sc.duration - 0.1)).toBeLessThan(1 - 0.9 * DEFAULT_STYLE.declination);
+  });
 });
 
 describe('creak', () => {

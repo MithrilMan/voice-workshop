@@ -86,6 +86,39 @@ export function prosodyOf(code: string): LanguageProsody | undefined {
   return { ...NEUTRAL_PROSODY, ...PROFILES[code] };
 }
 
+/**
+ * The words of a language that lean on the word after them and carry no
+ * accent of their own: articles, short prepositions, conjunctions and clitic
+ * pronouns, only those that are unstressed as a rule (the Spanish "un" and
+ * "no" are stressed, and so are left out; so is every word a written accent
+ * tells apart, as "él" from "el"). French is not here: its accent is the
+ * phrase's. Nor is Czech, whose prepositions take the stress themselves.
+ */
+const CLITICS: Record<string, string> = {
+  es: 'el la los las lo de del a al en con por para sin y e o u ni que si me te se nos os le les mi tu su mis tus sus pero',
+  pt: 'o a os as de do da dos das em no na nos nas por pelo pela pelos pelas para pra com e ou mas que se me te lhe lhes ao aos à às',
+  gl: 'o a os as de do da dos das en no na nos nas con por para e ou que se me te lle lles ao aos á ás',
+  ca: 'el la els les l de del dels a al als en amb per pel pels i o ni que si em et es ens us li ho hi',
+  ro: 'și sau de la în pe cu din că să se mă te ne vă îl îi le',
+  de: 'der die das den dem des ein eine einen einem einer eines und oder zu in im an am auf mit von vom für bei zum zur aus nach um dass es',
+  nl: 'de het een en of in op aan met van voor te bij om uit naar dat er je ze we',
+  sv: 'en ett den det de och eller men i på av till för med om som att',
+  nb: 'en ei et den det de og eller men i på av til for med om som at å',
+  da: 'en et den det de og eller men i på af til for med om som at',
+  pl: 'w we z ze na do i a o u po od za że się',
+  hu: 'a az és hogy is',
+};
+const cliticSets = new Map<string, Set<string>>();
+
+/** Whether a word (in lower case) is one of the unstressed function words of a language of the phonemizer. */
+export function isClitic(code: string, word: string): boolean {
+  const base = code.split('-')[0];
+  if (!CLITICS[base]) return false;
+  let set = cliticSets.get(base);
+  if (!set) cliticSets.set(base, (set = new Set(CLITICS[base].split(' '))));
+  return set.has(word);
+}
+
 /** Italian and English: rules of their own, no download. */
 export const OWN_RULES = ['it', 'en'] as const;
 

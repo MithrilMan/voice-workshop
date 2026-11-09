@@ -26,6 +26,23 @@ describe('grapheme to phoneme', () => {
     const st = textToPhones('città', 'it');
     expect(st[st.length - 1].stress).toBe(true);
   });
+  it('an Italian /n/ takes the place of the consonant after it, also across words', () => {
+    expect(ipa('anche un banco in gamba')).toBe('aŋkeumbaŋkoiŋgamba');
+    expect(ipa('in fondo, un vino')).toBe('iɱfondouɱvino');
+    // not across a pause, and a long /n/ stays where it is
+    expect(ipa('non, certo')).toBe('nontʃerto');
+    expect(ipa('anno')).toBe('anːo');
+  });
+  it('Italian function words carry no stress, unless nothing follows them', () => {
+    const stressed = (s: string) => textToPhones(s, 'it').filter((p) => p.stress).length;
+    // "la", "è": no accent of their own; "terra", "rossa": one each
+    expect(stressed('la terra è rossa')).toBe(2);
+    expect(stressed('ha mangiato')).toBe(1);
+    // left at the end of the phrase, the verb is all there is to say
+    const alone = textToPhones('chi ce la ha?', 'it');
+    expect(alone[alone.length - 1].stress).toBe(true);
+    expect(alone[alone.length - 1].func).toBeUndefined();
+  });
   it('English lexicon and IPA input', () => {
     expect(ipa('heed', 'en')).toBe('hid');
     expect(ipa('this', 'en')).toBe('ðɪs');
@@ -159,6 +176,12 @@ describe('timing, melody and gestures of sequenced speech', () => {
     for (const x of [ip, it, ik, st]) { expect(x).toBeGreaterThan(0.008); expect(x).toBeLessThan(0.032); }
     expect(ip).toBeLessThan(it);
     expect(it).toBeLessThan(ik);
+    // before l r w of the same onset the aspiration falls on that sound: the voice starts later still
+    const pl = vot('a play', 'en', 'p'), tr = vot('a tree', 'en'), spl = vot('a splash', 'en', 'p');
+    note('voice onset time in clusters', `English "play" ${ms(pl)} ms, "tree" ${ms(tr)} ms, "splash" ${ms(spl)} ms (longer before a sonorant than before a vowel: Klatt 1975)`);
+    expect(pl).toBeGreaterThan(0.04);
+    expect(tr).toBeGreaterThan(en);
+    expect(spl).toBeLessThan(0.032);
   });
 
   it('the Italian trill makes several tongue-tip closures, the tap one', () => {

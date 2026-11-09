@@ -100,6 +100,26 @@ describe('phonemizer: text and language to IPA', () => {
     expect(dobry.find((p) => p.stress)?.ipa).toBe('ɔ');
   });
 
+  it('the function words of a language carry no stress, unless nothing follows them', async () => {
+    const net = scripted({ '<spa>: la': 'la', '<spa>: casa': 'ˈkasa', '<spa>: de': 'ˈde', '<spa>: pedro': 'ˈpeðɾo', '<spa>: es': 'ˈes', '<pol>: na': 'na', '<pol>: stole': 'stɔlɛ' });
+    const src = { dictionary: async () => '', model: async () => net };
+    await resolve('La casa de Pedro. Es de', 'es', src);
+    const es = phonemize('La casa de Pedro. Es de', 'es').phones;
+    const words = (ph: typeof es) => ph.reduce<(typeof es)[]>((w, p) => { if (p.wordStart) w.push([]); w[w.length - 1].push(p); return w; }, []);
+    const [la, casa, de, pedro, , last] = words(es);
+    expect(la.every((p) => p.func) && de.every((p) => p.func)).toBe(true);
+    expect(de.some((p) => p.stress)).toBe(false);
+    expect(casa.some((p) => p.stress) && pedro.some((p) => p.stress)).toBe(true);
+    // "de" at the end of the phrase: nothing to lean on
+    expect(last.some((p) => p.stress)).toBe(true);
+    expect(last.some((p) => p.func)).toBe(false);
+    // a language with a fixed stress: the preposition does not get one
+    await resolve('na stole', 'pl', src);
+    const [na, stole] = words(phonemize('na stole', 'pl').phones);
+    expect(na.some((p) => p.stress)).toBe(false);
+    expect(stole.find((p) => p.stress)?.ipa).toBe('ɔ');
+  });
+
   it('every language has a unique code and a model prefix of the trained set', () => {
     const codes = SPEECH_LANGUAGES.map((l) => l.code);
     expect(new Set(codes).size).toBe(codes.length);

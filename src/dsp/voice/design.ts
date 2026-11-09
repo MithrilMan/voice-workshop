@@ -298,7 +298,7 @@ export const VOICE_FIELDS: Field[] = [
   n('speaking.ps', 'rhythm', G.push, { it: 'Intensità', en: 'Loudness' },
     { it: 'La pressione dei polmoni: 5-6 voce bassa, 8 normale, 12-16 voce forte (Holmberg et al. 1988).', en: 'The lung pressure: 5-6 a soft voice, 8 usual, 12-16 a loud one (Holmberg et al. 1988).' }, 3, 16, 0.1, 'cmH₂O'),
   n('speaking.style.declination', 'rhythm', G.push, { it: 'Fiato che cala', en: 'Fading breath' },
-    { it: 'Quanto cala la pressione dei polmoni dall’inizio alla fine della frase.', en: 'How much the lung pressure falls from the start to the end of the utterance.' }, 0, 0.4, 0.01),
+    { it: 'Quanto cala la pressione dei polmoni dall’inizio alla fine di ogni frase: dopo un punto si riprende fiato.', en: 'How much the lung pressure falls from the start to the end of each sentence: after a full stop the breath is taken again.' }, 0, 0.4, 0.01),
   n('speaking.style.stressPs', 'rhythm', G.push, { it: 'Spinta degli accenti', en: 'Push of the accents' },
     { it: 'Pressione in più sulle sillabe accentate.', en: 'Extra pressure on stressed syllables.' }, 0, 0.4, 0.01),
   n('speaking.style.stressRd', 'rhythm', G.push, { it: 'Tensione degli accenti', en: 'Tension of the accents' },

@@ -346,7 +346,7 @@ const KLATT: Record<string, [number, number]> = {
 const ITALIAN: Record<string, [number, number]> = {
   a: [120, 55], e: [115, 50], 'ɛ': [118, 52], o: [115, 50], 'ɔ': [118, 52], i: [100, 45], u: [100, 45], 'ə': [80, 40],
   p: [95, 60], t: [88, 55], k: [95, 60], b: [78, 50], d: [72, 45], g: [78, 50], 'tʃ': [115, 75], 'dʒ': [100, 65], ts: [120, 80], dz: [105, 70],
-  f: [100, 65], v: [70, 45], s: [105, 65], z: [75, 45], 'ʃ': [105, 75], m: [75, 50], n: [70, 45], 'ɲ': [95, 65], 'ŋ': [70, 45],
+  f: [100, 65], v: [70, 45], s: [105, 65], z: [75, 45], 'ʃ': [105, 75], m: [75, 50], n: [70, 45], 'ɲ': [95, 65], 'ŋ': [70, 45], 'ɱ': [70, 45],
   l: [65, 40], 'ʎ': [95, 65], r: [70, 50], 'ɾ': [25, 20], j: [60, 40], w: [60, 40], h: [70, 30],
 };
 
@@ -484,6 +484,8 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   const segs: Seg[] = [];
   let t = 0.06; // breath onset
   const label = (u: Unit) => u.p.ipa;
+  /** the sonorants an aspirated stop devoices: the stop's unit, and how long the folds stay apart after its release */
+  const devoiced: { unit: number; t0: number; t1: number }[] = [];
   for (let i = 0; i < units.length; i++) {
     const u = units[i];
     const ph = u.ph;
@@ -511,6 +513,13 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
           t += asp;
           // the aspiration takes over the start of the vowel (Klatt)
           if (nx?.vowel) nx.dur = Math.max(0.04, nx.dur - 0.5 * asp);
+        } else if (en && !q.voiced && ph.manner === 'stop' && !ph.airstream && !u.coda && !afterS && !u.p.glottalized
+          && nx && nx.word === u.word && !nx.vowel && !nx.coda && nx.ph.voiced && (nx.ph.manner === 'approximant' || nx.ph.manner === 'lateral') && units[i + 2]?.vowel) {
+          // before l r w j of the same onset ("play", "tree", "queen") the
+          // aspiration falls on that sound instead: the folds stay apart through
+          // most of it, and the voice starts later than before a vowel (Klatt 1975)
+          const vot = 1.25 * (VOT[placeOf(q) ?? 'alveolar'] ?? 0.065) * (u.stressed ? 1 : 0.55) / Math.sqrt(rate);
+          devoiced.push({ unit: i, t0: t, t1: t + Math.min(nx.dur, Math.max(0.005, vot - rel)) });
         }
       } else {
         segs.push({ ipa, ph: q, t0: t, t1: t + dur, unit: i, label: label(u) });
@@ -1001,13 +1010,19 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   const falls = (u: Unit) => u.boundary === 'stop' || u.boundary === 'wh';
   const phraseEnds = segs.filter((s) => s.ph.manner === 'silence').map((s) => ({ t: s.t0, fall: falls(units[s.unit]) }))
     .concat([{ t, fall: units.length > 0 && falls(units[units.length - 1]) }]);
+  // breath groups: the lungs are refilled at a full stop, so their pressure
+  // falls from the start of each sentence to its end, not once over them all
+  const breaths: { t0: number; t1: number }[] = [];
+  let breath0 = 0;
+  for (const s of segs) if (s.ph.manner === 'silence' && units[s.unit].p.pause === 'long') { breaths.push({ t0: breath0, t1: s.t0 }); breath0 = s.t1; }
+  breaths.push({ t0: breath0, t1: duration });
   // unaspirated voiceless stops (Italian, English after s) keep the folds
   // apart through the closure and bring them together just after the burst:
   // the voice starts with a short lag, longest behind the slow release of the
   // tongue body (Italian: short lag, under about 30 ms, /k/ the longest)
   const held = (u: Unit) => !!u.p.glottalized || !!u.ph.unreleased;
   const shortLag = segs.filter((s) => s.part === 'release' && !s.ph.voiced && units[s.unit].ph.manner === 'stop' && !held(units[s.unit])
-    && !units[s.unit].ph.airstream && !segs.some((a) => a.unit === s.unit && a.part === 'aspiration'))
+    && !units[s.unit].ph.airstream && !segs.some((a) => a.unit === s.unit && a.part === 'aspiration') && !devoiced.some((d) => d.unit === s.unit))
     .map((s) => ({ t0: s.t0, t1: s.t0 + (SHORT_LAG[placeOf(s.ph) ?? 'alveolar'] ?? 0.012) }));
   // a breathy-voiced stop (bʱ) is released into murmur: the folds vibrate
   // apart, with a breathy pulse shape, for the first part of the vowel
@@ -1049,13 +1064,14 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
         if (sg.part === 'closure') gate = 0;
       } else if (m === 'stop' && !sg.ph.voiced) {
         // the stop part of an affricate keeps the glottis open into its hiss
-        const aspirated = (unit.ph.manner === 'affricate' && !unit.ph.voiced) || segs.some((s) => s.unit === sg.unit && s.part === 'aspiration');
+        const aspirated = (unit.ph.manner === 'affricate' && !unit.ph.voiced) || segs.some((s) => s.unit === sg.unit && s.part === 'aspiration') || devoiced.some((d) => d.unit === sg.unit);
         if (sg.part === 'release') abd = aspirated ? 0.55 : 0.04;
         else abd = 0.5;
       } else if (m === 'stop') abd = unit.ph.airstream === 'implosive' ? 0 : en && unit.p.wordStart ? 0.12 : 0.02;
       else abd = sg.ph.abduction;
     }
     for (const w of shortLag) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) abd = Math.max(abd, 0.5);
+    for (const w of devoiced) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) abd = Math.max(abd, 0.55);
     // a breathy or whispering speaker's folds never quite meet (except where they must shut)
     if (habit && gate > 0) abd = Math.max(abd, setting.abduction);
     // and tenses the walls of the pharynx, so that the rising larynx compresses the air instead of stretching them
@@ -1075,7 +1091,9 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     let rd = quality;
     if (time < duration) {
       if (nat.voiceQuality) {
-        ps *= 1 - st.declination * (time / duration);
+        let br = breaths[0];
+        for (const b of breaths) if (time >= b.t0) br = b;
+        ps *= 1 - st.declination * (br.t1 > br.t0 ? Math.min(1, (time - br.t0) / (br.t1 - br.t0)) : 0);
         for (const v of stressedVowels) {
           const c = 0.5 * (v.t0 + v.t1), w = (v.t1 - v.t0) + 0.08;
           const d = Math.abs(time - c);

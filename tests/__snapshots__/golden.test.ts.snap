@@ -193,10 +193,10 @@ exports[`golden fingerprints of the speech planner > scores of sentences across 
     "score": "9cebefff653f30dc",
   },
   "it la terra è rossa": {
-    "duration": 1.297005,
-    "frames": 311,
+    "duration": 1.207665,
+    "frames": 293,
     "phones": "l a t e r a ɛ r o s a",
-    "score": "f8e5a31c16a7c410",
+    "score": "b46baa875b8d8338",
   },
   "it piove in città oggi?": {
     "duration": 1.524336,
