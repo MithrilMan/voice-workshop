@@ -115,9 +115,17 @@ Four modes, switchable in the header and remembered in the browser:
   being edited: its name and notes; save, duplicate, export as a file and
   a link that opens it; a test sentence in any of the languages, with
   patterns for a statement, a yes/no question, a question with "where" and
-  a list; "As it was" says it again with the voice before the changes. Five
-  tabs hold every field of the voice, each with its range, its unit and
-  what it does: the body (size, pharynx, palate and arch, tongue, lips, nose, teeth), the voice (the fold
+  a list; "As it was" says it again with the voice before the changes, and
+  "Replay after each change" says it by itself when a slider is let go.
+  Ctrl+Enter listens from anywhere. This bar stays in place: on a desk the
+  studio fills the window and only the fields scroll, beside the head and a
+  view; on a narrow window the page scrolls and the sentence with Listen
+  stays on top. Five tabs hold every field of the voice, one line each: its
+  name (a click unfolds what it does, or "Explanations" unfolds them all),
+  its slider, its number to read or type, with its unit. A field that
+  differs from the voice as it was opened or saved shows a dot, a tick on
+  the slider where it was and a way back to it; each tab counts its changed
+  fields, and Undo takes them all back. The tabs: the body (size, pharynx, palate and arch, tongue, lips, nose, teeth), the voice (the fold
   model, its quality, irregularity, breath and vibrato), the habits (the
   posture kept beneath every sound, a twang among it, and the precision), the melody (usual
   pitch, accents, downstep, the ends of statements and questions, with the

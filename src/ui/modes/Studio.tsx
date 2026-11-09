@@ -4,12 +4,13 @@ import { store, useUi } from '../store';
 import { voice } from '../voice/voice';
 import { useLanes } from '../voice/hooks';
 import { library, useLibrary } from '../library';
-import { Card, Pills } from '../ds';
-import { Slider, Toggle, Seg } from '../components/controls';
+import { Pills } from '../ds';
+import { Toggle } from '../components/controls';
+import { VoiceField, sameValue } from '../components/VoiceField';
 import { HeadView } from '../components/HeadView';
 import { ViewFrame } from './views';
 import { PhonemeButtons } from './quick';
-import { VOICE_FIELDS, Field, Tab, VoiceDesign, cloneVoice, fieldValue, newVoiceId, speechOptions, withField } from '../../dsp/voice/design';
+import { VOICE_FIELDS, Tab, VoiceDesign, cloneVoice, fieldValue, newVoiceId, speechOptions, withField } from '../../dsp/voice/design';
 import { BUILTIN_VOICES } from '../../dsp/voice/builtin';
 import { voiceToJson, voiceFromJson, voiceToLink, voiceFileName } from '../../dsp/voice/codec';
 import { SPEECH_LANGUAGES, speechLanguage } from '../../dsp/speech/languages';
@@ -34,29 +35,6 @@ const PATTERNS: Record<'it' | 'en', [Bi, string][]> = {
   en: [[{ it: 'Affermazione', en: 'Statement' }, 'the moon is full tonight.'], [{ it: 'Domanda sì/no', en: 'Yes/no question' }, 'are you coming tomorrow?'],
     [{ it: 'Domanda con «dove»', en: 'Question with "where"' }, 'where did you put the keys?'], [{ it: 'Elenco', en: 'List' }, 'bread, milk, eggs and coffee.']],
 };
-
-const decimals = (step = 0.01) => Math.max(0, Math.min(3, Math.ceil(-Math.log10(step) - 1e-9)));
-
-/** One field of the voice: its control, its value with the unit, and what it does. */
-function FieldControl({ f, d, onChange }: { f: Field; d: VoiceDesign; onChange: (path: string, v: number | boolean | string) => void }) {
-  const L = useL();
-  const v = fieldValue(d, f);
-  return (
-    <div className="studio-field">
-      {f.kind === 'number' && (
-        <Slider label={L(f.label)} value={v as number} min={f.min!} max={f.max!} step={f.step} hint={L(f.hint)}
-          onChange={(x) => onChange(f.path, Math.round(x / f.step!) * f.step!)} format={(x) => `${x.toFixed(decimals(f.step))}${f.unit ? ` ${f.unit}` : ''}`} />
-      )}
-      {f.kind === 'boolean' && <Toggle label={L(f.label)} value={v as boolean} hint={L(f.hint)} onChange={(x) => onChange(f.path, x)} />}
-      {f.kind === 'enum' && (
-        <div className="studio-enum"><span className="slider-label">{L(f.label)}</span>
-          <Seg value={v as string} options={f.options!.map((o) => [o.value, L(o.label)] as [string, string])} onChange={(x) => onChange(f.path, x)} />
-        </div>
-      )}
-      <p className="field-hint">{L(f.hint)}</p>
-    </div>
-  );
-}
 
 /** The pitch the voice would give the test sentence, with its sounds under it. */
 function MelodyPreview({ d, text, lang }: { d: VoiceDesign; text: string; lang: string }) {
@@ -97,11 +75,23 @@ function download(d: VoiceDesign): void {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
+const PREFS = 'voice-workshop.studio';
+interface Prefs { hints: boolean; auto: boolean }
+/** what the studio remembers in this browser: explanations unfolded, saying the sentence again after a change */
+function loadPrefs(): Prefs {
+  try {
+    const o = JSON.parse(window.localStorage.getItem(PREFS) ?? '{}') as Partial<Prefs>;
+    return { hints: o.hints === true, auto: o.auto === true };
+  } catch { return { hints: false, auto: false }; }
+}
+
 /**
  * The voice studio: a library of voices (the ones that come with the
  * simulator, yours, one received with a link) and an editor of every part of
- * a voice, in five tabs, with a bar to hear it say a sentence in any
- * language. A change is heard at once: the voice being edited is the voice.
+ * a voice, in five tabs. The bar on top (the voice's name, saving and
+ * sharing, the test sentence and Listen) and the head stay in place while
+ * the fields scroll. A change is heard at once: the voice being edited is
+ * the voice.
  */
 export function Studio() {
   const L = useL();
@@ -115,10 +105,25 @@ export function Studio() {
   const [text, setText] = useState(() => PATTERNS[ui.lang][0][1]);
   const [lang, setLang] = useState<string>(() => draft.language || ui.lang);
   const [link, setLink] = useState('');
+  const [notes, setNotes] = useState(false);
   const [view, setView] = useState<ViewTab>('spectrum');
+  const [prefs, setPrefsState] = useState<Prefs>(loadPrefs);
   const fileRef = useRef<HTMLInputElement>(null);
   const changed = JSON.stringify(draft) !== JSON.stringify(origin);
   const mine = lib.voices.some((v) => v.id === draft.id);
+  /** how many fields differ from the voice as it was, in all and in each tab */
+  const diff = useMemo(() => {
+    const by: Record<Tab, number> = { body: 0, phonation: 0, habits: 0, melody: 0, rhythm: 0 };
+    let n = 0;
+    for (const f of VOICE_FIELDS) if (!sameValue(f, fieldValue(draft, f), fieldValue(origin, f))) { by[f.tab]++; n++; }
+    return { by, n };
+  }, [draft, origin]);
+  const groups = useMemo(() => [...new Set(VOICE_FIELDS.filter((f) => f.tab === tab).map((f) => f.group))], [tab]);
+  const setPrefs = (next: Partial<Prefs>) => {
+    const p = { ...prefs, ...next };
+    setPrefsState(p);
+    try { window.localStorage.setItem(PREFS, JSON.stringify(p)); } catch { /* storage blocked */ }
+  };
 
   // the voice being edited is the voice that sounds
   useEffect(() => { voice.useVoice(draft); }, [draft]);
@@ -131,7 +136,6 @@ export function Studio() {
   const open = (d: VoiceDesign) => { const c = cloneVoice(d); setDraft(c); setOrigin(c); setLink(''); if (c.language) setLang(c.language); };
   // a voice received with a link (decoded after the first render) opens at once
   useEffect(() => { if (lib.incoming) open(lib.incoming); }, [lib.incoming]);
-  const set = (path: string, v: number | boolean | string) => setDraft((d) => withField(d, path, v));
   const info = (m: Bi) => store.setUi({ info: L(m) });
 
   const say = async (d: VoiceDesign) => {
@@ -143,6 +147,31 @@ export function Studio() {
     await voice.speak(buildScore(ph, voice.speechOptions(lang)), { it: text, en: text });
     if (d !== draft) voice.useVoice(draft);
   };
+
+  // saying the sentence again by itself after a change: when the slider is let go, or a moment after a key
+  const live = useRef({ say: () => {}, auto: prefs.auto, down: false, pending: false, timer: 0 });
+  live.current.say = () => void say(draft);
+  live.current.auto = prefs.auto;
+  const listenSoon = (ms: number) => {
+    const s = live.current;
+    window.clearTimeout(s.timer);
+    s.timer = window.setTimeout(() => { s.pending = false; s.say(); }, ms);
+  };
+  useEffect(() => {
+    const s = live.current;
+    const up = () => { s.down = false; if (s.pending && s.auto) listenSoon(120); };
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    return () => { window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); window.clearTimeout(s.timer); };
+  }, []);
+  const set = (path: string, v: number | boolean | string) => {
+    setDraft((d) => withField(d, path, v));
+    const s = live.current;
+    if (!s.auto) return;
+    s.pending = true;
+    if (s.down) window.clearTimeout(s.timer); else listenSoon(550);
+  };
+
   const save = () => {
     const named = draft.name.trim() ? draft : { ...draft, name: L({ it: 'Voce senza nome', en: 'Unnamed voice' }) };
     const s = library.save(named);
@@ -153,7 +182,7 @@ export function Studio() {
     const frag = await voiceToLink(draft);
     const url = `${window.location.origin}${window.location.pathname}?mode=voices#${frag}`;
     setLink(url);
-    try { await navigator.clipboard.writeText(url); info({ it: 'Link copiato: chi lo apre trova questa voce.', en: 'Link copied: whoever opens it gets this voice.' }); } catch { /* shown below the name */ }
+    try { await navigator.clipboard.writeText(url); info({ it: 'Link copiato: chi lo apre trova questa voce.', en: 'Link copied: whoever opens it gets this voice.' }); } catch { /* shown in the bar */ }
   };
   const importText = (t: string) => {
     const v = voiceFromJson(t);
@@ -165,7 +194,7 @@ export function Studio() {
   const importFiles = (files: FileList | null) => { for (const f of Array.from(files ?? []).slice(0, 10)) if (f.size < 200000) void f.text().then(importText); };
 
   return (
-    <main className="studio">
+    <main className="studio" onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void say(draft); } }}>
       <aside className="studio-lib ds-card" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); importFiles(e.dataTransfer.files); }}>
         {lib.incoming && (
           <div className="studio-incoming">
@@ -203,20 +232,28 @@ export function Studio() {
       </aside>
 
       <section className="studio-main">
-        <Card className="studio-head">
-          <div className="row studio-name">
-            <input className="text-input" value={draft.name} maxLength={60} placeholder={L({ it: 'Nome della voce', en: 'Name of the voice' })} aria-label={L({ it: 'Nome della voce', en: 'Name of the voice' })}
+        <div className="studio-bar ds-card">
+          <div className="studio-id">
+            <input className="text-input studio-name" value={draft.name} maxLength={60} placeholder={L({ it: 'Nome della voce', en: 'Name of the voice' })} aria-label={L({ it: 'Nome della voce', en: 'Name of the voice' })}
               onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
             <button className={changed || !mine ? 'btn primary' : 'btn'} onClick={save}>{L({ it: 'Salva', en: 'Save' })}</button>
+            <button className="btn" disabled={!changed} onClick={() => setDraft(cloneVoice(origin))}
+              title={L({ it: 'Torna alla voce com’era quando l’hai aperta o salvata', en: 'Back to the voice as it was when you opened or saved it' })}>
+              ↺ {L({ it: 'Annulla', en: 'Undo' })}{diff.n > 0 && <span className="count">{diff.n}</span>}
+            </button>
             <button className="btn" onClick={() => library.duplicate(draft, `${draft.name || L({ it: 'Voce', en: 'Voice' })} (2)`)} title={L({ it: 'Salva una copia con un altro nome', en: 'Save a copy under another name' })}>{L({ it: 'Duplica', en: 'Duplicate' })}</button>
             <button className="btn" onClick={() => download(draft)} title={L({ it: 'Scarica la voce come file .voice.json', en: 'Download the voice as a .voice.json file' })}>⇩ {L({ it: 'Esporta', en: 'Export' })}</button>
             <button className="btn" onClick={() => void share()} title={L({ it: 'Un indirizzo che apre questa voce', en: 'An address that opens this voice' })}>🔗 {L({ it: 'Link', en: 'Link' })}</button>
+            <button className={notes ? 'btn on' : 'btn'} aria-expanded={notes} onClick={() => setNotes(!notes)} title={L({ it: 'Note sulla voce: chi è, come parla, a cosa serve', en: 'Notes on the voice: who it is, how it speaks, what it is for' })}>
+              ✎ {L({ it: 'Note', en: 'Notes' })}{draft.notes.trim() && !notes && <span className="count dot" />}
+            </button>
           </div>
-          {link && <input className="text-input studio-link" readOnly value={link} onFocus={(e) => e.target.select()} aria-label={L({ it: 'Link della voce', en: 'Link of the voice' })} />}
-          <textarea className="studio-notes" value={draft.notes} maxLength={500} rows={2} placeholder={L({ it: 'Note: chi è, come parla, a cosa serve…', en: 'Notes: who it is, how it speaks, what it is for…' })}
-            onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />
-          <div className="row studio-say">
-            <input className="text-input" value={text} aria-label={L({ it: 'Frase di prova', en: 'Test sentence' })} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void say(draft); }} />
+          <div className="studio-say">
+            <input className="text-input" value={text} aria-label={L({ it: 'Frase di prova', en: 'Test sentence' })} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) void say(draft); }} />
+            <select className="lang-pick" value="" aria-label={L({ it: 'Frasi di esempio', en: 'Example sentences' })} onChange={(e) => { if (e.target.value) { setText(e.target.value); setLang(ui.lang); } }}>
+              <option value="">{L({ it: 'Esempi…', en: 'Examples…' })}</option>
+              {PATTERNS[ui.lang].map(([name, t]) => <option key={t} value={t}>{L(name)}</option>)}
+            </select>
             <select className="lang-pick" value={lang} aria-label={L({ it: 'Lingua', en: 'Language' })} onChange={(e) => { setLang(e.target.value); setDraft({ ...draft, language: e.target.value }); }}>
               <option value="it">{L({ it: 'Italiano', en: 'Italian' })}</option>
               <option value="en">{L({ it: 'Inglese (americano)', en: 'English (American)' })}</option>
@@ -224,27 +261,49 @@ export function Studio() {
             </select>
             {speaking
               ? <button className="btn big" onClick={() => voice.stop()}>■ {L({ it: 'Ferma', en: 'Stop' })}</button>
-              : <button className="btn primary big" onClick={() => void say(draft)}>🔊 {L({ it: 'Ascolta', en: 'Listen' })}</button>}
-            {changed && !speaking && <button className="chip" title={L({ it: 'La stessa frase con la voce com’era prima delle modifiche', en: 'The same sentence with the voice as it was before the changes' })} onClick={() => void say(origin)}>{L({ it: 'Com’era', en: 'As it was' })}</button>}
+              : <button className="btn primary big" title={L({ it: 'Dice la frase con questa voce (Ctrl+Invio da qualsiasi punto)', en: 'Says the sentence with this voice (Ctrl+Enter from anywhere)' })} onClick={() => void say(draft)}>🔊 {L({ it: 'Ascolta', en: 'Listen' })}</button>}
+            <button className="btn" disabled={!changed} title={L({ it: 'La stessa frase con la voce com’era prima delle modifiche', en: 'The same sentence with the voice as it was before the changes' })} onClick={() => void say(origin)}>{L({ it: 'Com’era', en: 'As it was' })}</button>
+            <Toggle label={L({ it: 'Riascolta a ogni modifica', en: 'Replay after each change' })} value={prefs.auto} onChange={(x) => setPrefs({ auto: x })}
+              hint={L({ it: 'Ridice la frase da sola dopo ogni modifica', en: 'Says the sentence again by itself after every change' })} />
           </div>
-          <div className="chips">
-            {PATTERNS[ui.lang].map(([name, t]) => <button key={t} className={t === text ? 'chip on' : 'chip'} onClick={() => { setText(t); setLang(ui.lang); }}>{L(name)}</button>)}
-          </div>
-        </Card>
+          {notes && (
+            <textarea className="studio-notes" autoFocus value={draft.notes} maxLength={500} rows={2} aria-label={L({ it: 'Note sulla voce', en: 'Notes on the voice' })}
+              placeholder={L({ it: 'Note: chi è, come parla, a cosa serve…', en: 'Notes: who it is, how it speaks, what it is for…' })}
+              onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />
+          )}
+          {link && <input className="text-input studio-link" readOnly value={link} onFocus={(e) => e.target.select()} aria-label={L({ it: 'Link della voce', en: 'Link of the voice' })} />}
+        </div>
 
         <div className="studio-work">
-          <Card className="studio-editor">
-            <Pills value={tab} onChange={setTab} label={L({ it: 'Parte della voce', en: 'Part of the voice' })} options={TABS.map(([id, name, hint]) => [id, L(name), L(hint)])} />
-            <p className="muted small studio-tab-hint">{L(TABS.find((t) => t[0] === tab)![2])}</p>
-            {tab === 'melody' && <MelodyPreview d={draft} text={text} lang={lang} />}
-            {[...new Set(VOICE_FIELDS.filter((f) => f.tab === tab).map((f) => L(f.group)))].map((g) => (
-              <fieldset key={g} className="studio-group">
-                <legend>{g}</legend>
-                {VOICE_FIELDS.filter((f) => f.tab === tab && L(f.group) === g).map((f) => <FieldControl key={f.path} f={f} d={draft} onChange={set} />)}
-              </fieldset>
-            ))}
-            {changed && <button className="chip" onClick={() => setDraft(cloneVoice(origin))}>↺ {L({ it: 'Annulla le modifiche', en: 'Undo the changes' })}</button>}
-          </Card>
+          <section className="ds-card studio-editor">
+            <header className="studio-tabs">
+              <Pills value={tab} onChange={setTab} label={L({ it: 'Parte della voce', en: 'Part of the voice' })}
+                options={TABS.map(([id, name, hint]) => [id, <>{L(name)}{diff.by[id] > 0 && <span className="count" title={L({ it: 'campi modificati', en: 'fields changed' })}>{diff.by[id]}</span>}</>, L(hint)])} />
+              <Toggle label={L({ it: 'Spiegazioni', en: 'Explanations' })} value={prefs.hints} onChange={(x) => setPrefs({ hints: x })}
+                hint={L({ it: 'Mostra sotto ogni campo che cosa fa. Spente: un clic sul nome di un campo apre la sua.', en: 'Shows under every field what it does. Off: a click on the name of a field unfolds its own.' })} />
+            </header>
+            <div className="studio-fields" onPointerDown={() => { live.current.down = true; }}>
+              <p className="muted small studio-tab-hint">{L(TABS.find((t) => t[0] === tab)![2])}</p>
+              {tab === 'melody' && (
+                <>
+                  <div className="chips">
+                    {PATTERNS[ui.lang].map(([name, t]) => <button key={t} className={t === text ? 'chip on' : 'chip'} onClick={() => { setText(t); setLang(ui.lang); }}>{L(name)}</button>)}
+                  </div>
+                  <MelodyPreview d={draft} text={text} lang={lang} />
+                </>
+              )}
+              <div className="studio-groups">
+                {groups.map((g) => (
+                  <fieldset key={g.en} className="studio-group">
+                    <legend>{L(g)}</legend>
+                    {VOICE_FIELDS.filter((f) => f.tab === tab && f.group === g).map((f) => (
+                      <VoiceField key={f.path} f={f} value={fieldValue(draft, f)} was={fieldValue(origin, f)} hints={prefs.hints} onChange={set} />
+                    ))}
+                  </fieldset>
+                ))}
+              </div>
+            </div>
+          </section>
           <div className="studio-side">
             <div className="ds-card studio-headview"><HeadView /></div>
             <PhonemeButtons list={['a', 'e', 'i', 'o', 'u', 'm', 's']} size="small" label={{ it: 'Tieni un suono', en: 'Hold a sound' }} />

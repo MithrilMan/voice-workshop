@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { store, useUi, Mode } from './store';
 import { useT, useL } from './i18n';
 import { DriverBar } from './components/DriverBar';
@@ -23,8 +23,17 @@ function Header() {
   const p = useManual();
   const sound = useSoundOn();
   const sustain = useVoice((v) => v.sustain);
+  // what stays in place under the bar needs its real height: it wraps on a narrow window
+  const bar = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = bar.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => document.documentElement.style.setProperty('--header', `${Math.round(el.getBoundingClientRect().height)}px`));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   return (
-    <header className="app-header">
+    <header className="app-header" ref={bar}>
       <div className="brand">
         <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden>
           <path d="M3 16 Q8 4 13 16 T23 16" fill="none" stroke="#f6a823" strokeWidth="2.6" strokeLinecap="round" />
