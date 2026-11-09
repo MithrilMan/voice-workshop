@@ -317,9 +317,12 @@ broadband fizz above 5 kHz.
 Steinecke & Herzel 1995):
 
     m_i x_i'' + r_i x_i' + k_i x_i + H(-a_i) c_i a_i/(2 l) + k_c (x_i - x_j) = F_i
-    a_i = a0_i + l (x_left + x_right),   F_1 = l d_1 P_1,   F_2 = 0
+    a_i = a0_i + l (x_left + x_right),   F_1 = l d_1 P_1,   F_2 = l d_2 P_2
 
-Pitch comes from the tension Q (k -> Q k, m -> m / Q); with automatic tension
+P_1 is the pressure under the narrowest point (the lung pressure less the
+Bernoulli drop while the glottis converges, all of it when the upper masses
+are shut) and P_2 the pressure above the glottis, where the jet has
+separated. Pitch comes from the tension Q (k -> Q k, m -> m / Q); with automatic tension
 the model follows the requested F0. The length of the folds (1 = an adult
 man's 1.4 cm; a woman's about 0.7, a child's 0.5) scales their masses,
 stiffnesses and the area per displacement, and in either model every area
@@ -327,7 +330,11 @@ of the glottis (the pulses, the chink, the abduction) and its Reynolds
 number: shorter folds give smaller pulses and less air at the same pitch. Left/right asymmetry gives subharmonics
 and raspy voice. The flow is solved each sample against the tract input
 impedance, dP = rho U²/(2 a_min²) + (Z + R_visc) U (Titze 1984), so the tract
-loads the folds.
+loads the folds. With the folds drawn apart their pulses fade from the flow
+as the voicing of the LF source does, and the air passes beside them: a
+held /a/ loses 5 dB with the folds a little apart and, wide apart, is
+breath without a pitch, 20 dB below the voice (it went on vibrating, 13 dB
+below, before).
 
 **Source-tract interaction** (LF mode): the glottal end reflection of the
 waveguide follows the time-varying glottal impedance during the open phase,
@@ -385,6 +392,19 @@ proportion to the transglottal pressure, so that, with the jet speed, the
 voice loses 8-9 dB per halving of the pressure, as measured (Titze & Sundberg
 1992): a voiced fricative, with pressure behind its constriction, is much
 weaker than its vowels.
+Above the speaking pressure the amplitude grows more slowly, and a louder
+voice also closes more sharply: in the LF source Rd falls by 0.2 per
+doubling of the lung pressure, so the level and the upper spectrum rise
+together. A held /a/ at 4, 8 and 16 cmH2O is at -32.8, -22.5 and -14.1 dB,
+with its 2-4 kHz band 37.8, 36.0 and 33.2 dB below the band under 1 kHz
+(before: the same tilt at 4 and 8, and 6 dB from 8 to 16). The pressure
+above the glottis also slows the folds, by 1 % of the pitch per cmH2O: the
+pitch dips by 5 % in a long /b/ and by 3 % in a /z/, and stays in an /m/.
+That is 1.2 Hz per cmH2O at 120 Hz, below the 2-6 Hz per cmH2O found across
+the folds (Titze 1989), as the planned pitch already dips after a voiced
+consonant. The two-mass folds do both from their equations: 8.6 and 7.9 dB
+per doubling, a tilt 7.6 and 3.6 dB less steep, and a pitch 5 Hz lower at
+4 cmH2O than at 8.
 Lung and intraoral pressures are smoothed per sample, so a closure never
 produces steps. Everything the sample loop takes from the control rate
 (pressures, mouth flow, voicing amplitude, glottal opening, the glottal-stop
@@ -685,7 +705,11 @@ sibilants. The teeth panel draws the front and side views with the live jet.
 - **Italian G2P**: orthography rules (c/g before e/i, ch/gh, sc(i), gn, gl(i),
   qu, z, geminates, silent h, intervocalic s voiced in the northern norm,
   ɲ ʎ ʃ ts dz always long between vowels, penultimate stress unless an accent
-  is written); unstressed function words (articles, clitics, prepositions);
+  is written); unstressed function words (articles, clitics, prepositions,
+  and the verb forms è, ha, ho, hai), which keep their stress when nothing
+  follows them in the phrase (chi ce l'ha?); an n that takes the place of
+  the consonant after it, inside a word and across words (banco ŋk, un bacio
+  mb, in fondo ɱf), but not across a pause;
   numbers in words (ventitré, centottantuno).
 - **English G2P** (src/dsp/speech/english.ts): an American lexicon of 89 321
   words with primary and secondary stress, loaded on demand (0.69 MB,
@@ -727,7 +751,10 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   it goes there: the first syllable in Czech, Slovak, Hungarian, Finnish,
   Estonian, Icelandic, Irish; the penultimate in Polish, Welsh, Esperanto,
   Malay, Swahili; the last in French, Armenian, Persian and the Turkic
-  languages. The model's German r, often a tap, becomes the uvular one of
+  languages. The articles, prepositions, conjunctions and clitic pronouns
+  of Spanish, Portuguese, Galician, Catalan, Romanian, German, Dutch,
+  Swedish, Norwegian, Danish, Polish and Hungarian are said without stress
+  and short, unless nothing follows them in their phrase. The model's German r, often a tap, becomes the uvular one of
   the standard. Where the model learned SAMPA rather than IPA it is turned
   into IPA: Swedish (u0 ɵ, } ʉ, 2 ø, 9 œ, the retroflexes n` t` d` s` l`, S
   for the sj-sound ɧ, % and " for stress), the Amharic ejective mark, the
@@ -881,7 +908,10 @@ sibilants. The teeth panel draws the front and side views with the live jet.
     2π 12.7 t + sin 2π 7.1 t + sin 2π 4.7 t)), FL = 25.
   - *Voice quality*: more lung pressure (+14 %) and a tenser source (Rd -0.12)
     on stressed syllables; lower pressure and a breathier source (Rd +0.55)
-    over the last 280 ms of each phrase; quiet pauses (the lungs hold back
+    over the last 280 ms of each phrase; a lung pressure that falls by 12 %
+    from the start of each sentence to its end and is whole again after a
+    full stop, where the breath is taken (after a comma it goes on
+    falling); quiet pauses (the lungs hold back
     instead of blowing through the open glottis). The utterance starts with
     the folds already together, so there is no breathy onset, and ends when
     the last sound ends, without a trailing breath.
@@ -936,7 +966,10 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   shut, and averages 0.05 cm² next to one (0.20).
   Stops are split into closure and release. English voiceless stops at the
   start of a stressed syllable (not after /s/) keep the glottis open past the
-  release: aspiration, a voice onset time of about 60-70 ms. Italian ones
+  release: aspiration, a voice onset time of about 60-70 ms. With an l, r,
+  w or j after the stop in the same onset the open glottis lasts into it
+  and the voice starts later still (longer before a sonorant: Klatt 1975):
+  79 ms in "play", 90 ms in "tree", 14 ms in "splash". Italian ones
   (and English ones after /s/) are unaspirated: the folds stay apart through
   the closure and come together just after the burst, so the voice returns
   after a short lag, shortest for /p/ and longest behind the slower release
@@ -1133,6 +1166,13 @@ in brackets are the adult male targets described under Speech.
 | Clicks | cavity between the closures: [ʘ] -19.4 cmH2O, [ǀ] -18.5, [ǃ] -18.7, [ǁ] -17.9, [ǂ] -19.7; inflow at the front release 848, 294, 297, 227, 306 cm³/s with the back closure still shut |
 | Aeroelastic trills | lungs at 8 cmH2O: [arːa] 4 closures every 34 ms, [aʙːa] 6 every 31 ms, [aʀːa] 6 every 28 ms; at 0.5 cmH2O 1, 1 and 2 |
 | Written aspiration | VOT [p] 10 ms, [pʰ] 66 ms, [kʰ] 73 ms |
+| Aspiration in clusters | English VOT: "play" 79 ms, "tree" 90 ms (their l and r said without voice), "splash" 14 ms |
+| Italian linking | "anche un banco in gamba" a ŋ k e u m b a ŋ k o i ŋ g a m b a; "in fondo, un vino" ɱ f, ɱ v; no change across a pause or in a long n; "la terra è rossa" has two stresses, and the verb left at the end of "chi ce la ha?" keeps its own |
+| Function words elsewhere | Spanish "la casa de Pedro": la and de without stress, a de at the end of a phrase with it; Polish "na stole": one stress, on stole |
+| Breath groups | lung pressure against the same sentence without the fall: "la luna. le stelle" 88.4 % at the end of the first sentence, 99.6 % at the start of the second; "la luna, le stelle" 95.4 % and 93.6 % |
+| Loudness and brightness | held /a/ at 4, 8, 16 cmH2O, LF source: -32.8, -22.5, -14.1 dB, 2-4 kHz against 0-1 kHz -37.8, -36.0, -33.2 dB; two-mass source: -21.6, -13.0, -5.1 dB and -33.6, -26.0, -22.4 dB |
+| Pitch in voiced consonants | LF source, against the planned pitch: long /b/ -5.1 %, /z/ -3.4 %, /m/ -0.3 % |
+| Two-mass folds apart | held /a/: -14.4 dB together, -19.2 dB a little apart, -34.8 dB and no pitch wide apart (LF source -38.2 dB) |
 | Ejective | [kʼ] 9.5 cmH2O behind the shut glottis (lungs 8), larynx up 0.88 cm, no flow from the lungs; mouth flow in the 30 ms after the burst 129 cm³/s against 777 for [k] |
 | Implosive | [ɓ] 2.3 cmH2O behind the lips against 4.3 for [b], voicing amplitude at the release 0.74 against 0.51, larynx down 1.25 cm |
 | Voiceless implosive | [ɓ̥] -7.3 cmH2O at the release, mouth flow -1484 cm³/s (the air drawn in) |
@@ -1233,7 +1273,18 @@ in brackets are the adult male targets described under Speech.
   linearly in the sample loop; a strong closure damping term keeps closed
   cavities stable.
 - The two-mass model is the 4-mass asymmetric form without collision
-  dynamics beyond the contact spring.
+  dynamics beyond the contact spring. Its flow equation is stable only with
+  a narrow glottis: with the folds drawn apart the masses go on moving
+  unheard while their pulses are faded from the flow, where real folds stop
+  by themselves. With it the glottal end of the tract is a hard wall, and a
+  held /a/ is about 8 dB louder than with the LF source.
+- Below the folds there is only a pressure: the trachea and the lungs have
+  no resonances of their own, so they leave no dips in a breathy voice or in
+  aspiration and do not couple to the vowels.
+- What a louder voice changes is in the source alone (level, brightness):
+  the plan of an utterance does not open the jaw wider, raise the pitch or
+  lengthen the vowels with it. The pauses are silent: no breath is heard
+  being taken.
 - English pronunciation is American only; unknown words use letter-to-sound
   rules, which miss many irregular spellings. Homographs (read, live) take one
   pronunciation. Italian open and close e/o are only known where an accent is
@@ -1349,6 +1400,8 @@ in brackets are the adult male targets described under Speech.
 - Esling, J. H. (2005). There are no back vowels: the laryngeal articulator model. Canadian Journal of Linguistics 50.
 - Moisik, S. R. & Esling, J. H. (2011). The "whole larynx" approach to laryngeal features. Proceedings of the 17th ICPhS, Hong Kong.
 - Titze, I. R. (1984). Parameterization of the glottal area, glottal flow, and vocal fold contact area. JASA 75.
+- Titze, I. R. (1989). On the relation between subglottal pressure and fundamental frequency in phonation. JASA 85.
+- Klatt, D. H. (1975). Voice onset time, frication, and aspiration in word-initial consonant clusters. J. Speech Hear. Res. 18.
 - Titze, I. R. & Sundberg, J. (1992). Vocal intensity in speakers and singers. JASA 91.
 - Young, S. et al. The HTK Book (mel filterbank).
 - Zhang, Z. & Espy-Wilson, C. Y. (2004). A vocal-tract model of American English /l/. JASA 115.
