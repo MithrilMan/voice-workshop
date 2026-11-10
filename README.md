@@ -1438,12 +1438,18 @@ score of a voice saying something: one turn of a dialogue.
   our copy and the recording it tells whether what sounds mechanical in
   ours is in the source or in the mouth: the page plays the recording,
   our copy, our fine structure through their envelope, and the same only
-  in some stretches, our copy as it is elsewhere: the middle of the vowels;
-  the consonants and the passages; the middle of the consonants; the
-  passages (25 ms either side of each edge between two sounds). A crossing
-  by stretches fades between the two over 20 ms and brings our copy to the
+  in some stretches, our copy as it is elsewhere (`where`). A crossing by
+  stretches fades between the two over 20 ms and brings our copy to the
   crossing's level: switching the predictor itself from one frame to the
-  next rang, up to 20 dB above both.
+  next rang, up to 20 dB above both. By ear, their envelope
+  only in the passages (25 ms either side of each edge between two sounds,
+  56 % of the speech) came closest to their envelope everywhere; only in
+  the middle of the vowels, of the consonants, or in the consonants and the
+  passages, less. The page now plays the passages all together, next to a
+  stop or an affricate (20 % of the speech) and the others (36 %), and our
+  copy in a small room (a tail of dark noise dying by 60 dB in 0.3 s, 25 dB
+  below the voice: chosen, not measured, so that the quietest 20 ms of a
+  closure fall to the recordings', 38 dB below the vowels against 40).
 - Envelope report (`scripts/envelope-report.ts`): on the voiced frames
   where a copy and its recording are both loud, the formants and their
   LPC bandwidths, the balance of five bands and how fast the envelope
@@ -1464,14 +1470,17 @@ score of a voice saying something: one turn of a dialogue.
   of the bands and the bandwidths).
 - Consonant report (`scripts/consonant-report.ts`): on the same files,
   the middle half of each sound (its level below the vowels of its
-  sentence and the balance of six bands, by kind), the spectrum of /s z ʃ/
-  from 1 to 12 kHz, and the passages between a consonant and a vowel (with
-  the cepstra, how long the envelope takes from 20 to 80 % of the way
-  between the middle of the one and of the other, and when it is
-  half-way). On the 15 sentences, measured against the neural voices: the
-  closure of a voiceless stop is 49 dB below the vowels in ours and 21 dB
-  in theirs, that of a voiced stop 17 dB against 6 (theirs are seldom
-  silent); our /s/ and /z/ have 8-11 dB too much between 1.6 and 5 kHz
+  sentence and the balance of six bands, by kind), how deep a stop's
+  closure goes (its quietest 20 ms, whatever the alignment), the floor
+  before the speech, the spectrum of /s z ʃ/ from 1 to 12 kHz, and the
+  passages between a consonant and a vowel (with the cepstra, how long the
+  envelope takes from 20 to 80 % of the way between the middle of the one
+  and of the other, and when it is half-way). On the 15 sentences,
+  measured against the neural voices: the closure of a voiceless stop
+  goes down to 84 dB below the vowels in ours and to 40 dB in theirs
+  (unvoiced, above their floor of 52 dB; ours is digital zero), that of a
+  voiced stop to 24 against 12; our /s/ and /z/ have 8-11 dB too much
+  between 1.6 and 5 kHz
   (a broad hiss where theirs rises sharply above 5 kHz); the passages
   take about as long on the whole (23-29 ms against 21-28), but ours leave
   a nasal or a stop for the vowel slower (32-35 ms against 16-27).

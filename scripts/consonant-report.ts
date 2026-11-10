@@ -6,7 +6,9 @@
  * - the middle half of each sound of 45 ms or more: its level below the
  *   vowels of its sentence (their median) and the balance of six bands,
  *   by kind (nasal, liquid or glide, sibilant, other fricative, affricate,
- *   voiced stop, voiceless stop; a stop's middle is its closure);
+ *   voiced stop, voiceless stop; a stop's middle is its closure), how deep
+ *   a stop's closure goes (its quietest 20 ms, whatever the alignment) and
+ *   the floor before the speech;
  * - the spectrum of the middle half of /s z ʃ/ (power per Hz in bands from
  *   1 to 12 kHz, dB below its strongest band);
  * - the passages between a consonant and a vowel: with the cepstra
@@ -58,6 +60,7 @@ for (const name of rows) {
     const tot = b.reduce((p, q) => p + q, 0);
     return { db: 10 * Math.log10(e / (m * n) + 1e-12), bands: Array.from(b, (v) => 10 * Math.log10(v / tot + 1e-12)) };
   };
+  const power = (x: Float32Array, t0: number, t1: number) => { let e = 0, m = 0; for (let i = Math.max(0, Math.round(t0 * fs)); i < Math.round(t1 * fs) && i < x.length; i++) { e += x[i] * x[i]; m++; } return 10 * Math.log10(e / Math.max(1, m) + 1e-20); };
   const vowels = (x: Float32Array) => med(phones.filter((p) => VOWEL.test(p.ipa)).map((p) => measure(x, ...middle(p))?.db ?? NaN));
   const vo = vowels(o.samples), va = vowels(a.samples);
   for (const p of phones) {
@@ -66,6 +69,16 @@ for (const name of rows) {
     if (!ro || !ra) continue;
     add(`${k} below theirs`, vo - ro.db); add(`${k} below ours`, va - ra.db);
     BANDS.forEach((_, j) => add(`${k} band ${j}`, ra.bands[j] - ro.bands[j]));
+    // how deep a stop's closure goes, whatever the alignment: its quietest 20 ms, from 30 ms before it to 30 ms after
+    if (/stop$/.test(k)) for (const [who, x, v] of [['theirs', o.samples, vo], ['ours', a.samples, va]] as const) {
+      let lo = Infinity;
+      for (let t = p.t0 - 0.03; t + 0.02 <= p.t1 + 0.03; t += 0.0025) lo = Math.min(lo, power(x, t, t + 0.02));
+      add(`${k} quietest ${who}`, v - lo);
+    }
+  }
+  // before the first sound (more than 80 ms of it), the floor
+  for (const [who, x, v] of [['theirs', o.samples, vo], ['ours', a.samples, va]] as const) {
+    if (phones[0].t0 > 0.08) add(`floor ${who}`, v - power(x, 0.01, phones[0].t0 - 0.05));
   }
 
   // the spectrum of the sibilants
@@ -122,6 +135,8 @@ for (const k of ['nasal', 'liquid/glide', 'sibilant', 'other fricative', 'affric
   if (!acc[`${k} below theirs`]) continue;
   console.log(`  ${k} (${acc[`${k} below theirs`].length}): ${med(acc[`${k} below theirs`]).toFixed(1)} / ${med(acc[`${k} below ours`]).toFixed(1)} dB; bands ${BANDS.map((_, j) => med(acc[`${k} band ${j}`]).toFixed(1)).join(' ')}`);
 }
+for (const k of ['voiced stop', 'voiceless stop']) if (acc[`${k} quietest theirs`]) console.log(`  ${k}, its quietest 20 ms: ${med(acc[`${k} quietest theirs`]).toFixed(0)} / ${med(acc[`${k} quietest ours`]).toFixed(0)} dB below the vowels`);
+if (acc['floor theirs']) console.log(`  before the speech: ${med(acc['floor theirs']).toFixed(0)} / ${med(acc['floor ours']).toFixed(0)} dB below the vowels`);
 console.log(`Sibilants, power per Hz in ${SIB.slice(0, -1).map((e, j) => `${e / 1000}-${SIB[j + 1] / 1000}k`).join(' ')}, dB below the strongest band (median)`);
 for (const [k, v] of Object.entries(sib)) console.log(`  ${k} (${v.length}): ${SIB.slice(0, -1).map((_, j) => med(v.map((r) => r[j])).toFixed(0)).join(' ')}`);
 console.log('Passages, ms from 20 to 80 % of the way / ms after the edge at half-way, theirs against ours');
