@@ -4,8 +4,10 @@
  * same living (a seed), and then with the recording's timing, its timing
  * and melody, and its timing, melody and loudness. Writes WAV files and a
  * page that plays them side by side. With --cross, instead: the recording,
- * the same through the analysis (a check), our copy with all three, and the
- * fine structure of each through the spectral envelope of the other.
+ * our copy with all three, our fine structure through the recording's
+ * spectral envelope, and through it only in some stretches (the middle of
+ * vowels; consonants and passages; the middle of consonants; the passages
+ * between sounds).
  *   npx tsx scripts/copy-test.ts list.json [list2.json ...] [--voice=woman|file.voice.json]
  *       [--n=3] [--out=.ref/copy] [--cross] [--set=habits.precision=1,phonation.rd=1] [--losses=0.8] [--live=1] [--tau=0.8]
  * --set changes fields of the voice, --losses the engine's waveguide losses (to try what moves the copy toward the recording)
@@ -59,7 +61,7 @@ function level(x: Float32Array, fs: number): Float32Array {
 }
 
 const VERSIONS: [string, string][] = cross
-  ? [['orig', 'Originale'], ['check', 'Originale ripassato (controllo)'], ['all', 'Nostra, con tempi, melodia e volume copiati'], ['theirsrc', 'Struttura fine loro, inviluppo nostro'], ['oursrc', 'Struttura fine nostra, inviluppo loro'], ['vowels', 'Nostra, inviluppo loro solo nelle vocali'], ['consonants', 'Nostra, inviluppo loro solo in consonanti e passaggi']]
+  ? [['orig', 'Originale'], ['all', 'Nostra, con tempi, melodia e volume copiati'], ['oursrc', 'Struttura fine nostra, inviluppo loro'], ['vowels', 'Nostra, inviluppo loro solo nelle vocali'], ['consonants', 'Nostra, inviluppo loro solo in consonanti e passaggi'], ['inside', 'Nostra, inviluppo loro solo dentro le consonanti'], ['passages', 'Nostra, inviluppo loro solo nei passaggi']]
   : [['orig', 'Originale'], ['rules', 'Le nostre regole'], ['living', 'Regole, viva'], ['timing', 'Tempi copiati'], ['melody', 'Tempi e melodia'], ['all', 'Tempi, melodia e volume'], ['mouth', 'Tutto copiato, bocca viva']];
 const rows: { name: string; text: string; voice: string; files: string[] }[] = [];
 
@@ -124,10 +126,13 @@ for (const listPath of lists) {
     const allC = { samples: all, fs };
     // the copy with a living mouth (and breath and folds): a seed for the engine alone, the planner's work kept
     const mouth = render(u.params, { ...loud, seed: 1000 + rows.length, variation: Number(opt('live') ?? 1) }, fs);
-    // the middle of each vowel (all but its first and last 25 ms), on the recording's time
+    // on the recording's time: the middle of each vowel and of each consonant (all but their first and last 25 ms),
+    // and the passages (within 25 ms of the edge between two sounds)
     const VOWEL = /^[ˈˌ]?[aeiouyɪʊɛɔæʌɑɒəɚɝɐøœɯɤɨʉ]/;
-    const inVowel = (t: number) => loud.phones.some((p) => VOWEL.test(p.ipa) && t >= p.t0 + 0.025 && t < p.t1 - 0.025);
-    const versions = cross ? [wav.samples, crossSynth(rec, rec), all, crossSynth(rec, allC), crossSynth(allC, rec), crossSynth(allC, rec, inVowel), crossSynth(allC, rec, (t) => !inVowel(t))] : [wav.samples, rules, living, timing, melody, all, mouth];
+    const inside = (vowel: boolean) => (t: number) => loud.phones.some((p) => p.ipa !== '_' && VOWEL.test(p.ipa) === vowel && t >= p.t0 + 0.025 && t < p.t1 - 0.025);
+    const inVowel = inside(true), inConsonant = inside(false);
+    const passage = (t: number) => loud.phones.some((p) => Math.abs(t - p.t0) < 0.025 || Math.abs(t - p.t1) < 0.025);
+    const versions = cross ? [wav.samples, all, crossSynth(allC, rec), crossSynth(allC, rec, inVowel), crossSynth(allC, rec, (t) => !inVowel(t)), crossSynth(allC, rec, inConsonant), crossSynth(allC, rec, passage)] : [wav.samples, rules, living, timing, melody, all, mouth];
     versions.forEach((x, i) => writeFileSync(join(out, files[i]), encodeWav(level(x, fs), fs)));
     // the sounds of the copy, on the recording's time (for scripts/envelope-report.ts)
     writeFileSync(join(out, `${name}_${k}_phones.json`), JSON.stringify(loud.phones.map((p) => ({ ipa: p.ipa, t0: +p.t0.toFixed(4), t1: +p.t1.toFixed(4) }))));
@@ -148,7 +153,7 @@ th { font-weight: 600; font-size: 13px; } .t { min-width: 20ch; max-width: 30ch;
 audio { width: 170px; height: 32px; }
 </style></head><body>
 ${cross ? `<h1>Sintesi incrociata</h1>
-<p>Le stesse frasi della prova di copia, con la nostra voce già sui tempi, sulla melodia e sul volume della registrazione. Ogni suono si divide in due parti: la <b>struttura fine</b> (gli impulsi delle corde vocali, la loro irregolarità, il soffio, il rumore delle consonanti) e l'<b>inviluppo</b> (le formanti, cioè la bocca, e l'inclinazione dello spettro). Le ultime due colonne le scambiano. Se «struttura fine loro, inviluppo nostro» suona umana e l'ultima meccanica, il problema è nella sorgente; se è il contrario, nella bocca e nei passaggi tra i suoni. La seconda colonna è la registrazione passata per la stessa analisi: deve suonare come l'originale. Le ultime due tengono la nostra voce e prendono il loro inviluppo solo nel mezzo delle vocali, oppure solo nelle consonanti e nei passaggi tra un suono e l'altro: quale delle due si avvicina di più alla quinta colonna dice dove sta la differenza.</p>` : `<h1>Prova di copia</h1>
+<p>Le stesse frasi della prova di copia, con la nostra voce già sui tempi, sulla melodia e sul volume della registrazione. Ogni suono si divide in due parti: la <b>struttura fine</b> (gli impulsi delle corde vocali, la loro irregolarità, il soffio, il rumore delle consonanti) e l'<b>inviluppo</b> (le formanti, cioè la bocca, e l'inclinazione dello spettro). La terza colonna tiene la nostra struttura fine e prende tutto il loro inviluppo. Le altre lo prendono solo in alcuni tratti, e altrove restano la nostra voce: nel mezzo delle vocali; nelle consonanti e nei passaggi; solo nel mezzo delle consonanti; solo nei passaggi tra un suono e l'altro (i 25 ms prima e dopo ogni confine). Tra un tratto e l'altro c'è una dissolvenza di 20 ms. Quale si avvicina di più alla terza colonna dice dove sta la differenza.</p>` : `<h1>Prova di copia</h1>
 <p>Ogni riga è una frase di una voce registrata. Da sinistra: la registrazione; la nostra voce che la dice con le sue regole; la stessa, viva (variabilità 1); con i tempi della registrazione; con i suoi tempi e la sua melodia; con tempi, melodia e volume. Tutte allo stesso volume medio. Se con tempi e melodia copiati la nostra suona molto più umana, il lavoro va sulla prosodia; se resta meccanica, sul suono.</p>`}
 <div class="wrap"><table><tr><th>Frase</th>${VERSIONS.map(([, l]) => `<th>${l}</th>`).join('')}</tr>
 ${rows.map((r) => `<tr><td class="t">${esc(r.text)}<div class="v">${esc(r.name)} · voce: ${esc(r.voice)}</div></td>${r.files.map((f) => `<td><audio controls preload="none" src="${f}"></audio></td>`).join('')}</tr>`).join('\n')}

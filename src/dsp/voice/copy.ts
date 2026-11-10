@@ -343,7 +343,8 @@ export function swell(rec: Analysis, ours: Analysis): number[] {
  * sayings lined up in time and pitch (copy synthesis), it tells whether
  * what sounds mechanical in one of them is in its source or in its mouth.
  * With `where`, the second's envelope only at the times it says (s), the
- * first's own elsewhere: which stretches of a saying carry it.
+ * first clip as it is elsewhere (at the crossing's level, with 20 ms fades
+ * between the two): which stretches of a saying carry it.
  */
 export function crossSynth(source: Clip, mouth: Clip, where?: (t: number) => boolean): Float32Array {
   const fs = source.fs, n = Math.min(source.samples.length, mouth.samples.length);
@@ -365,7 +366,7 @@ export function crossSynth(source: Clip, mouth: Clip, where?: (t: number) => boo
   let gWas = NaN;
   for (let b = 0; b * hop < n; b++) {
     const c = b * hop + (hop >> 1);
-    const s = fit(xs, c), m = !where || where(c / fs) ? fit(xm, c) : s;
+    const s = fit(xs, c), m = fit(xm, c);
     // the source's own residual, at the level of the mouth's
     // (gliding from the block before, so that it does not click)
     const g = Math.min(30, Math.sqrt(m.e / Math.max(s.e, 1e-20))), g0 = Number.isNaN(gWas) ? g : gWas;
@@ -382,5 +383,31 @@ export function crossSynth(source: Clip, mouth: Clip, where?: (t: number) => boo
   const out = new Float32Array(n);
   let prev = 0;
   for (let i = 0; i < n; i++) { prev = y[i] + 0.97 * prev; out[i] = prev; }
+  if (!where) return out;
+  // the mouth's envelope only where asked: the first clip as it is elsewhere,
+  // brought to the crossing's level, faded in and out over 20 ms (switching
+  // the predictor itself from one frame to the next rings, up to 20 dB)
+  const fade = Math.round(0.01 * fs), wt = new Float64Array(n), sm = new Float64Array(n);
+  for (let i = 0; i < n; i++) wt[i] = where((Math.floor(i / hop) * hop + (hop >> 1)) / fs) ? 1 : 0;
+  for (let pass = 0; pass < 2; pass++) {
+    let acc = 0;
+    for (let i = 0; i < n + (fade >> 1); i++) {
+      if (i < n) acc += wt[i];
+      if (i - fade >= 0) acc -= wt[i - fade];
+      const j = i - (fade >> 1);
+      if (j >= 0 && j < n) sm[j] = acc / fade;
+    }
+    wt.set(sm);
+  }
+  const k = speechRms(out, fs) / Math.max(speechRms(source.samples.subarray(0, n), fs), 1e-12);
+  for (let i = 0; i < n; i++) out[i] = wt[i] * out[i] + (1 - wt[i]) * k * source.samples[i];
   return out;
+}
+
+/** the rms over the 10 ms frames within 35 dB of the loudest */
+function speechRms(x: Float32Array, fs: number): number {
+  const hop = Math.round(0.01 * fs), e: number[] = [];
+  for (let s = 0; s + hop <= x.length; s += hop) { let a = 0; for (let i = s; i < s + hop; i++) a += x[i] * x[i]; e.push(a / hop); }
+  const top = Math.max(0, ...e), speech = e.filter((v) => v > top * 10 ** -3.5);
+  return Math.sqrt(speech.reduce((a, b) => a + b, 0) / Math.max(1, speech.length));
 }

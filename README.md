@@ -1437,9 +1437,13 @@ score of a voice saying something: one turn of a dialogue.
   own residual (gliding over the 5 ms) and filtered by the second's. On
   our copy and the recording it tells whether what sounds mechanical in
   ours is in the source or in the mouth: the page plays the recording,
-  the same through the analysis (a check), our copy, and the two crossings,
-  and our copy with their envelope only in the middle of the vowels, or
-  only in the consonants and the passages between sounds.
+  our copy, our fine structure through their envelope, and the same only
+  in some stretches, our copy as it is elsewhere: the middle of the vowels;
+  the consonants and the passages; the middle of the consonants; the
+  passages (25 ms either side of each edge between two sounds). A crossing
+  by stretches fades between the two over 20 ms and brings our copy to the
+  crossing's level: switching the predictor itself from one frame to the
+  next rang, up to 20 dB above both.
 - Envelope report (`scripts/envelope-report.ts`): on the voiced frames
   where a copy and its recording are both loud, the formants and their
   LPC bandwidths, the balance of five bands and how fast the envelope
@@ -1458,6 +1462,19 @@ score of a voice saying something: one turn of a dialogue.
   quicker or a jaw slower, nor tenser folds or smaller losses close the
   gap in movement (the tenser folds and the smaller losses close those
   of the bands and the bandwidths).
+- Consonant report (`scripts/consonant-report.ts`): on the same files,
+  the middle half of each sound (its level below the vowels of its
+  sentence and the balance of six bands, by kind), the spectrum of /s z ʃ/
+  from 1 to 12 kHz, and the passages between a consonant and a vowel (with
+  the cepstra, how long the envelope takes from 20 to 80 % of the way
+  between the middle of the one and of the other, and when it is
+  half-way). On the 15 sentences, measured against the neural voices: the
+  closure of a voiceless stop is 49 dB below the vowels in ours and 21 dB
+  in theirs, that of a voiced stop 17 dB against 6 (theirs are seldom
+  silent); our /s/ and /z/ have 8-11 dB too much between 1.6 and 5 kHz
+  (a broad hiss where theirs rises sharply above 5 kHz); the passages
+  take about as long on the whole (23-29 ms against 21-28), but ours leave
+  a nasal or a stop for the vowel slower (32-35 ms against 16-27).
 
 ## Main parameters
 
@@ -1603,7 +1620,7 @@ in brackets are the adult male targets described under Speech.
 | Voice fit | the Sky-like voice saying "Is it raining in the city today? Not at all.", found again from the woman's (effort 0.3): distance 2.97 → 0.44 in 49 renderings, median pitch 192 Hz against 192 |
 | Living variation | "ieri sera, sulla spiaggia, abbiamo guardato la luna piena salire sopra il mare." over 30 seeds: its sounds 8.6 % longer or shorter (sd), its accent peaks moved by 0.89 st (sd), the whole 95-106 % of the saying by the rules; at variation 2, 17.2 % and 1.93 st |
 | Copy synthesis | "la luna piena sale sopra il mare" copied onto the same said slower (rate 0.8), higher (140 Hz) and with wider phrases: middles of the sounds 308 → 4 ms apart (median), pitch 4.96 → 0.15 st off, swell of the loudness 1.1 → 0.4 dB rms off |
-| Cross-synthesis | "la luna piena" crossed with itself: the same samples; the man's folds through the woman's mouth: pitch 112 Hz (the man's 112), centroid of 200-1000 Hz in the /u/ 332 Hz (the woman's 321, the man's 301) |
+| Cross-synthesis | "la luna piena" crossed with itself: the same samples; the man's folds through the woman's mouth: pitch 112 Hz (the man's 112), centroid of 200-1000 Hz in the /u/ 332 Hz (the woman's 321, the man's 301); her mouth every other 60 ms: no 5 ms frame louder than both the whole crossing and the man as he is (0.0 dB) |
 
 ## Simplifications and limits
 
@@ -1944,6 +1961,7 @@ npx tsx scripts/fit-voice.ts list.json --out=a.voice.json   # fit a voice to WAV
 npx tsx scripts/copy-test.ts list.json --n=3 --out=.ref/copy    # a recording's timing, melody and loudness on our voice, to listen to
 npx tsx scripts/copy-test.ts list.json --n=3 --cross            # the fine structure of each through the envelope of the other
 npx tsx scripts/envelope-report.ts .ref/copy                    # how the envelope of the copies differs from the recordings'
+npx tsx scripts/consonant-report.ts .ref/copy                   # the consonants of the copies: level, bands, /s/, passages
 npx tsx scripts/say.ts out/ en "any sentence"   # one sentence; add --flat for the robot version
 npx tsx scripts/say.ts out/ it "la luna" --voice=deep   # with a starting voice, or --voice=my.voice.json from the studio
 npx tsx scripts/g2p.ts en "the water bottle"    # phones of a text and where each English word came from

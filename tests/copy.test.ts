@@ -87,4 +87,20 @@ describe('cross-synthesis', () => {
     expect(Math.abs(12 * Math.log2(pitch(yc) / pitch(x)))).toBeLessThan(0.5);
     expect(Math.abs(f1(yc) - f1(z))).toBeLessThan(Math.abs(f1(yc) - f1(x)));
   });
+
+  it('crosses only some stretches without sounds of its own where it switches', () => {
+    // the woman's mouth every other 60 ms: no 5 ms frame louder than both the whole crossing and the man as he is
+    const where = (t: number) => Math.floor(t / 0.06) % 2 === 0;
+    const full = crossSynth(x, z), part = crossSynth(x, z, where);
+    const hop = Math.round(0.005 * FS), E = (y: Float32Array, s: number) => { let e = 0; for (let i = s; i < s + hop; i++) e += y[i] * y[i]; return e; };
+    let top = 0;
+    for (let s = 0; s + hop <= part.length; s += hop) top = Math.max(top, E(part, s));
+    // the man brought to the crossing's level, as the partial crossing does
+    const lvl = (y: Float32Array) => { let a = 0, m = 0; for (let s = 0; s + hop <= y.length; s += hop) { const e = E(y, s); if (e > top * 1e-3) { a += e; m++; } } return Math.sqrt(a / Math.max(1, m)); };
+    const k = lvl(full) / lvl(x.samples), man = Float32Array.from(x.samples, (v) => v * k);
+    let worst = -Infinity;
+    for (let s = 0; s + hop <= part.length; s += hop) if (E(part, s) > top * 1e-3) worst = Math.max(worst, 10 * Math.log10(E(part, s) / Math.max(E(full, s), E(man, s))));
+    note('cross-synthesis 3', `the woman's mouth every other 60 ms: the loudest 5 ms frame ${worst.toFixed(1)} dB above both the whole crossing and the man as he is`);
+    expect(worst).toBeLessThan(1.5);
+  });
 });
