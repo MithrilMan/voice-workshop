@@ -1140,6 +1140,16 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   vowels with an F3 150 Hz below their own fell from 23 % to 6 % (after
   /ɹ/, and before /l/ in Italian); the port in vowels away from nasals is
   shut, and averages 0.05 cm² next to one (0.20).
+  An unstressed open vowel is reduced all the same, and nothing in the
+  plan lowers its target: it is half as long as a stressed one, and the
+  jaw, the slowest of the organs, does not get down in time between two
+  closures of the tongue. In /tatata/ the first formant of an unstressed
+  /a/ is 583 Hz before the stress and 544 after it, against 728
+  stressed: 20 and 25 % below, where two speakers of Italian had it
+  18 % and 28 % below, with the tongue and the jaw higher (Farnetani &
+  Vayra 1991); the last /a/ of the word, which has the time, opens again
+  as theirs did. A slack speaker reduces further and a crisp one less (the
+  precision of a voice, below).
   Stops are split into closure and release. English voiceless stops at the
   start of a stressed syllable (not after /s/) keep the glottis open past the
   release: aspiration, a voice onset time of about 60-70 ms. With an l, r,
@@ -1348,6 +1358,7 @@ in brackets are the adult male targets described under Speech.
 | Bursts | RMS of 10 ms at the burst less 30 ms at the start of the vowel, as Nicolaidis et al. (2019) measured Greek /p t k/ (theirs in brackets): "la pata" -15.2 dB (-11.2), "la pita" -11.2 (-11.0), "la tata" -13.7 (-10.7), "la tita" -13.1 (-13.0), "la cata" -18.9 (-5.9), "la chita" -16.6 (-11.1); the voice starts after 10, 5, 19, 16, 27 and 25 ms (16, 14, 12, 23, 30, 63); without the pop of the air let out the burst of /p/ loses 1.6 dB, that of /t/ nothing: it is a hiss |
 | Place of a velar | front edge of the contact when the stop is let go: 6.9 cm from the lips before /i/, 7.8 before /a/, 8.0 before /u/, 9.0 before /o/; /t/ 3.9 before /i/, 4.4 before /o/ |
 | Speaking rate | the whole lasts 1/rate of what it lasts at the usual rate, from 0.6 to 2.5 times (Italian within 1 %; English, whose aspiration follows the root of the rate, within 15 %); between a slow rate (0.9) and a fast one (1.15): Italian vowels 0.74 and stops 0.83 of their duration, English 0.72 and 0.83 (speakers 0.75 and 0.9, Gay 1978; 0.74 and 0.8, Port 1981); slower than usual (0.9): vowels +14 % and stops +9 %, English +15 % and +8 %; from 2 to 2.5 times vowels and stops both 0.80 |
+| Unstressed /a/ | /tatata/: F1 728 Hz stressed (156 ms, jaw 0.88); 583 Hz before the stress (77 ms, jaw 0.38), 20 % below; 544 Hz after it, 25 % below; 728 Hz at the end of the word (speakers 18 % and 28 % below, the last of the word open again: Farnetani & Vayra 1991); /i/ and /u/ the same stressed or not |
 | Motion of the tube | a section follows the measures of its shape with a speed that changes, from one sample to the next, 450 times less than if it ran to each measure and stopped there; it lands on a closure with no speed left; a steady flow through a narrowing that comes and goes in 20 ms: the sharpest sample of the flow at the lips 71 dB below the swing the gesture makes |
 | Pinched nose | held /m/: nasal airflow 231 -> 0 cm³/s, mouth pressure 8.0 cmH2O (the lung pressure), the hum silent |
 | Italian G2P | sasso, mamma, voce, rosa (northern /z/), gnocchi, figlio (long ʎ), scena, chiesa, città; IPA parsing |
@@ -1542,6 +1553,10 @@ in brackets are the adult male targets described under Speech.
   20 Hz of F1 over the 6 dB either side of a speaking voice, and in this
   geometry more jaw lowers F1 in the open back vowels. The vowels are not
   lengthened either.
+- Unstressed vowels are reduced by the time they lack, so the close ones,
+  which need no jaw, are the same stressed or not (/i/ and /u/ between two
+  /t/: F1 and F2 within a few hertz); unless the voice is a slack one,
+  nothing draws them toward the middle of the vowel space.
 - The speaking rate shortens the sounds, not the movements: the organs are
   no quicker in fast speech and no slower in slow speech, the pauses and
   the breath of an aspirated stop follow the rate by rules of their own
@@ -1641,6 +1656,7 @@ in brackets are the adult male targets described under Speech.
 - Cohn, A. C. (1990). Phonetic and phonological rules of nasalization. UCLA Working Papers in Phonetics 76.
 - Laprie, Y., Elie, B. & Tsukanova, A. (2015). 2D articulatory velum modeling applied to copy synthesis of sentences containing nasal phonemes. ICPhS 2015, Glasgow.
 - Lindblom, B. (1963). Spectrographic study of vowel reduction. JASA 35.
+- Farnetani, E. & Vayra, M. (1991). Word- and phrase-level aspects of vowel reduction in Italian. Proc. XIIth ICPhS, Aix-en-Provence, vol. 2.
 - Klatt, D. H. & Klatt, L. C. (1990). Analysis, synthesis, and perception of voice quality variations among female and male talkers. JASA 87.
 - Lisker, L. & Abramson, A. S. (1964). A cross-language study of voicing in initial stops: acoustical measurements. Word 20.
 - Dauer, R. M. (1983). Stress-timing and syllable-timing reanalyzed. J. Phonetics 11.
