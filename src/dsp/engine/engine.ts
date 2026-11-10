@@ -95,13 +95,31 @@ const CLICK = { walls: 3e-5, dv: 0.6 };
 const STIFF_TAU = 0.005;
 /**
  * A seal that has just broken with pressure behind it: the air parts its soft
- * surfaces before the articulator has moved away. A centimetre of seal
- * (`width`) with the stiffness of the walls opens 0.12 cm^2 under 8 cmH2O,
- * within a millisecond: the release of a stop is then a quick rise, a pause
- * while the pressure falls, and the rise the articulator makes. The burst is
- * made in the pause (Hanson & Stevens 2000)
+ * surfaces before the articulator has moved away. A centimetre of seal with
+ * the stiffness of the walls opens 0.12 cm^2 under 8 cmH2O: the release of a
+ * stop is then a quick rise, a pause while the pressure falls, and the rise
+ * the articulator makes. The burst is made in the pause (Hanson & Stevens
+ * 2000).
+ *
+ * What the burst is made of depends on the seal, and the three are set so
+ * that the bursts come out as loud against their vowels as they were
+ * measured (Nicolaidis et al. 2019). The lips are free and wide: 2 cm of them
+ * part at once into a flat slit. The tip of the tongue is held against the
+ * ridge: its seal takes a
+ * millisecond and a half to part, so it pops little, and the air leaves
+ * through a channel no wider than the one the tip itself opens, a jet that
+ * is turbulent from the start and strikes the teeth: the burst of a /t/ is
+ * a short hiss. (Parted at once into a flat slit, it was a bare pop with
+ * hardly any hiss in it: a click of the tongue.) The body of the tongue
+ * parts at once over 1 cm. `reach` is how far behind the incisors the tip
+ * and the blade make their closures (cm).
  */
-const SEAL = { width: 1, tau: 0.0004, max: 0.2 };
+const SEAL = {
+  lips: { width: 2, tau: 0.0004, flat: true },
+  tip: { width: 1, tau: 0.0015, flat: false },
+  body: { width: 1, tau: 0.0004, flat: true },
+  reach: 3.5, max: 0.2,
+};
 /** time the release transient takes to move from one place of the tract to another (s) */
 const PUFF_MOVE = 0.004;
 
@@ -313,6 +331,8 @@ export class VoiceEngine {
   private stiff = 0;
   /** a closure was made, and what the pressure holds open of it since it broke (cm^2) */
   private sealed = false;
+  /** the seal the pressure parts: the lips', the tip's or the body's */
+  private seal = SEAL.body;
   private parted = 0;
 
   // geometry
@@ -890,11 +910,15 @@ export class VoiceEngine {
     ps.slitH = on[4];
     this.clickFrontArea = Math.max(0, on[5]);
     let oral = ps.area;
-    if (oral < 0.004) { this.sealed = true; this.parted = 0; }
+    if (oral < 0.004) {
+      this.sealed = true; this.parted = 0;
+      const gm = this.geom, behind = gm ? gm.teethPos - this.fineMinS : Infinity;
+      this.seal = behind <= 0 ? SEAL.lips : behind < SEAL.reach * scale ? SEAL.tip : SEAL.body;
+    }
     else if (this.sealed) {
       // a trill is this same push, with the mass and the spring of its articulator
-      const want = this.trillKey ? 0 : Math.min(SEAL.max * scale * scale, ((SEAL.width * scale) / CAVITY_WALL.stiff) * Math.max(this.aero.po, 0));
-      this.parted += (want - this.parted) * (1 - Math.exp(-dt / SEAL.tau));
+      const want = this.trillKey ? 0 : Math.min(SEAL.max * scale * scale, ((this.seal.width * scale) / CAVITY_WALL.stiff) * Math.max(this.aero.po, 0));
+      this.parted += (want - this.parted) * (1 - Math.exp(-dt / this.seal.tau));
       if (oral >= want) { this.sealed = false; this.parted = 0; }
       else oral = Math.max(oral, this.parted);
     }
@@ -949,12 +973,11 @@ export class VoiceEngine {
 
     // jet and turbulence sources
     const share1 = oral > 0 ? (both / oral) ** 2 : 1;
-    // (a seal parted by the pressure is a slit as wide as the seal, a few
-    // hundredths of a centimetre high: taken for a round hole of its area, its
-    // jet would be turbulent at once and reach the teeth at full speed, and a
-    // /t/ would be let go with the hiss of an /s/)
+    // (the lips and the body of the tongue, parted by the pressure, leave a
+    // slit as wide as their seal and a few hundredths of a centimetre high;
+    // the tip leaves the channel it was opening anyway)
     let jetP = ps.perimeter, jetW = ps.width;
-    if (oral > ps.area) { jetW = Math.max(ps.width, SEAL.width * scale); jetP = 2 * (jetW + oral / jetW); }
+    if (oral > ps.area && this.seal.flat) { jetW = Math.max(ps.width, this.seal.width * scale); jetP = 2 * (jetW + oral / jetW); }
     this.aero.jet(oral, ps.toTeeth, ps.slitH, this.jet, jetP, jetW, share1);
     // the jets lose their kinetic pressure where they expand: flow resistances
     kineticResistances(this.af.areas, this.aero.uMouth, this.wg.resTarget, this.constrictionIndex, oral);

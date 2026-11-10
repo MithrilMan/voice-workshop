@@ -1088,7 +1088,25 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // lag, longest behind the slow release of the tongue body (Italian: short
   // lag, under about 30 ms, /k/ the longest)
   const held = (u: Unit) => !!u.p.glottalized || !!u.ph.unreleased;
-  const shortLag = segs.filter((s) => s.part === 'release' && !s.ph.voiced && units[s.unit].ph.manner === 'stop' && !held(units[s.unit])
+  // The edges of the utterance. The lungs wait for the first sound: pushing
+  // from the start, while the mouth was still on its way from rest, they gave
+  // the word a short vowel of its own before it. Before a first sound without
+  // voice the folds are already apart. After a last sound without voice the
+  // folds stay apart and the lungs stop with it: brought together again, as
+  // before a vowel, they voiced the air that was left, another short vowel
+  // after the consonant
+  const sounding = segs.filter((s) => s.ph.manner !== 'silence');
+  const firstSeg = sounding[0], lastSeg = sounding[sounding.length - 1];
+  const mute = (s?: Seg) => !!s && !s.ph.voiced && s.ph.manner !== 'glottalStop' && !held(units[s.unit]);
+  const startsMute = mute(firstSeg), endsMute = mute(lastSeg);
+  // (they push once the mouth of a first stop without voice is shut, and a little before any other first
+  // sound: the pressure takes some 30 ms to rise)
+  const lungsFrom = !firstSeg ? 0 : startsMute && firstSeg.ph.manner === 'stop' ? (shutAt.get(firstSeg) ?? firstSeg.t0) - 0.005 : firstSeg.t0 - 0.03;
+  // (a last stop is let go on the air it holds: the lungs stop as it opens)
+  const lungsTo = !endsMute ? Infinity : lastSeg.part === 'release' ? lastSeg.t0 : lastSeg.t1;
+  /** a stop let go into silence: the end of the utterance, or a pause */
+  const intoSilence = (s: Seg) => { const next = segs[segs.indexOf(s) + 1]; return !next || next.ph.manner === 'silence'; };
+  const shortLag = segs.filter((s) => s.part === 'release' && !s.ph.voiced && units[s.unit].ph.manner === 'stop' && !held(units[s.unit]) && !intoSilence(s)
     && !units[s.unit].ph.airstream && !segs.some((a) => a.unit === s.unit && a.part === 'aspiration') && !devoiced.some((d) => d.unit === s.unit))
     .map((s) => ({ t0: Math.max(s.t0 - STIFF_LEAD, (segs.find((a) => a.unit === s.unit)?.t0 ?? s.t0) + 0.01), t1: s.t0 + (SHORT_LAG[placeOf(s.ph) ?? 'alveolar'] ?? 0.012) }));
   // a breathy-voiced stop (bʱ) is released into murmur: the folds vibrate
@@ -1124,7 +1142,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     // before the first sound the folds are already together, ready to vibrate
     // (no breathy [h] onset); after the last one they part a little while the
     // lungs stop pushing, so the voice ends without a hiss of escaping air
-    if (!sg) abd = time < 0.06 ? 0.08 : 0.4;
+    if (!sg) abd = time < (firstSeg?.t0 ?? 0.06) ? (startsMute ? (firstSeg.ph.manner === 'stop' ? 0.5 : Math.max(0.4, firstSeg.ph.abduction)) : 0.08) : endsMute ? 0.6 : 0.4;
     else {
       const m = sg.ph.manner;
       const unit = units[sg.unit];
@@ -1138,7 +1156,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       } else if (m === 'stop' && !sg.ph.voiced) {
         // the stop part of an affricate keeps the glottis open into its hiss
         const aspirated = (unit.ph.manner === 'affricate' && !unit.ph.voiced) || segs.some((s) => s.unit === sg.unit && s.part === 'aspiration') || devoiced.some((d) => d.unit === sg.unit);
-        if (sg.part === 'release') abd = aspirated ? 0.55 : 0.04;
+        if (sg.part === 'release') abd = aspirated ? 0.55 : intoSilence(sg) ? 0.5 : 0.04;
         else {
           abd = 0.5;
           // the folds part as the mouth shuts, not before
@@ -1171,7 +1189,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     if (phon === 'creaky') { quality = -0.6; creak = 0.7; }
     for (const w of murmur) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) { abd = Math.max(abd, 0.28); quality = 1.2; }
     // lungs: on during the utterance, lower during pauses, off at the end
-    let ps = time < duration ? o.ps : 0;
+    let ps = time < duration && time >= lungsFrom && time < lungsTo ? o.ps : 0;
     let rd = quality;
     if (time < duration) {
       if (nat.voiceQuality) {

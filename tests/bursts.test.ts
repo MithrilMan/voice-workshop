@@ -20,8 +20,9 @@ import { note } from './helpers';
 const fs = 48000;
 const GREEK: Record<string, [number, number]> = { pa: [-11.2, 16], pi: [-11.0, 14], ta: [-10.7, 12], ti: [-13.0, 23], ka: [-5.9, 30], ki: [-11.1, 63] };
 
-function burst(text: string, ipa: string): { rel: number; vot: number } {
+function burst(text: string, ipa: string, pop = true): { rel: number; vot: number } {
   const u = utterance(builtinVoice('man')!.design, textToPhones(text, 'it'), 'it');
+  u.params.noise.burstOn = pop;
   const t = u.score.phones.filter((q) => q.ipa === ipa)[0];
   const e = new VoiceEngine(fs, u.params);
   e.snapArticulators(); e.snapPressure(); e.playScore(u.score);
@@ -51,6 +52,16 @@ function burst(text: string, ipa: string): { rel: number; vot: number } {
 }
 
 describe('bursts of the voiceless stops', () => {
+  it('the burst of the tip of the tongue is a hiss, not a pop', () => {
+    // the same bursts without the pop of the air let out
+    const p = burst('la pata', 'p').rel - burst('la pata', 'p', false).rel;
+    const t = burst('la tata', 't').rel - burst('la tata', 't', false).rel;
+    note('what a burst is made of', `without the pop of the air let out the burst of /p/ loses ${p.toFixed(1)} dB, that of /t/ ${t.toFixed(1)} dB`);
+    // (a pop with no hiss in it is a click of the tongue)
+    expect(Math.abs(t)).toBeLessThan(3);
+    expect(Math.abs(p)).toBeLessThan(6);
+  });
+
   it('as loud against their vowel as measured on speakers, the velar before /a/ apart', () => {
     const words: [string, string, string][] = [['la pata', 'p', 'pa'], ['la pita', 'p', 'pi'], ['la tata', 't', 'ta'], ['la tita', 't', 'ti'], ['la cata', 'k', 'ka'], ['la chita', 'k', 'ki']];
     const got: Record<string, { rel: number; vot: number }> = {};
@@ -58,8 +69,8 @@ describe('bursts of the voiceless stops', () => {
     note('bursts against the vowel', words.map(([, , key]) => `/${key}/ ${got[key].rel.toFixed(1)} dB (speakers ${GREEK[key][0].toFixed(1)}), voice after ${(got[key].vot * 1000).toFixed(0)} ms (${GREEK[key][1]})`).join('; '));
     // no burst is louder than its vowel
     for (const key of Object.keys(got)) expect(got[key].rel).toBeLessThan(-3);
-    // the lips and the tip of the tongue within 7 dB of the speakers
-    for (const key of ['pa', 'pi', 'ta', 'ti']) expect(Math.abs(got[key].rel - GREEK[key][0])).toBeLessThan(7);
+    // the lips and the tip of the tongue within 5 dB of the speakers
+    for (const key of ['pa', 'pi', 'ta', 'ti']) expect(Math.abs(got[key].rel - GREEK[key][0])).toBeLessThan(5);
     // the velar before /i/ too; before /a/ the model's burst is weak (a stated limit)
     expect(Math.abs(got.ki.rel - GREEK.ki[0])).toBeLessThan(7);
     expect(got.ka.rel).toBeGreaterThan(-22);

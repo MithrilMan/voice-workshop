@@ -4,7 +4,7 @@ import { buildScore } from '../src/dsp/speech/sequencer';
 import { VoiceEngine } from '../src/dsp/engine/engine';
 import { defaultParams } from '../src/dsp/engine/params';
 import { phonemeFor, passageIn, notesForIpa } from '../src/dsp/speech/derive';
-import { loadEnglishLexicon, note, spectralPeak } from './helpers';
+import { bandPower, loadEnglishLexicon, note } from './helpers';
 
 const fs = 48000;
 type Tel = { second: { area: number }; wallAmp: number; wallAmp2: number };
@@ -43,11 +43,13 @@ describe('ɧ: two hisses at once', () => {
     const mid = (r: ReturnType<typeof run>) => { const p = r.sc.phones[1]; return { t0: p.t0 + 0.25 * (p.t1 - p.t0), t1: p.t0 + 0.75 * (p.t1 - p.t0) }; };
     const m = mid(sj), inMid = sj.frames.filter((f) => f.t >= m.t0 && f.t < m.t1), on = inMid.filter((f) => f.on);
     const ratio = on.reduce((s, f) => s + f.ratio, 0) / Math.max(1, on.length);
-    const peak = (r: ReturnType<typeof run>) => { const w = mid(r); return spectralPeak(r.out.subarray(Math.round(w.t0 * fs), Math.round(w.t1 * fs)), fs, 500, 12000, 512); };
-    note('ɧ sound', `a second hiss in ${Math.round((100 * on.length) / inMid.length)} % of the middle of [ɧ], ${ratio.toFixed(1)} dB against the first; spectral peak ${(peak(sj) / 1000).toFixed(1)} kHz against ${(peak(sh) / 1000).toFixed(1)} for [ʃ]`);
+    // how much of the hiss lies low, where the back passage and the cavity between the two put it: 0.8-2 kHz against 2.5-6 kHz
+    // (ɧ has two humps of much the same height, near 1.3 and 4.8 kHz: which of them is the peak turns on the noise of the moment)
+    const low = (r: ReturnType<typeof run>) => { const w = mid(r), x = r.out.subarray(Math.round(w.t0 * fs), Math.round(w.t1 * fs)); return 10 * Math.log10(bandPower(x, fs, 800, 2000, 512) / bandPower(x, fs, 2500, 6000, 512)); };
+    note('ɧ sound', `a second hiss in ${Math.round((100 * on.length) / inMid.length)} % of the middle of [ɧ], ${ratio.toFixed(1)} dB against the first; 0.8-2 kHz against 2.5-6 kHz ${low(sj).toFixed(1)} dB, ${low(sh).toFixed(1)} dB for [ʃ]`);
     expect(on.length / inMid.length).toBeGreaterThan(0.4);
     expect(ratio).toBeGreaterThan(-6);
-    expect(peak(sj)).toBeLessThan(peak(sh) - 1000);
+    expect(low(sj)).toBeGreaterThan(low(sh) + 6);
   });
 
   it('ordinary speech has no second hiss', () => {

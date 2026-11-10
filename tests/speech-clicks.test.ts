@@ -126,6 +126,33 @@ describe('running speech without ticks', () => {
     }
   });
 
+  it('a word that begins and ends without voice has no vowel of its own before or after', () => {
+    // as the studio plays it: the lungs start from rest
+    loadEnglishLexicon();
+    const rows: string[] = [];
+    for (const text of ['tonight', 'this', 'stop']) {
+      const u = utterance(builtinVoice('man')!.design, textToPhones(text, 'en'), 'en');
+      const e = new VoiceEngine(fs, u.params);
+      e.snapArticulators(); e.playScore(u.score);
+      const n = Math.round((u.score.duration + 0.3) * fs), out = new Float32Array(n);
+      const voice: number[] = [];
+      for (let i = 0; i + MS <= n; i += MS) { e.process(out.subarray(i, i + MS), MS); voice.push(e.telemetry().voicingAmp); }
+      const ph = u.score.phones, vowel = ph.find((p) => 'əɪɑaɪ'.includes(p.ipa[0]))!;
+      const peak = (t0: number, t1: number) => { let m = 0; for (let i = Math.max(0, Math.round(t0 * fs)); i < Math.min(n, t1 * fs); i++) m = Math.max(m, Math.abs(out[i])); return m; };
+      const loud = peak(vowel.t0, ph[ph.length - 1].t0);
+      // before the first sound: nothing; after the last: its breath dying away, and no pulse of the folds
+      const before = peak(0, ph[0].t0 - 0.005) / loud;
+      const last = ph[ph.length - 1];
+      const after = Math.max(...voice.slice(Math.round(last.t1 * 1000), Math.round(last.t1 * 1000) + 250));
+      const tail = peak(last.t1 + 0.06, last.t1 + 0.3) / loud;
+      rows.push(`"${text}" ${(20 * Math.log10(before + 1e-7)).toFixed(0)} dB before, the folds at ${after.toFixed(2)} of their swing after, ${(20 * Math.log10(tail + 1e-7)).toFixed(0)} dB 60 ms on`);
+      expect(before).toBeLessThan(0.03);
+      expect(after).toBeLessThan(0.2);
+      expect(tail).toBeLessThan(0.1);
+    }
+    note('edges of a word without voice', `against the loudest of the word: ${rows.join('; ')}`);
+  });
+
   it('a sibilant hisses against the teeth through its length, and louder than the release of a stop', () => {
     const t = take('la luna è piena stanotte.', 'it');
     const s = t.phones.find((p) => p.ipa === 's')!;

@@ -720,12 +720,21 @@ Flanagan & Cherry 1969; Shadle 1985):
   in the tube and do not count: a closure made on a voiced sound lets out no
   air. A seal with pressure behind it is parted by the air before the
   articulator has moved away: a centimetre of seal with the stiffness of the
-  walls opens 0.12 cm² under 8 cmH2O within a millisecond, as a slit a few
-  hundredths of a centimetre high (taken for a round hole, its jet would be
-  turbulent at once, and a /t/ would be let go with the hiss of an /s/). The
-  release is then a quick rise, a pause while the pressure falls, and the
-  rise the articulator makes, and the burst is made in the pause (Hanson &
-  Stevens 2000). The source stays at the place of its closure while it
+  walls opens 0.12 cm² under 8 cmH2O. The release is then a quick rise, a
+  pause while the pressure falls, and the rise the articulator makes, and
+  the burst is made in the pause (Hanson & Stevens 2000). What the burst is
+  made of depends on the seal, and the three seals are set so that the
+  bursts come out as loud against their vowels as they were measured
+  (Nicolaidis et al. 2019). The lips are free and wide: 2 cm of them part
+  at once into a flat slit. The tip of the tongue is held against the
+  ridge: its seal takes a millisecond and a half to part, so it pops
+  little, and the air leaves through a channel no wider than the one the
+  tip itself is opening, a jet that is turbulent from the start and strikes
+  the teeth. The burst of a /t/ is then a short hiss, about as loud for its
+  few milliseconds as an /s/, which is what the measures say (-10.7 dB
+  against /a/ for the burst, -10 dB for /s/). Parted at once into a flat
+  slit, as it was, the tip gave a bare pop with hardly any hiss in it: a
+  click of the tongue. The body of the tongue parts at once over 1 cm. The source stays at the place of its closure while it
   lasts, also when another place becomes the narrowest, and takes 4 ms to
   move to the next closure that opens.
 - **A second passage**: where the tongue narrows the tract twice, both
@@ -1086,7 +1095,16 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   the folds part as the mouth shuts, not before. A fricative is as narrow as
   it is meant when its sound is due, by the same means: coming from an open
   vowel its channel was still closing through most of it, and a sibilant
-  twice as wide as it is held has no hiss to speak of. A tap is a ballistic
+  twice as wide as it is held has no hiss to speak of.
+  An utterance has edges. The lungs wait for the first sound (they start
+  some 30 ms before it, the time the pressure takes to rise; before a first
+  stop without voice, once the mouth is shut): pushing from the start,
+  while the mouth was still on its way from rest, they gave every word a
+  short vowel of its own before it. Before a first sound without voice the
+  folds are already apart. After a last sound without voice they stay
+  apart, and the lungs stop with it (a last stop is let go on the air it
+  holds): brought together again as before a vowel, the folds voiced the
+  air that was left, and "tonight" ended in another short vowel. A tap is a ballistic
   raised-cosine flick of the tongue tip added on top of the smoothed posture
   (Recasens 1991); its height is computed from the tip's smoothed position,
   so it really closes against the ridge. A trill is aeroelastic (McGowan
@@ -1241,10 +1259,11 @@ in brackets are the adult male targets described under Speech.
 | Nasal cycle | /m/ with one passage congested (cycle 0.6): a new resonance at 2170 Hz with its antiresonance; first resonance 280 -> 270 Hz |
 | Pinched nostril | /m/ with the left nostril pinched: first resonance 310 -> 230 Hz, new antiresonance at 550 Hz |
 | Asymmetric nose, waveguide vs reference | congested left side, right nostril 40 % open, lossless: worst difference 0.34 % over 6 resonances below 3 kHz |
-| No clicks in running speech | "la luna e le stelle", with the piriform junction moving twice: loudest transient inside a vowel or sonorant, above 6 kHz, against the 40 ms around it +11 dB (+41 when a move zeroed the branch). Millisecond by millisecond, "la luna è piena stanotte." has 9 ms that stand 15 dB out of the 20 ms around them and "where did you put the keys?" 8: all at the start of the voice or at the edges of the stops, none inside a vowel, none sharp inside a closure (before: +41 dB inside the closure of a /d/, +28 dB between /u/ and /n/, +21 dB inside the /ɪ/ of "did") |
+| No clicks in running speech | "la luna e le stelle", with the piriform junction moving twice: loudest transient inside a vowel or sonorant, above 6 kHz, against the 40 ms around it +11 dB (+41 when a move zeroed the branch). Millisecond by millisecond, "la luna è piena stanotte." has 6 ms that stand 15 dB out of the 20 ms around them and "where did you put the keys?" 4: all at the edges of the stops, none inside a vowel, none sharp inside a closure (before: +41 dB inside the closure of a /d/, +28 dB between /u/ and /n/, +21 dB inside the /ɪ/ of "did") |
 | Stops on time | the mouth shut against the plan, and for how long: "la luna è piena stanotte." p +16 ms (56 of 89 ms), t -3 (63 of 79), t +16 (127 of 157); "where did you put the keys?" d +4 (50 of 68), d +12 (43 of 65), p -6 (80 of 93), k +19 (47 of 140, the rest its aspiration); no breath before the closure of a voiceless stop (the tongue after an open vowel shut some 45 ms late before) |
-| Sibilant in a sentence | the /s/ of "stanotte": narrower than 0.2 cm² 5 ms into its sound, the teeth sounding through 76 % of it; the releases of the two /t/ 12.5 and 8.2 dB below its hiss |
-| Bursts | RMS of 10 ms at the burst less 30 ms at the start of the vowel, as Nicolaidis et al. (2019) measured Greek /p t k/ (theirs in brackets): "la pata" -17.3 dB (-11.2), "la pita" -13.4 (-11.0), "la tata" -13.6 (-10.7), "la tita" -18.5 (-13.0), "la cata" -18.9 (-5.9), "la chita" -16.3 (-11.1); the voice starts after 10, 4, 19, 16, 27 and 25 ms (16, 14, 12, 23, 30, 63) |
+| Edges of a word | as the studio plays it, against the loudest of the word: "tonight" -49 dB before its first sound, the folds at 0.12 of their swing after its last, -38 dB 60 ms on; "this" -55 dB, 0.03, -24 dB; "stop" -44 dB, 0.14, -42 dB (before: 45 ms of full voice ahead of the first /t/ of "tonight", and a breathy vowel of 100 ms and more after its last) |
+| Sibilant in a sentence | the /s/ of "stanotte": narrower than 0.2 cm² 5 ms into its sound, the teeth sounding through 76 % of it; the releases of the two /t/ 0.9 and 4.6 dB below its hiss |
+| Bursts | RMS of 10 ms at the burst less 30 ms at the start of the vowel, as Nicolaidis et al. (2019) measured Greek /p t k/ (theirs in brackets): "la pata" -15.2 dB (-11.2), "la pita" -11.2 (-11.0), "la tata" -13.7 (-10.7), "la tita" -13.1 (-13.0), "la cata" -18.9 (-5.9), "la chita" -16.6 (-11.1); the voice starts after 10, 5, 19, 16, 27 and 25 ms (16, 14, 12, 23, 30, 63); without the pop of the air let out the burst of /p/ loses 1.6 dB, that of /t/ nothing: it is a hiss |
 | Motion of the tube | a section follows the measures of its shape with a speed that changes, from one sample to the next, 450 times less than if it ran to each measure and stopped there; it lands on a closure with no speed left; a steady flow through a narrowing that comes and goes in 20 ms: the sharpest sample of the flow at the lips 71 dB below the swing the gesture makes |
 | Pinched nose | held /m/: nasal airflow 231 -> 0 cm³/s, mouth pressure 8.0 cmH2O (the lung pressure), the hum silent |
 | Italian G2P | sasso, mamma, voce, rosa (northern /z/), gnocchi, figlio (long ʎ), scena, chiesa, città; IPA parsing |
@@ -1374,8 +1393,8 @@ in brackets are the adult male targets described under Speech.
   speech.
 - The burst of a velar stop before an open vowel is weak: 19 dB below its
   vowel in "la cata", where Greek speakers have it 6 dB below (Nicolaidis
-  et al. 2019; the bursts of /p/ and /t/, and of /k/ before /i/, are within
-  7 dB of theirs), and the voice starts as soon after /k/ before /i/ as
+  et al. 2019; the bursts of /p/ and /t/ are within 4 dB of theirs, that of
+  /k/ before /i/ within 6), and the voice starts as soon after /k/ before /i/ as
   before /a/ (25 ms, theirs 63). The bursts of the voiced stops, and the
   frication that follows a release into a close vowel (the /d/ of "did",
   the /k/ of "keys"), are not checked against measurements.
