@@ -1,4 +1,5 @@
 import { RHO, MU } from '../constants';
+import { rootThroughZero } from '../aero/aero';
 
 /**
  * Self-oscillating two-mass model of the vocal folds, in the asymmetric
@@ -119,7 +120,7 @@ export class TwoMassGlottis {
     // while it lagged the folds would be driven by a pressure that is not
     // there.
     const zz = z + zSub;
-    const still = bypass > 1e-6 ? (ps < po ? -1 : 1) * bypass * Math.sqrt((2 * Math.abs(ps - po)) / RHO) : 0;
+    const still = bypass > 1e-6 ? bypass * Math.sqrt(2 / RHO) * rootThroughZero(ps - po, bypass) : 0;
     this.still = still;
     const ref = uMean + still;
     const drive = ps + 2 * pSub - po - 2 * pMinus + zz * ref;

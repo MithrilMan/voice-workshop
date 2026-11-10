@@ -110,7 +110,8 @@ export class Aero {
   reset(): void { this.po = 0; this.ug = 0; this.uMouth = 0; this.uNose = 0; this.dUMouth = 0; this.vWall = 0; this.pw = 0; this.uWall = 0; }
 
   step(dt: number, x: AeroInputs): void {
-    const ps = Math.max(0, x.ps);
+    // (below zero the lungs pull: the air goes in through the glottis, and in through the mouth and the nose)
+    const ps = x.ps;
     if ((x.wallCompliance ?? 0) > 0) { this.stepWalls(dt, x, ps, x.wallCompliance!); return; }
     const ag2 = x.glottalArea * x.glottalArea;
     const aout = x.oralArea + x.nasalArea;
@@ -118,7 +119,7 @@ export class Aero {
     // steady-state intraoral pressure where glottal inflow equals outflow
     const poStar = ag2 + ao2 > 1e-12 ? (ps * ag2) / (ag2 + ao2) : 0;
     const k = Math.sqrt(2 / RHO);
-    const dpg = Math.max(ps - this.po, 0);
+    const dpg = Math.abs(ps - this.po);
     // linearised conductances dU/dP = A k / (2 sqrt(dP)) give the relaxation time
     const gg = (x.glottalArea * k) / (2 * Math.sqrt(Math.max(dpg, 1)));
     const go = (aout * k) / (2 * Math.sqrt(Math.max(Math.abs(this.po), 1)));
@@ -131,7 +132,7 @@ export class Aero {
     const a = 1 - e;
     const f = g > 1e-12 ? e / g : dt / x.compliance;
     this.po = poStar + (this.po - poStar) * a - q * f;
-    this.ug = x.glottalArea * k * Math.sqrt(Math.max(ps - this.po, 0));
+    this.ug = x.glottalArea * k * rootThroughZero(ps - this.po, x.glottalArea);
     // below the outside pressure the air flows in (the burst of an implosive or a click goes inward)
     const sq = Math.sign(this.po) * Math.sqrt(Math.abs(this.po));
     const um = x.oralArea * k * sq;
@@ -159,8 +160,8 @@ export class Aero {
     const z = lw + (x.wallResistance ?? 0) + dt / cw;
     const b = this.uWall * lw - pw0;
     const p0 = this.po;
-    const h = (p: number) => (ca * (p - p0)) / dt - ag * Math.sqrt(Math.max(ps - p, 0)) + ao * Math.sign(p) * Math.sqrt(Math.abs(p)) + q + (b + p) / z;
-    let lo = Math.min(p0, pw0, 0) - 1, hi = Math.max(p0, pw0, ps) + 1;
+    const h = (p: number) => (ca * (p - p0)) / dt - ag * rootThroughZero(ps - p, x.glottalArea) + ao * Math.sign(p) * Math.sqrt(Math.abs(p)) + q + (b + p) / z;
+    let lo = Math.min(p0, pw0, ps, 0) - 1, hi = Math.max(p0, pw0, ps, 0) + 1;
     let w = hi - lo;
     for (let i = 0; i < 60 && h(lo) > 0; i++) { lo -= w; w *= 2; }
     for (let i = 0; i < 60 && h(hi) < 0; i++) { hi += w; w *= 2; }
@@ -173,7 +174,7 @@ export class Aero {
     this.uWall = (b + p) / z;
     this.vWall += this.uWall * dt;
     this.pw = this.vWall / cw;
-    this.ug = ag * Math.sqrt(Math.max(ps - p, 0));
+    this.ug = ag * rootThroughZero(ps - p, x.glottalArea);
     const sq = Math.sign(p) * Math.sqrt(Math.abs(p));
     const um = x.oralArea * k * sq;
     this.dUMouth = (um - this.uMouth) / dt;
@@ -260,6 +261,33 @@ export function kineticResistances(areas: ArrayLike<number>, flow: number, out: 
   // kinetic pressure (exit loss), whether or not the lips are the narrowest
   out[n - 1] = r(Math.max(at(n - 1), floor, 1e-4), 1);
   return out;
+}
+
+/**
+ * Resistance of the airways from the lungs to the mouth while breathing
+ * with the glottis open, dyn s/cm^5: 1.5 cmH2O per l/s, between 0.6 and 2.4
+ * in healthy adults (DuBois, Botelho & Comroe 1956).
+ */
+export const AIRWAY_RES = 1.47;
+
+/**
+ * The signed square root of the pressure across a glottis of the given area,
+ * as the speed of its jet takes it (speed = sqrt(2/rho) times this).
+ *
+ * A jet's speed goes with the root of the pressure behind it, which turns
+ * round at zero with an infinite slope: where the air of a breath stops
+ * going out and starts coming in the flow would step, and the step is heard
+ * as a pop. But a wide glottis under a low pressure is not what holds the
+ * air back: the airways below it are, and through them the flow goes with
+ * the pressure itself, dp / R. The two flows are equal at dp = 2 R^2 A^2 /
+ * rho; below it the flow is the airways', above it the jet's. For the
+ * glottis of a voice (0.05 cm^2) that is 0.01 cmH2O, and nothing changes;
+ * wide open for a breath (0.56 cm^2) it is 1.2 cmH2O.
+ */
+export function rootThroughZero(dp: number, area: number): number {
+  const creep = Math.max(1, (2 * AIRWAY_RES * AIRWAY_RES * area * area) / RHO);
+  const a = Math.abs(dp);
+  return a >= creep ? Math.sign(dp) * Math.sqrt(a) : dp / Math.sqrt(creep);
 }
 
 export function newJetInfo(): JetInfo {

@@ -6,7 +6,7 @@ import { SubglottalTract } from '../tract/subglottal';
 import { computeGeometry, lowerPharynxLength, TractGeometry, EPILARYNX_PASSAGE } from '../tract/geometry';
 import { AreaFunction, N_SECTIONS, sectionsFromGeometry, resampleTube } from '../tract/areaFunction';
 import { buildNasal, NasalTract, noseOf, nostrilArea, portArea } from '../tract/nasal';
-import { Aero, newJetInfo, JetInfo, RE_CRIT, kineticResistances } from '../aero/aero';
+import { Aero, newJetInfo, JetInfo, RE_CRIT, kineticResistances, rootThroughZero } from '../aero/aero';
 import { TurbulenceSource, ShapedNoise } from '../noise/noise';
 import { ButterworthLowpass } from '../util/biquad';
 import { Rng } from '../util/rng';
@@ -998,7 +998,7 @@ export class VoiceEngine {
       this.clickNoise.configure(this.fsT, this.clickJet.fc);
     } else this.clickJetAmp = 0;
     // glottal jet: width of the glottis ~0.2-0.3 cm, St ~0.15
-    const vgl = Math.sqrt((2 * Math.max(this.psCur - this.aero.po, 0)) / RHO);
+    const vgl = Math.sqrt((2 * Math.abs(this.psCur - this.aero.po)) / RHO);
     this.aspNoise.configure(this.fsT, (0.15 * vgl) / (0.25 * scale));
     this.obsNoise.configure(this.fsT, this.jet.fcObstacle);
     this.userAmp = n.user.on ? NOISE_K.user * 1000 * db(n.user.level) : 0;
@@ -1043,10 +1043,11 @@ export class VoiceEngine {
     this.psNow += (this.rPs.at(ph) - this.psNow) * this.mouthCoef;
     const po = this.poNow;
     const ps = this.psNow;
-    const dp = Math.max(ps - po, 0);
-    const vg = Math.sqrt((2 * dp) / RHO);
     const z0 = wg.z0;
     const steadyArea = gapOf(p.source) * s2 * gate + 0.55 * s2 * abduction;
+    // (the air goes back in when the pressure below is the lower one: a breath taken in a pause)
+    const dp = Math.abs(ps - po);
+    const vg = Math.sqrt(2 / RHO) * rootThroughZero(ps - po, steadyArea);
     // the airways below the glottis: what they hold under the folds, and what they load the flow with
     const sub = this.sub, subOn = p.subglottal && !p.bypassTract;
     wg.subZ = subOn ? sub.z : 0;
@@ -1067,7 +1068,7 @@ export class VoiceEngine {
       this.pulseMean += (amp * this.lf.meanFlow - this.pulseMean) * this.pulseMeanCoef;
       const uAc = (avib - this.pulseMean) * vg;
       // glottal impedance (dynamic Bernoulli resistance) for source-tract interaction
-      const zg = u > 1e-3 ? (2 * dp) / u : 1e12;
+      const zg = Math.abs(u) > 1e-3 ? (2 * dp) / Math.abs(u) : 1e12;
       const rgPhys = (zg - z0) / (zg + z0);
       const rg = 1 - p.source.interaction * (1 - Math.max(-0.4, rgPhys));
       this.uMean = this.uMeanCoef * this.uMean + (1 - this.uMeanCoef) * u;
@@ -1129,13 +1130,13 @@ export class VoiceEngine {
     const n = p.noise;
     let asp = 0;
     if (n.aspirationOn && ag > 1e-5) {
-      const re = u / (FOLD_LENGTH * p.anatomy.scale * (p.anatomy.foldLength ?? 1) * NU);
+      const re = Math.abs(u) / (FOLD_LENGTH * p.anatomy.scale * (p.anatomy.foldLength ?? 1) * NU);
       this.glottalRe = re;
       // turbulence grows once the glottal jet is clearly above the critical
       // Reynolds number: modal pulses (peak Re ~2000) stay mostly laminar,
       // a leaky (breathy) or abducted glottis (Re 4000+) is fully turbulent
       const onset = 0.1 + 0.9 * smoothstep(RE_CRIT * 0.9, RE_CRIT * 2.2, re);
-      const inst = ((RHO * vg * vg * vg) / C_SOUND) * Math.sqrt(ag / 0.1) * onset;
+      const inst = ((RHO * Math.abs(vg * vg * vg)) / C_SOUND) * Math.sqrt(ag / 0.1) * onset;
       this.aspMean += (inst - this.aspMean) * 0.0005;
       const m = n.aspirationPulse;
       const amp = NOISE_K.aspiration * Math.pow(10, n.aspiration / 20) * ((1 - m) * this.aspMean + m * inst);
@@ -1158,7 +1159,7 @@ export class VoiceEngine {
     const cjet = clickJetAmp > 0 && this.clickJetJunction >= 0 ? clickJetAmp * this.clickNoise.next() : 0;
     let user = 0;
     if (this.userAmp > 0) {
-      const fl = p.source.peakArea > 0 ? Math.min(2, u / Math.max(p.source.peakArea * s2 * vg, 1)) : 0;
+      const fl = p.source.peakArea > 0 ? Math.min(2, Math.abs(u) / Math.max(p.source.peakArea * s2 * Math.abs(vg), 1)) : 0;
       const m = n.user.pulse;
       user = this.userAmp * ((1 - m) + m * 2 * fl) * this.userNoise.next(fs);
     }

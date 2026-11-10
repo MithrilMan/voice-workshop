@@ -355,6 +355,13 @@ const KLATT: Record<string, [number, number]> = {
   r: [80, 40], 'ɲ': [90, 60], 'ʎ': [90, 60],
 };
 
+/**
+ * The breath taken in a pause, s: how long after the last sound it begins,
+ * how long before the next one it is over, how long it takes to start and to
+ * stop, and the shortest one worth taking.
+ */
+const BREATH = { after: 0.03, before: 0.07, edge: 0.06, least: 0.12 };
+
 /** Inherent and minimum durations for Italian, ms (stops: closure plus release). */
 const ITALIAN: Record<string, [number, number]> = {
   a: [120, 55], e: [115, 50], 'ɛ': [118, 52], o: [115, 50], 'ɔ': [118, 52], i: [100, 45], u: [100, 45], 'ə': [80, 40],
@@ -1127,6 +1134,18 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // closure (Westbury 1983: voiced stops come with large increases of the volume above the glottis), or
   // the pressure would stop the voice within the closure
   const slack = segs.filter((s) => s.part === 'closure' && !units[s.unit].ph.airstream && units[s.unit].ph.voiced).map((s) => ({ t0: s.t0, t1: s.t1 }));
+  // A breath is taken at a full stop, where the lungs are refilled: they
+  // pull instead of holding back, the folds part wide and the air is heard
+  // going in. It begins once the last sound has died away and ends in time
+  // for the folds to come together again; a pause too short for it stays
+  // silent.
+  const inhaling = (s: Seg | null | undefined, time: number): number => {
+    if (!s || st.breath <= 0 || s.ph.manner !== 'silence' || units[s.unit].p.pause !== 'long') return 0;
+    const from = s.t0 + BREATH.after, to = s.t1 - BREATH.before;
+    if (to - from < BREATH.least) return 0;
+    const x = Math.min(1, (time - from) / BREATH.edge, (to - time) / BREATH.edge);
+    return x <= 0 ? 0 : 0.5 - 0.5 * Math.cos(Math.PI * x);
+  };
   const frames: ScoreFrame[] = [];
   const n = Math.ceil((duration + 0.25) / FRAME);
   let abdWas = 0;
@@ -1146,7 +1165,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     else {
       const m = sg.ph.manner;
       const unit = units[sg.unit];
-      if (m === 'silence') abd = 0.6;
+      if (m === 'silence') abd = 0.6 + 0.4 * inhaling(sg, time + 0.01);
       else if (m === 'glottalStop') { abd = 0; gate = 0; }
       else if (m === 'stop' && held(unit)) {
         // [ʔt̚]: the folds close with the tongue, so no pressure builds up
@@ -1214,6 +1233,9 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       }
       // a pause is quiet: the lungs hold back instead of blowing through the open glottis
       if (sg?.ph.manner === 'silence' && sg.t1 - sg.t0 > 0.1 && time > sg.t0 + 0.04 && time < sg.t1 - 0.06) ps *= 0.08;
+      // ... or pull, where a breath is taken
+      const pull = inhaling(segAt(time), time);
+      if (pull > 0) ps = ps * (1 - pull) - st.breath * pull;
     }
     const tip = flickAt('tipY', time), lips = flickAt('lipOpen', time), dorsum = flickAt('tongueX', time);
     const tr = trills.find((w) => time >= w.t0 && time < w.t1);

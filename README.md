@@ -374,7 +374,18 @@ This gives intraoral pressure build-up in closures, the release of stops, and
 the aerodynamic limit of voicing (no transglottal pressure, no vibration).
 The pressure may fall below the outside one: the mouth and nose flows then
 go inward, and the jet noise follows the speed of the air whichever way it
-moves. The volume changes with the larynx, a piston under the cavity: raised,
+moves. The lungs may pull as well as push: below zero their pressure draws
+the air in through the glottis, which is how a breath is taken. A jet's
+speed goes with the root of the pressure behind it, which turns round at
+zero with an infinite slope: where the air stops going out and starts
+coming in the flow would step, and the step is heard as a pop. But a wide
+glottis under a low pressure is not what holds the air back: the airways
+below it are, 1.5 cmH2O per l/s in healthy adults breathing with the
+glottis open (DuBois, Botelho & Comroe 1956), and through them the flow
+goes with the pressure itself. The glottis takes the smaller of the two
+flows: the airways' below 1.2 cmH2O when it is wide open (0.56 cm²), below
+0.35 cmH2O at 0.3 cm², and below 0.01 cmH2O for the glottis of a voice,
+where nothing changes. The volume changes with the larynx, a piston under the cavity: raised,
 it shortens the pharynx below its bend and takes away the air of that
 stretch; lowered, it adds some. Only the larynx counts, because the tongue of
 the area function does not keep its volume (a stop aims past the contact),
@@ -1138,7 +1149,15 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   folds are already apart. After a last sound without voice they stay
   apart, and the lungs stop with it (a last stop is let go on the air it
   holds): brought together again as before a vowel, the folds voiced the
-  air that was left, and "tonight" ended in another short vowel. A tap is a ballistic
+  air that was left, and "tonight" ended in another short vowel.
+  At a full stop a breath is taken. The lungs, which hold back in any
+  pause, pull instead (3 cmH2O unless the voice says otherwise), the folds
+  part wide, and the air is heard going in: the hiss of the glottis with
+  the flow the other way, 26 dB below the loudest vowel of the sentence. It
+  starts once the last sound has died away and is over in time for the
+  folds to come together again, so in the 0.3 s of the usual pause it is a
+  quick one, about 140 ms of air going in at up to 1 l/s; a longer pause
+  gives a longer breath, a comma none. A tap is a ballistic
   raised-cosine flick of the tongue tip added on top of the smoothed posture
   (Recasens 1991); its height is computed from the tip's smoothed position,
   so it really closes against the ridge. A trill is aeroelastic (McGowan
@@ -1298,6 +1317,8 @@ in brackets are the adult male targets described under Speech.
 | No clicks in running speech | "la luna e le stelle", with the piriform junction moving twice: loudest transient inside a vowel or sonorant, above 6 kHz, against the 40 ms around it +11 dB (+41 when a move zeroed the branch). Millisecond by millisecond, "la luna è piena stanotte." has 6 ms that stand 15 dB out of the 20 ms around them and "where did you put the keys?" 4: all at the edges of the stops, none inside a vowel, none sharp inside a closure (before: +41 dB inside the closure of a /d/, +28 dB between /u/ and /n/, +21 dB inside the /ɪ/ of "did") |
 | Stops on time | the mouth shut against the plan, and for how long: "la luna è piena stanotte." p +16 ms (56 of 89 ms), t -3 (63 of 79), t +16 (127 of 157); "where did you put the keys?" d +4 (50 of 68), d +12 (43 of 65), p -6 (80 of 93), k +19 (47 of 140, the rest its aspiration); no breath before the closure of a voiceless stop (the tongue after an open vowel shut some 45 ms late before) |
 | Edges of a word | as the studio plays it, against the loudest of the word: "tonight" -49 dB before its first sound, the folds at 0.12 of their swing after its last, -38 dB 60 ms on; "this" -55 dB, 0.03, -24 dB; "stop" -44 dB, 0.14, -42 dB (before: 45 ms of full voice ahead of the first /t/ of "tonight", and a breathy vowel of 100 ms and more after its last) |
+| Breath at a full stop | "la luna è piena. Stanotte la vedo.", a pause of 300 ms: the lungs pull down to -2.7 cmH2O and 1064 cm³/s go in, for 136 ms; its hiss 26 dB below the loudest vowel of the sentence before (58 dB below with no breath taken); the loudest millisecond of the pause 8 dB above its median one; no air goes in at a comma |
+| Airways below a wide glottis | the flow is the airways' (1.5 cmH2O per l/s) below 1.21 cmH2O with the glottis wide open (0.56 cm²), 0.35 cmH2O at 0.3 cm², 0.010 cmH2O for the glottis of a voice (0.05 cm²) |
 | Sibilant in a sentence | the /s/ of "stanotte": narrower than 0.2 cm² 5 ms into its sound, the teeth sounding through 76 % of it; the releases of the two /t/ 0.9 and 4.6 dB below its hiss |
 | Bursts | RMS of 10 ms at the burst less 30 ms at the start of the vowel, as Nicolaidis et al. (2019) measured Greek /p t k/ (theirs in brackets): "la pata" -15.2 dB (-11.2), "la pita" -11.2 (-11.0), "la tata" -13.7 (-10.7), "la tita" -13.1 (-13.0), "la cata" -18.9 (-5.9), "la chita" -16.6 (-11.1); the voice starts after 10, 5, 19, 16, 27 and 25 ms (16, 14, 12, 23, 30, 63); without the pop of the air let out the burst of /p/ loses 1.6 dB, that of /t/ nothing: it is a hiss |
 | Motion of the tube | a section follows the measures of its shape with a speed that changes, from one sample to the next, 450 times less than if it ran to each measure and stopped there; it lands on a closure with no speed left; a steady flow through a narrowing that comes and goes in 20 ms: the sharpest sample of the flow at the lips 71 dB below the swing the gesture makes |
@@ -1486,10 +1507,20 @@ in brackets are the adult male targets described under Speech.
   are those of walls like the tract's, and are not checked against
   measurements. The breath of a whisper is made above the glottis and
   hardly reaches them (its spectrum changes by 1 dB).
-- What a louder voice changes is in the source alone (level, brightness):
-  the plan of an utterance does not open the jaw wider, raise the pitch or
-  lengthen the vowels with it. The pauses are silent: no breath is heard
-  being taken.
+- What a louder voice changes is in the source alone (level, brightness).
+  Speakers who raise their voice also raise its pitch, by about 5 Hz per
+  dB, and their first formant, by about 3.5 Hz per dB (Liénard & Di
+  Benedetto 1999). Here the pitch and the loudness of a voice are two
+  settings, and the mouth does not open wider with the loudness: that is
+  20 Hz of F1 over the 6 dB either side of a speaking voice, and in this
+  geometry more jaw lowers F1 in the open back vowels. The vowels are not
+  lengthened either.
+- A breath is taken only at a full stop, never before the first sentence,
+  and it is the same breath whatever is said next: it is not deeper before
+  a long sentence. The lungs are a pressure, not a volume that runs out.
+  The airways below the glottis hold the flow back only where it is slow
+  and the glottis wide; their resistance is not in the flow of a voice,
+  where it would take about 3 %.
 - English pronunciation is American only; unknown words use letter-to-sound
   rules, which miss many irregular spellings. Homographs (read, live) take one
   pronunciation. Italian open and close e/o are only known where an accent is
@@ -1554,6 +1585,8 @@ in brackets are the adult male targets described under Speech.
 - Browman, C. P. & Goldstein, L. (1992). Articulatory phonology: an overview. Phonetica 49.
 - Chao, Y. R. (1930). A system of tone letters. Le Maître Phonétique 45.
 - Cho, T. & Ladefoged, P. (1999). Variation and universals in VOT: evidence from 18 languages. J. Phonetics 27.
+- DuBois, A. B., Botelho, S. Y. & Comroe, J. H. (1956). A new method for measuring airway resistance in man using a body plethysmograph. J. Clin. Invest. 35.
+- Liénard, J.-S. & Di Benedetto, M.-G. (1999). Effect of vocal effort on spectral properties of vowels. JASA 106(1).
 - Ladefoged, P. & Maddieson, I. (1996). The Sounds of the World’s Languages. Blackwell.
 - Lindau, M. (1984). Phonetic differences in glottalic consonants. J. Phonetics 12.
 - McGowan, R. S. (1992). Tongue-tip trills and vocal-tract wall compliance. JASA 91.
