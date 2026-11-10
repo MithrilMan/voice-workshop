@@ -2,6 +2,7 @@ import { RHO, C_SOUND, CMH2O, NU, AREA_CLOSED } from '../constants';
 import { LFSource, rdToTiming, timingFromQuotients, LFTiming } from '../glottis/lf';
 import { TwoMassGlottis } from '../glottis/twoMass';
 import { Waveguide } from '../tract/waveguide';
+import { SubglottalTract } from '../tract/subglottal';
 import { computeGeometry, lowerPharynxLength, TractGeometry, EPILARYNX_PASSAGE } from '../tract/geometry';
 import { AreaFunction, N_SECTIONS, sectionsFromGeometry, resampleTube } from '../tract/areaFunction';
 import { buildNasal, NasalTract, noseOf, nostrilArea, portArea } from '../tract/nasal';
@@ -275,6 +276,8 @@ export class VoiceEngine {
   private wg: Waveguide;
   private lf = new LFSource();
   private tm = new TwoMassGlottis();
+  /** the trachea and the bronchi, joined to the tract through the glottis */
+  private sub = new SubglottalTract();
   private aero = new Aero();
   private jet = newJetInfo();
   private aspNoise = new TurbulenceSource(11);
@@ -753,6 +756,7 @@ export class VoiceEngine {
       this.pulseMeanCoef = 1 - Math.exp(-1 / (0.003 * this.fsT));
       this.slowCoef = 1 - Math.exp(-2 * Math.PI * 40 / this.fsT);
     }
+    this.sub.configure(this.fsT, p.anatomy.scale);
     const scale = p.anatomy.scale;
     const port = portArea(this.art.velum, p.anatomy.nasalLeak, scale);
     // the nose joins the pharynx where the velum begins. The model's velum has
@@ -1020,6 +1024,10 @@ export class VoiceEngine {
     const vg = Math.sqrt((2 * dp) / RHO);
     const z0 = wg.z0;
     const steadyArea = gapOf(p.source) * s2 * gate + 0.55 * s2 * abduction;
+    // the airways below the glottis: what they hold under the folds, and what they load the flow with
+    const sub = this.sub, subOn = p.subglottal && !p.bypassTract;
+    wg.subZ = subOn ? sub.z : 0;
+    wg.subUp = subOn ? sub.up : 0;
     let u = 0; // total glottal flow (cm^3/s)
     let ag = steadyArea;
     if (p.source.model === 'lf') {
@@ -1042,6 +1050,9 @@ export class VoiceEngine {
       this.uMean = this.uMeanCoef * this.uMean + (1 - this.uMeanCoef) * u;
       wg.rg = rg;
       wg.glottalInjection = z0 * (1 + rg) * 0.5 * uAc;
+      // (the same glottis as a resistance between the two tubes)
+      wg.glottalZ = rg < 1 - 1e-9 ? (z0 * (1 + rg)) / (1 - rg) : Infinity;
+      wg.glottalSource = uAc;
     } else {
       const tp = this.tm.params;
       const sp = p.source;
@@ -1055,13 +1066,15 @@ export class VoiceEngine {
       // masses go on moving unheard: their rest position is not widened, as
       // this model's flow equation is not stable with a wide glottis
       const grip = (1 - smoothstep(0.25, 0.6, abduction)) * (1 - this.stiff);
-      const um = this.tm.step(dt, p.voicing ? ps : 0, po, wg.pMinus, z0, this.uMean) * gate;
+      const um = this.tm.step(dt, p.voicing ? ps : 0, po, wg.pMinus, z0, this.uMean, wg.subUp, wg.subZ) * gate;
       const uf = um * grip;
       ag = Math.max(0, this.tm.amin) * grip + steadyArea;
       u = uf + steadyArea * vg;
       this.uMean = this.uMeanCoef * this.uMean + (1 - this.uMeanCoef) * um;
       wg.rg = 1;
       wg.glottalInjection = z0 * (um - this.uMean) * grip;
+      wg.glottalZ = Infinity;
+      wg.glottalSource = (um - this.uMean) * grip;
       if (this.tm.openingEvent && this.tm.lastPeriod > 0) {
         const f = 1 / this.tm.lastPeriod;
         this.measuredF0 = f;
@@ -1153,6 +1166,7 @@ export class VoiceEngine {
     }
 
     wg.step();
+    if (subOn) sub.step(wg.subDown);
     const uOut = wg.lipFlow + wg.nosFlow + p.wallRadiation * wg.wallFlow + atLips;
     let rad = (uOut - this.uPrev) * fs;
     this.uPrev = uOut;

@@ -126,6 +126,13 @@ export function TractPanel() {
         <Slider label={L({ it: 'Pareti che si sentono', en: 'Walls heard' })} value={p.wallRadiation} control="walls" min={0} max={1}
           hint={L({ it: 'Le pareti molli della gola e le guance cedono alla pressione e si muovono con la voce; attraverso la pelle anche il collo suona. Con la bocca chiusa su una «b» è l’unico suono che esce: il ronzio basso della sonorità. A 0 la chiusura è muta.', en: 'The soft walls of the throat and the cheeks yield to the pressure and move with the voice; through the skin the neck sounds too. With the mouth shut on a “b” it is the only sound that comes out: the low hum of voicing. At 0 the closure is silent.' })}
           onChange={(v) => voice.edit((x) => { x.wallRadiation = v; })} format={(v) => `${Math.round(100 * v)} %`} />
+        <div className="chips">
+          <button className={`chip${p.subglottal ? ' on' : ''}`}
+            title={L({ it: 'Sotto le corde vocali c’è un altro tubo: la trachea e i bronchi, lungo circa 20 cm. Risuona per conto suo, intorno a 520, 1320 e 2200 Hz. Con le corde chiuse non si sente; quando si aprono, in una voce soffiata o in un’aspirazione, i due tubi si parlano e lo spettro prende delle piccole valli a quelle frequenze.', en: 'Below the vocal folds there is another tube: the trachea and the bronchi, about 20 cm long. It resonates on its own, near 520, 1320 and 2200 Hz. With the folds shut it is not heard; when they open, in a breathy voice or an aspiration, the two tubes are joined and the spectrum takes small dips at those frequencies.' })}
+            onClick={() => voice.edit((x) => { x.subglottal = !x.subglottal; })}>
+            {L({ it: 'Trachea e bronchi', en: 'Trachea and bronchi' })}
+          </button>
+        </div>
         <Readout items={[
           [L({ it: 'lunghezza', en: 'length' }), `${af.length.toFixed(2)} cm`],
           ...fm.slice(0, 4).map((f, i) => [`F${i + 1}`, `${Math.round(f.f)} Hz (B ${Math.round(f.bw)})`] as [string, string]),

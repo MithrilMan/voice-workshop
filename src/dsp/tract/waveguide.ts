@@ -25,6 +25,12 @@ const FADE = 0.03;
  *   f_out += rho c u_s / (A1 + A2),  b_out += rho c u_s / (A1 + A2)
  * Glottal end (flow source with glottal reflection r_g):
  *   f_0 = r_g b_0 + Z_0 (1 + r_g) / 2 U_g
+ * With the airways below the glottis (their pressure under the folds
+ * p = 2 a - Z_t U for a flow U leaving them, see subglottal.ts) the glottis
+ * is a resistance Z_g between the two tubes, and one flow passes through it:
+ *   U = (Z_g U_g + 2 (a - b_0)) / (Z_g + Z_0 + Z_t)
+ *   f_0 = b_0 + Z_0 U,  and below  c = a - Z_t U
+ * which is the line above when there is nothing below (Z_t = 0, a = 0).
  * Lips and nostrils: first-order reflection filter from Flanagan's radiation
  * impedance (parallel R-L) by the bilinear transform; the radiated sound is the
  * time derivative of the lip plus nostril volume velocity.
@@ -282,6 +288,19 @@ export class Waveguide {
   /** glottal boundary: reflection and injected pressure wave (set before step) */
   rg = 0.99;
   glottalInjection = 0;
+  /**
+   * The airways below the glottis, when the engine runs them: what they
+   * answer at once to a flow (0: none, and the two values above are used),
+   * half the pressure they hold under the folds from the flows before, the
+   * resistance of the glottis (Infinity: shut to sound) and the flow of the
+   * source (set before step); the step leaves in `subDown` the first less
+   * the answer to the flow that passed.
+   */
+  subZ = 0;
+  subUp = 0;
+  glottalZ = Infinity;
+  glottalSource = 0;
+  subDown = 0;
   private dcB = 0;
   private dcCoef = 0.002;
 
@@ -528,7 +547,13 @@ export class Waveguide {
     // the glottis absorbs the quasi-static part of the returning wave (the
     // DC pressure is handled by the aerodynamic model, not by the waveguide)
     this.dcB += (b[0] - this.dcB) * this.dcCoef;
-    fn[0] = loss[0] * (this.rg * (b[0] - this.dcB) + this.glottalInjection);
+    if (this.subZ > 0) {
+      const z0 = (RHO * C_SOUND) / o.area[0], b0 = b[0] - this.dcB;
+      const zg = this.glottalZ;
+      const u = zg < 1e15 ? (zg * this.glottalSource + 2 * (this.subUp - b0)) / (zg + z0 + this.subZ) : this.glottalSource;
+      fn[0] = loss[0] * (b0 + z0 * u);
+      this.subDown = this.subUp - this.subZ * u;
+    } else fn[0] = loss[0] * (this.rg * (b[0] - this.dcB) + this.glottalInjection);
     this.glottalEndFlow = ((o.area[0] / (RHO * C_SOUND)) * (fn[0] - b[0]));
 
     // jet resistances follow their targets

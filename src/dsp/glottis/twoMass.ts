@@ -82,8 +82,10 @@ export class TwoMassGlottis {
    * @param z      characteristic impedance of the first tract section
    * @param uMean  running mean of the glottal flow (the DC part is handled by
    *               the aerodynamic model, only the AC part enters the waveguide)
+   * @param pSub   acoustic pressure wave arriving under the folds from the airways below (0: none)
+   * @param zSub   characteristic impedance of the airways under the folds (0: the lungs' pressure alone)
    */
-  step(dt: number, ps: number, po: number, pMinus: number, z: number, uMean: number): number {
+  step(dt: number, ps: number, po: number, pMinus: number, z: number, uMean: number, pSub = 0, zSub = 0): number {
     const p = this.params;
     const ql = p.q * (1 + p.asym / 2);
     const qr = p.q * (1 - p.asym / 2);
@@ -96,19 +98,23 @@ export class TwoMassGlottis {
     const amin = Math.min(a1, a2);
     this.amin = amin;
 
-    // Flow: ps - (po + 2 p- + z (u - uMean)) = rho u^2 / (2 amin^2) + R_visc u
-    const drive = ps - po - 2 * pMinus + z * uMean;
+    // Flow: ps - (po + 2 p- + z (u - uMean)) = rho u^2 / (2 amin^2) + R_visc u,
+    // and under the folds the pressure is ps + 2 pSub - zSub (u - uMean): the
+    // flow the folds let through draws on the tube below as it loads the one above
+    const zz = z + zSub;
+    const drive = ps + 2 * pSub - po - 2 * pMinus + zz * uMean;
     let u = 0;
     if (amin > 1e-6) {
       const a = RHO / (2 * amin * amin);
       const w = amin / l; // glottal width
       const rv = Math.min((12 * MU * p.d1) / (l * w * w * w), 1e6);
-      const b = z + rv;
+      const b = zz + rv;
       if (drive > 0) u = (2 * drive) / (b + Math.sqrt(b * b + 4 * a * drive));
       else u = -(2 * -drive) / (b + Math.sqrt(b * b - 4 * a * drive));
     }
     this.flow = u;
     const pSupra = po + 2 * pMinus + z * (u - uMean);
+    ps += 2 * pSub - zSub * (u - uMean);
 
     // Intraglottal pressures (flow separation at the narrowest point).
     let p1 = 0, p2 = 0;

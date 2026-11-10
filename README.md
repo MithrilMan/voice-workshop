@@ -199,6 +199,7 @@ src/
     tract/areaFunction.ts grid -> area function (44 sections)
     tract/nasal.ts        nasal tract: nasopharynx, left and right passages and nostrils, sinuses
     tract/waveguide.ts    real-time Kelly-Lochbaum waveguide
+    tract/subglottal.ts   trachea and bronchi: their tube, and its resonances as the glottis meets them
     tract/acoustics.ts    frequency-domain reference (lossy ABCD chain)
     aero/aero.ts          slow aerodynamics, jets, Reynolds number, obstacle
     noise/noise.ts        turbulence sources and user noise shaping
@@ -636,6 +637,54 @@ poorly), with the measured tract length and typical jaw openings, and never
 a passage narrower than the measured one (it would hiss and throttle the
 airflow). The shape distance falls from 0.98 with the drawing's own vowels
 to 0.59 (0.1 means areas within about 10 %); the formants stay on target.
+
+### Below the glottis
+
+The trachea and the bronchi are a tube too, about 20 cm long, closed at the
+top by the folds and open at the bottom, where the airways have divided
+into so many that their total section opens out. Its resonances have been
+measured through the skin of the neck: 554 ± 42, 1327 ± 77 and
+2179 ± 126 Hz in young men, 660 ± 47, 1513 ± 69 and 2426 ± 101 Hz in young
+women, where a uniform tube closed at the glottis and open at its other end
+has them, the first a little higher because the walls yield (Lulich et al.
+2012; Lulich 2025).
+
+Here (src/dsp/tract/subglottal.ts) the tube is the trachea, 1.8 cm wide and
+12 cm long, and three generations of bronchi, each airway dividing into a
+larger and a smaller one with the diameters and lengths of Florens, Sapoval
+& Filoche (2011). For plane waves the airways of one generation are one
+tube with the sum of their sections and of their walls. It ends after the
+third generation, 19.5 cm below the glottis, in an open end: where the
+measured resonances put the end of the tube, not where the airways end.
+With walls that yield as those of the tract do, the frequency-domain model
+gives it resonances at 520, 1324 and 2195 Hz (469 Hz for the first with
+rigid walls), and 598, 1522 and 2523 Hz for a speaker 0.87 times the size.
+
+The engine does not run this tube section by section. It keeps what the
+glottis sees of it: the pressure the tube answers with under the folds to
+the flow that leaves it, a sum of resonances (band-pass filters of the
+flow) with the frequency, the width and the height of each peak of the
+tube's impedance at its closed end, below 4 kHz. The glottis is then a
+resistance Zg between two tubes, and one flow passes through it:
+
+    U = (Zg Ug + 2 (a - b)) / (Zg + Z0 + Zt)
+
+with Ug the flow of the source, b the wave arriving from the tract, Z0 the
+impedance of the tract's first section, and 2 a - Zt U the pressure below
+(what the resonances hold from the flows before, less what they answer at
+once). With nothing below it is the glottal reflection used before. A
+second waveguide under the glottis does the same, and was tried first: but
+its sections change length whenever the tract's does (the tract's rate
+follows the length of the mouth), and a tube that has to keep its own
+length, cut again at each change, ticked.
+
+While the glottis is shut the voice does not know the tube is there. Open,
+the two are joined: in a breathy /a/, the folds apart, the harmonics
+nearest to the three resonances fall by 3.6, 2.6 and 2.6 dB, where the tube
+below stops the flow that the glottis would let through, and nothing
+changes away from them; in a modal /a/ they fall by 0.6, 2.0 and 0.9 dB.
+The two-mass folds have the pressure below them in their flow equation and
+in the forces on their masses.
 
 ### Turbulence noise
 
@@ -1231,6 +1280,9 @@ in brackets are the adult male targets described under Speech.
 | Uvular nasal | murmur against the vowel: [ŋ] -5.7 dB, [ɴ] -5.7 dB (-19.3 dB with the nose joined at the velum, in front of the closure) |
 | Walls heard | quietest 10 ms of a closure against its vowel: /b/ -28, /d/ -27, /g/ -31 dB, a hum centred at 141 Hz (-104 dB with the walls unheard); /p/ -86 dB; held against /a/: /i/ -4.0 dB, /u/ -8.4 dB (-12.5 unheard), /m/ -7.2 dB |
 | Epilarynx | narrowest section of the tube above the folds 0.43 cm² at rest, 0.19 with the sphincter at 0.5, shut at 1; at 0.5 the band 2.4-3.6 kHz rises against the first formant's by 3.7 dB (/a/), 4.6 (/i/), 8.9 (/u/) in the transfer function and by 2.3 dB in a held /a/ |
+| Subglottal resonances | trachea (2.54 cm², 12 cm) and 2, 4, 8 bronchi (3.14, 3.42, 3.89 cm² over 4.4, 1.9, 1.2 cm), 19.5 cm in all: 520 (B 43), 1324 (B 39), 2195 (B 62) Hz, against 554 ± 42, 1327 ± 77, 2179 ± 126 Hz measured on men (Lulich et al. 2012); with rigid walls the first at 469 Hz; 0.87 times the size: 598, 1522, 2523 Hz (women 660 ± 47, 1513 ± 69, 2426 ± 101) |
+| Subglottal impedance | the tube at its closed end: 216, 210 and 151 dyn s/cm⁵ at the three peaks; the resonances the engine keeps are within 0.1 dB of it there, within 1.5 dB half a width to either side |
+| Subglottal resonances in the voice | held /a/, harmonics at 480, 1320, 2160 Hz, with the airways below against without: folds apart -3.6, -2.6, -2.6 dB (away from them -0.2, -0.1 dB); modal -0.6, -2.0, -0.9 dB; the level changes by 0.2 dB; two-mass folds -0.7 dB |
 | Epiglottals | ʡ shut 16.7 cm from the lips, its closure 64 dB below the vowel in [ˈaʡa]; ʜ 0.10 cm² at 16.5 cm (ħ at 12.3), 28 dB below the vowel; a voice with a twang keeps the sphincter at its setting through every other sound |
 | ɧ | front passage 0.10 cm², back one 0.12 cm², 0.32 cm² at least between them; a second hiss through the whole middle of [ˈaɧa], 3.0 dB below the first; spectral peak 1.3 kHz against 3.8 for [ʃ]; no second hiss in four ordinary sentences |
 | Click jet | [ǀ]: the 8 ms after the front opens, above 3 kHz, -0.1 dB against the vowel with its jet, -18.1 dB without (the pop alone); the hiss of the jet alone peaks at 3.0 kHz |
@@ -1357,9 +1409,13 @@ in brackets are the adult male targets described under Speech.
   unheard while their pulses are faded from the flow, where real folds stop
   by themselves. With it the glottal end of the tract is a hard wall, and a
   held /a/ is about 8 dB louder than with the LF source.
-- Below the folds there is only a pressure: the trachea and the lungs have
-  no resonances of their own, so they leave no dips in a breathy voice or in
-  aspiration and do not couple to the vowels.
+- The airways below the glottis are their resonances below 4 kHz, not a
+  tube run section by section, and they end in an open end after three
+  generations of bronchi, where the measured resonances put it: nothing
+  beyond takes sound in. The widths of the resonances (43, 39 and 62 Hz)
+  are those of walls like the tract's, and are not checked against
+  measurements. The breath of a whisper is made above the glottis and
+  hardly reaches them (its spectrum changes by 1 dB).
 - What a louder voice changes is in the source alone (level, brightness):
   the plan of an utterance does not open the jaw wider, raise the pitch or
   lengthen the vowels with it. The pauses are silent: no breath is heard
@@ -1433,6 +1489,9 @@ in brackets are the adult male targets described under Speech.
 - McGowan, R. S. (1992). Tongue-tip trills and vocal-tract wall compliance. JASA 91.
 - Solé, M.-J. (2002). Aerodynamic characteristics of trills and phonological patterning. J. Phonetics 30.
 - Westbury, J. R. (1983). Enlargement of the supraglottal cavity and its relation to stop consonant voicing. JASA 73.
+- Lulich, S. M., Morton, J. R., Arsikere, H., Sommers, M. S., Leung, G. K. F. & Alwan, A. (2012). Subglottal resonances of adult male and female native speakers of American English. JASA 132(4).
+- Lulich, S. M. (2025). Subglottal resonances in older adults. Beszédtudomány - Speech Science 2025/1.
+- Florens, M., Sapoval, B. & Filoche, M. (2011). An anatomical and functional model of the human tracheobronchial tree. J. Appl. Physiol. 110.
 - Hanson, H. M. & Stevens, K. N. (2000). Modeling stop-consonant releases for synthesis. Poster, 139th Meeting of the Acoustical Society of America, Atlanta.
 - Nicolaidis, K., Sfakianaki, A., Vlahavas, G. & Kafentzis, G. (2019). An acoustic study of Greek voiceless stops. Proceedings of the 19th ICPhS, Melbourne.
 - Titze, I. R., Palaparthi, A. & Smith, S. L. (2014). Benchmarks for time-domain simulation of sound propagation in soft-walled airways: steady configurations. JASA 136(6).
