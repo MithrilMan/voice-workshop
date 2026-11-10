@@ -506,8 +506,14 @@ export class Waveguide {
   /** Characteristic impedance of the first (glottal) section. */
   get z0(): number { return (RHO * C_SOUND) / this.oral.area[0]; }
 
-  /** pressure wave arriving at the glottis from the tract */
-  get pMinus(): number { return this.oral.b[0]; }
+  /**
+   * Pressure wave arriving at the glottis from the tract, without its
+   * quasi-static part: the wave the glottal end reflects (see step). A
+   * source that solved its flow against the whole of it while the end
+   * reflected the rest would feed the difference back, and with a wide
+   * glottis, which hardly resists, that loop runs away.
+   */
+  get pMinus(): number { return this.oral.b[0] - this.dcB; }
 
   /** One sample of the waveguide. */
   step(): void {

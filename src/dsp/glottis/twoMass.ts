@@ -54,13 +54,19 @@ export class TwoMassGlottis {
   a1 = 0.05;
   a2 = 0.05;
   amin = 0.05;
-  /** glottal volume velocity, cm^3/s */
+  /** volume velocity between the folds, and beside them, cm^3/s */
   flow = 0;
+  leak = 0;
+  /** the steady part of the flow beside the folds: what the opening passes under the pressures of the aerodynamics */
+  still = 0;
+  /** folds held still (no voice): the air still passes */
+  hold = false;
   /** pressure on the lower mass, dyn/cm^2 */
   p1 = 0;
   /** true when the glottis is closed */
   closed = false;
-  private prevClosed = false;
+  /** shut since the last opening that was counted */
+  private shut = false;
   /** set to true on the sample when the folds open after a closure */
   openingEvent = false;
   /** period measurement for pitch tracking (s) */
@@ -80,12 +86,15 @@ export class TwoMassGlottis {
    * @param po     slowly varying (DC) intraoral pressure above the glottis, dyn/cm^2
    * @param pMinus acoustic pressure wave arriving at the glottis from the tract
    * @param z      characteristic impedance of the first tract section
-   * @param uMean  running mean of the glottal flow (the DC part is handled by
-   *               the aerodynamic model, only the AC part enters the waveguide)
+   * @param uMean  running mean of the flow between the folds (the steady part is handled by
+   *               the aerodynamic model, only the rest enters the waveguide)
    * @param pSub   acoustic pressure wave arriving under the folds from the airways below (0: none)
    * @param zSub   characteristic impedance of the airways under the folds (0: the lungs' pressure alone)
+   * @param bypass area open beside the folds (the chink between the cartilages, the part of an open glottis
+   *               behind the folds), cm^2: its air passes under the same pressure and loads the same tract
+   * @returns the flow through the folds and beside them
    */
-  step(dt: number, ps: number, po: number, pMinus: number, z: number, uMean: number, pSub = 0, zSub = 0): number {
+  step(dt: number, ps: number, po: number, pMinus: number, z: number, uMean: number, pSub = 0, zSub = 0, bypass = 0): number {
     const p = this.params;
     const ql = p.q * (1 + p.asym / 2);
     const qr = p.q * (1 - p.asym / 2);
@@ -101,20 +110,59 @@ export class TwoMassGlottis {
     // Flow: ps - (po + 2 p- + z (u - uMean)) = rho u^2 / (2 amin^2) + R_visc u,
     // and under the folds the pressure is ps + 2 pSub - zSub (u - uMean): the
     // flow the folds let through draws on the tube below as it loads the one above
+    //
+    // The tubes carry the sound alone: the steady flow is the aerodynamics'
+    // (it is what makes ps and po), so they are loaded with the flow less its
+    // steady part. For the folds that is their running mean. For the opening
+    // beside them it is what that opening passes under ps - po, known at
+    // once: a mean would lag when the glottis opens or the lungs stop, and
+    // while it lagged the folds would be driven by a pressure that is not
+    // there.
     const zz = z + zSub;
-    const drive = ps + 2 * pSub - po - 2 * pMinus + zz * uMean;
-    let u = 0;
-    if (amin > 1e-6) {
-      const a = RHO / (2 * amin * amin);
-      const w = amin / l; // glottal width
-      const rv = Math.min((12 * MU * p.d1) / (l * w * w * w), 1e6);
-      const b = zz + rv;
-      if (drive > 0) u = (2 * drive) / (b + Math.sqrt(b * b + 4 * a * drive));
-      else u = -(2 * -drive) / (b + Math.sqrt(b * b - 4 * a * drive));
+    const still = bypass > 1e-6 ? (ps < po ? -1 : 1) * bypass * Math.sqrt((2 * Math.abs(ps - po)) / RHO) : 0;
+    this.still = still;
+    const ref = uMean + still;
+    const drive = ps + 2 * pSub - po - 2 * pMinus + zz * ref;
+    let u = 0, leak = 0;
+    const a = amin > 1e-6 ? RHO / (2 * amin * amin) : 0;
+    const w = amin / l; // glottal width
+    const rv = amin > 1e-6 ? Math.min((12 * MU * p.d1) / (l * w * w * w), 1e6) : 0;
+    if (bypass <= 1e-6) {
+      if (amin > 1e-6) {
+        const b = zz + rv;
+        if (drive > 0) u = (2 * drive) / (b + Math.sqrt(b * b + 4 * a * drive));
+        else u = -(2 * -drive) / (b + Math.sqrt(b * b - 4 * a * drive));
+      }
+    } else {
+      // two ways through under one drop of pressure dP = s^2: the folds'
+      // (a u^2 + rv u = dP) and the opening beside them (rho u^2 / (2 B^2) = dP),
+      // whose sum loads the tract: s^2 + zz (u_folds + u_beside) = |drive|.
+      // The left side grows with s and bends upward: Newton from the two
+      // taken as one orifice, three steps
+      const d = Math.abs(drive), kb = bypass * Math.sqrt(2 / RHO);
+      const at = RHO / (2 * (Math.max(amin, 0) + bypass) ** 2);
+      let s = Math.sqrt(at) * ((2 * d) / (zz + Math.sqrt(zz * zz + 4 * at * d)));
+      let uf = 0;
+      for (let it = 0; it < 3; it++) {
+        let duf = 0;
+        if (amin > 1e-6) {
+          const D = Math.sqrt(rv * rv + 4 * a * s * s);
+          uf = (2 * s * s) / (rv + D);
+          duf = (4 * s) / (rv + D) - (8 * a * s * s * s) / (D * (rv + D) * (rv + D) + 1e-30);
+        }
+        const F = s * s + zz * (kb * s + uf) - d;
+        s = Math.max(0, s - F / (2 * s + zz * (kb + duf) + 1e-12));
+      }
+      if (amin > 1e-6) uf = (2 * s * s) / (rv + Math.sqrt(rv * rv + 4 * a * s * s));
+      const sg = drive < 0 ? -1 : 1;
+      u = sg * uf;
+      leak = sg * kb * s;
     }
     this.flow = u;
-    const pSupra = po + 2 * pMinus + z * (u - uMean);
-    ps += 2 * pSub - zSub * (u - uMean);
+    this.leak = leak;
+    const all = u + leak;
+    const pSupra = po + 2 * pMinus + z * (all - ref);
+    ps += 2 * pSub - zSub * (all - ref);
 
     // Intraglottal pressures (flow separation at the narrowest point).
     let p1 = 0, p2 = 0;
@@ -127,7 +175,8 @@ export class TwoMassGlottis {
     const f1 = l * p.d1 * p1;
     const f2 = l * D2 * p2;
 
-    for (let side = 0; side < 2; side++) {
+    if (this.hold) { x.fill(0); v.fill(0); }
+    else for (let side = 0; side < 2; side++) {
       const q = side === 0 ? ql : qr;
       const i1 = side * 2, i2 = i1 + 1;
       const m1 = (M1 * p.len) / q, m2 = (M2 * p.len) / q;
@@ -146,18 +195,23 @@ export class TwoMassGlottis {
       if (!(Math.abs(x[i2]) < 1)) { x[i2] = 0; v[i2] = 0; }
     }
 
-    // Opening events for pitch measurement.
+    // Opening events for pitch measurement. The folds count as open again
+    // once they have parted by more than a touch: short folds close
+    // shallowly and bounce within their closed phase, and each bounce would
+    // be taken for a period.
     this.closed = amin <= 0;
+    if (this.closed) this.shut = true;
     this.openingEvent = false;
     this.timeSinceOpening += dt;
-    if (this.prevClosed && !this.closed) {
+    if (this.shut && amin > PARTED * p.len) {
+      this.shut = false;
       this.openingEvent = true;
-      this.lastPeriod = this.timeSinceOpening;
+      // (the first opening after a silence closes no period)
+      this.lastPeriod = this.timeSinceOpening > 0.05 ? 0 : this.timeSinceOpening;
       this.timeSinceOpening = 0;
     }
-    this.prevClosed = this.closed;
     if (this.timeSinceOpening > 0.05) this.lastPeriod = 0; // no closures: not periodic
-    return u;
+    return all;
   }
 
   /** Mean displacement of the medial edges, for drawing (cm). */
@@ -165,5 +219,8 @@ export class TwoMassGlottis {
     return { l1: this.x[0], l2: this.x[1], r1: this.x[2], r2: this.x[3] };
   }
 }
+
+/** the glottal area from which folds that were shut count as open again, cm^2 (for folds of a man's length) */
+const PARTED = 0.004;
 
 export const TWO_MASS_CONST = { M1, M2, K1, K2, KC, L_FOLD, D2 };

@@ -891,7 +891,7 @@ export class VoiceEngine {
     let vib = 0;
     if (p.voicing) {
       if (p.source.model === 'lf') vib = 0.45 * p.source.peakArea * (1 - THIN.swing * thinness(p.source)) * s2 * this.voicingAmp;
-      else vib = (Math.max(0, this.tm.amin) * 0.5 + 0.5 * Math.max(0, p.source.restArea)) * (1 - smoothstep(0.25, 0.6, this.abduction)) * (1 - this.stiff);
+      else vib = (Math.max(0, this.tm.amin) * 0.5 + 0.5 * Math.max(0, p.source.restArea)) * (1 - this.stiff);
     }
     return (vib + gapOf(p.source) * s2) * this.gate + abd;
   }
@@ -1080,24 +1080,31 @@ export class VoiceEngine {
       const tp = this.tm.params;
       const sp = p.source;
       tp.asym = Math.min(1, sp.asym + 0.3 * this.creak);
-      tp.a0 = Math.max(0.0, sp.restArea) * s2 + (p.voicing ? 0 : 0.2);
+      // an open glottis: the opening is behind the folds, between the
+      // cartilages that draw them apart, and its air passes beside them under
+      // the same pressure and into the same tract. The more of it passes
+      // there, the less the tract answers to the flow of the folds, which is
+      // what keeps these folds going: past 0.6 of the full opening they have
+      // stopped by themselves (where the LF voice is told to have faded)
+      tp.a0 = p.voicing ? Math.max(0.0, sp.restArea) * s2 : 0;
+      this.tm.hold = !p.voicing;
+      const beside = steadyArea;
       tp.d1 = 0.25 * p.anatomy.scale * (1 - 0.6 * thinness(sp));
       tp.len = p.anatomy.foldLength ?? 1;
       tp.q = sp.tensionAuto ? this.tmQ : sp.q;
-      // folds drawn apart: the air passes beside them (steadyArea) and their
-      // pulses fade from the flow, as the voice of the LF source does. The
-      // masses go on moving unheard: their rest position is not widened, as
-      // this model's flow equation is not stable with a wide glottis
-      const grip = (1 - smoothstep(0.25, 0.6, abduction)) * (1 - this.stiff);
-      const um = this.tm.step(dt, p.voicing ? ps : 0, po, wg.pMinus, z0, this.uMean, wg.subUp, wg.subZ) * gate;
-      const uf = um * grip;
-      ag = Math.max(0, this.tm.amin) * grip + steadyArea;
-      u = uf + steadyArea * vg;
-      this.uMean = this.uMeanCoef * this.uMean + (1 - this.uMeanCoef) * um;
+      // (folds held stiff let nothing through between them)
+      const grip = 1 - this.stiff;
+      this.tm.step(dt, ps, po, wg.pMinus, z0, this.uMean, wg.subUp, wg.subZ, beside);
+      const tm = this.tm;
+      u = (tm.flow * grip + tm.leak) * gate;
+      ag = Math.max(0, tm.amin) * grip + beside;
+      // the sound of it: the flow less its steady part (see TwoMass.step)
+      const uAc = ((tm.flow - this.uMean) * grip + tm.leak - tm.still) * gate;
+      this.uMean = this.uMeanCoef * this.uMean + (1 - this.uMeanCoef) * tm.flow;
       wg.rg = 1;
-      wg.glottalInjection = z0 * (um - this.uMean) * grip;
+      wg.glottalInjection = z0 * uAc;
       wg.glottalZ = Infinity;
-      wg.glottalSource = (um - this.uMean) * grip;
+      wg.glottalSource = uAc;
       if (this.tm.openingEvent && this.tm.lastPeriod > 0) {
         const f = 1 / this.tm.lastPeriod;
         this.measuredF0 = f;

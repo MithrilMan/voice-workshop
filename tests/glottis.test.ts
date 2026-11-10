@@ -1,13 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { solveLF, rdToTiming, lfFlow, lfDerivative, LFShape } from '../src/dsp/glottis/lf';
 import { linearFit } from '../src/dsp/util/math';
-import { renderOffline } from '../src/dsp/engine/engine';
+import { renderOffline, VoiceEngine } from '../src/dsp/engine/engine';
 import { defaultParams } from '../src/dsp/engine/params';
 import { VOWELS } from '../src/dsp/speech/phonemes';
 import { yin } from '../src/dsp/analysis/pitch';
 import { textToPhones } from '../src/dsp/speech/g2p';
 import { buildScore } from '../src/dsp/speech/sequencer';
-import { note, bandPower } from './helpers';
+import { builtinVoice } from '../src/dsp/voice/builtin';
+import { utterance } from '../src/dsp/voice/utterance';
+import { note, bandPower, loadEnglishLexicon } from './helpers';
 
 const N = 960; // samples per period, F0 = 100 Hz at 96 kHz: harmonics fall exactly on DFT bins
 
@@ -130,18 +132,103 @@ describe('self-oscillating two-mass vocal folds', () => {
       const seg = renderOffline(p, 1.0).out.subarray(24000, 48000);
       let s = 0;
       for (const v of seg) s += v * v;
-      return { db: 10 * Math.log10(s / seg.length), low: 10 * Math.log10(bandPower(seg, 48000, 80, 1000)), f0: yin(seg.subarray(0, 4096), 48000, 70, 400).f0 };
+      return { db: 10 * Math.log10(s / seg.length), low: 10 * Math.log10(bandPower(seg, 48000, 80, 600)), f0: yin(seg.subarray(0, 4096), 48000, 70, 400).f0 };
     };
-    const voice = held('twomass', 0), breathy = held('twomass', 0.3), breath = held('twomass', 1), lf = held('lf', 1);
-    note('two-mass folds drawn apart', `level ${voice.db.toFixed(1)} dB together, ${breathy.db.toFixed(1)} dB a little apart, ${breath.db.toFixed(1)} dB wide apart (LF source: ${lf.db.toFixed(1)} dB)`);
+    const voice = held('twomass', 0), breathy = held('twomass', 0.2), half = held('twomass', 0.7), breath = held('twomass', 1);
+    const lfVoice = held('lf', 0), lfBreathy = held('lf', 0.2), lf = held('lf', 1);
+    note('two-mass folds drawn apart', `level ${voice.db.toFixed(1)} dB together (LF source: ${lfVoice.db.toFixed(1)} dB), ${breathy.db.toFixed(1)} dB a little apart (${lfBreathy.db.toFixed(1)}), ${half.db.toFixed(1)} dB at 0.7, without pitch, ${breath.db.toFixed(1)} dB wide apart (${lf.db.toFixed(1)})`);
     expect(voice.f0).toBeGreaterThan(100);
-    // a little apart: still a voice, weaker
+    // the two sources are as loud as each other
+    expect(Math.abs(voice.db - lfVoice.db)).toBeLessThan(2);
+    // a little apart: still a voice, weaker, as the LF one
     expect(breathy.f0).toBeGreaterThan(100);
     expect(breathy.db).toBeLessThan(voice.db - 2);
+    expect(Math.abs(breathy.db - lfBreathy.db)).toBeLessThan(2);
+    // further apart the folds have stopped by themselves: nobody tells them to
+    expect(half.f0).toBe(0);
     // wide apart: no pitch, the voice band empties, and what is left is the breath of the LF source
     expect(breath.f0).toBe(0);
     expect(breath.low).toBeLessThan(voice.low - 20);
     expect(Math.abs(breath.db - lf.db)).toBeLessThan(6);
+  });
+
+  it('the flow through a wide glottis is steady, and is what the opening lets through', () => {
+    const rows: string[] = [];
+    for (const abduction of [0.7, 0.85, 1]) {
+      const flow = (model: 'lf' | 'twomass') => {
+        const p = defaultParams();
+        p.articulators = { ...p.articulators, ...VOWELS.a.art };
+        p.phonate = true;
+        p.source.model = model;
+        p.abduction = abduction;
+        const e = new VoiceEngine(48000, p);
+        e.snapArticulators(); e.snapPressure();
+        const buf = new Float32Array(48);
+        let lo = Infinity, hi = -Infinity, sum = 0, n = 0;
+        for (let t = 0; t < 1; t += 0.001) {
+          e.process(buf, 48);
+          if (t < 0.5) continue;
+          const u = (e as unknown as { glottalFlow: number }).glottalFlow;
+          lo = Math.min(lo, u); hi = Math.max(hi, u); sum += u; n++;
+        }
+        return { lo, hi, mean: sum / n };
+      };
+      const tm = flow('twomass'), lf = flow('lf');
+      rows.push(`${abduction}: ${tm.mean.toFixed(0)} cm³/s, between ${tm.lo.toFixed(0)} and ${tm.hi.toFixed(0)} (LF source ${lf.mean.toFixed(0)})`);
+      // it ran away once: the flow was solved against a wave the glottal end did not reflect
+      expect(tm.lo).toBeGreaterThan(0.9 * tm.mean);
+      expect(tm.hi).toBeLessThan(1.1 * tm.mean);
+      expect(Math.abs(tm.mean / lf.mean - 1)).toBeLessThan(0.15);
+    }
+    note('two-mass flow, glottis wide', `abduction ${rows.join('; ')}`);
+  });
+
+  it('louder, brighter and a little higher with the lung pressure, from their own equations', () => {
+    const held = (ps: number) => {
+      const p = defaultParams();
+      p.articulators = { ...p.articulators, ...VOWELS.a.art };
+      p.phonate = true;
+      p.source.model = 'twomass';
+      // (the tension held, so that the pitch is the folds' own)
+      p.source.tensionAuto = false;
+      p.source.q = 0.9;
+      p.source.ps = ps;
+      const seg = renderOffline(p, 1.0).out.subarray(24000, 48000);
+      let s = 0;
+      for (const v of seg) s += v * v;
+      const db = (x: number) => 10 * Math.log10(x);
+      return { db: db(s / seg.length), tilt: db(bandPower(seg, 48000, 2000, 4000)) - db(bandPower(seg, 48000, 80, 1000)), f0: yin(seg.subarray(0, 4096), 48000, 70, 400).f0 };
+    };
+    const soft = held(4), speaking = held(8), loud = held(16);
+    note('two-mass source and lung pressure', `4, 8, 16 cmH2O: level ${[soft, speaking, loud].map((x) => x.db.toFixed(1)).join(', ')} dB; 2-4 kHz against 0-1 kHz ${[soft, speaking, loud].map((x) => x.tilt.toFixed(1)).join(', ')} dB; pitch ${[soft, speaking, loud].map((x) => x.f0.toFixed(0)).join(', ')} Hz`);
+    for (const [a, b] of [[soft, speaking], [speaking, loud]]) {
+      expect(b.db - a.db).toBeGreaterThan(5);
+      expect(b.db - a.db).toBeLessThan(12);
+      expect(b.tilt).toBeGreaterThan(a.tilt);
+    }
+    expect(soft.f0).toBeLessThan(speaking.f0);
+    expect(loud.f0).toBeGreaterThan(speaking.f0 - 1);
+  });
+
+  it('speaking, they are as loud as the LF voice, and their air stops with the lungs', () => {
+    loadEnglishLexicon();
+    const say = (model: 'lf' | 'twomass') => {
+      const u = utterance(builtinVoice('man')!.design, textToPhones('he has a house', 'en'), 'en');
+      u.params.source.model = model;
+      const e = new VoiceEngine(48000, u.params);
+      e.snapArticulators(); e.playScore(u.score);
+      const n = Math.round((u.score.duration + 0.2) * 48000), out = new Float32Array(n);
+      for (let i = 0; i + 48 <= n; i += 48) e.process(out.subarray(i, i + 48), 48);
+      let s = 0, peak = 0;
+      for (const v of out) { s += v * v; peak = Math.max(peak, Math.abs(v)); }
+      return { db: 10 * Math.log10(s / n), peak, left: (e as unknown as { glottalFlow: number }).glottalFlow };
+    };
+    const tm = say('twomass'), lf = say('lf');
+    note('two-mass folds speaking', `"he has a house": ${tm.db.toFixed(1)} dB, peak ${tm.peak.toFixed(2)} (LF source ${lf.db.toFixed(1)} dB, ${lf.peak.toFixed(2)}); ${tm.left.toFixed(0)} cm³/s through the glottis 0.2 s after the end`);
+    // (with a mean of the flow that lagged behind the opening of the glottis, the vowels after /h/ were three times as loud and the air went on for 0.2 s)
+    expect(Math.abs(tm.db - lf.db)).toBeLessThan(3);
+    expect(tm.peak).toBeLessThan(1.5 * lf.peak);
+    expect(Math.abs(tm.left)).toBeLessThan(100);
   });
 });
 

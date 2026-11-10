@@ -307,8 +307,8 @@ surface sets how long and how firmly the folds close, hence the slope of
 the spectrum (Zhang 2016): per unit of thinness Rd rises by 1.4, the glottis
 keeps a gap of 0.04 cm² and the swing shrinks by 40 %; in the two-mass model
 the lower mass thins (60 % per unit). At 300 Hz, from 1 to 0.3, H1-H2 rises
-from 3.9 to 13.4 dB (two-mass 7.3 to 10.0) and the harmonics near 3 kHz fall
-12 dB further (8). Only the AC part of the pulse train
+from 4.0 to 13.7 dB (two-mass 9.9 to 21.1) and the harmonics near 3 kHz fall
+19 dB further (18). Only the AC part of the pulse train
 is injected into the tract; the mean flow belongs to the aerodynamic model.
 That mean glides over 3 ms: subtracted in one step at each new period (a
 shimmer amplitude, a new Rd), it would put a small click on every period, a
@@ -331,11 +331,31 @@ of the glottis (the pulses, the chink, the abduction) and its Reynolds
 number: shorter folds give smaller pulses and less air at the same pitch. Left/right asymmetry gives subharmonics
 and raspy voice. The flow is solved each sample against the tract input
 impedance, dP = rho U²/(2 a_min²) + (Z + R_visc) U (Titze 1984), so the tract
-loads the folds. With the folds drawn apart their pulses fade from the flow
-as the voicing of the LF source does, and the air passes beside them: a
-held /a/ loses 5 dB with the folds a little apart and, wide apart, is
-breath without a pitch, 20 dB below the voice (it went on vibrating, 13 dB
-below, before).
+loads the folds. The wave it is solved against is the one the glottal end
+reflects, the tract's without its quasi-static part: solved against the
+whole of it, the difference was fed back, a held /a/ came out 8 dB louder
+than with the LF source, and with a wide glottis, which hardly resists, the
+flow ran away.
+
+An open glottis is open behind the folds, between the cartilages that draw
+them apart. That air passes beside the folds under the same drop of
+pressure and into the same tract, so the two flows are solved together
+(Newton, three steps), and for it the glottal end of the tract is no longer
+a hard wall. The tubes carry the sound alone, so they are loaded with the
+flow less its steady part: for the folds, their running mean; for the
+opening beside them, what it passes under the pressures of the
+aerodynamics, known at once. A mean lags when the glottis opens or the
+lungs stop, and while it lagged the folds were driven by a pressure that
+was not there: the vowel after an /h/ came out three times as loud, and the
+air went on for 0.2 s after the lungs had stopped.
+
+Nobody tells these folds to stop. The more air passes beside them, the less
+the tract answers to their own flow, which is what keeps them going: a held
+/a/ is at -21.9 dB with the folds together (LF source -22.4), at -26.8 dB
+with them a little apart (0.2 of the full opening: LF -25.9), and from 0.7
+on it is breath without a pitch. Through an /h/ between vowels they go on
+vibrating, as a voiced [ɦ]. In "he has a house" the two sources are 0.4 dB
+apart.
 
 **Source-tract interaction** (LF mode): the glottal end reflection of the
 waveguide follows the time-varying glottal impedance during the open phase,
@@ -407,15 +427,15 @@ weaker than its vowels.
 Above the speaking pressure the amplitude grows more slowly, and a louder
 voice also closes more sharply: in the LF source Rd falls by 0.2 per
 doubling of the lung pressure, so the level and the upper spectrum rise
-together. A held /a/ at 4, 8 and 16 cmH2O is at -32.8, -22.5 and -14.1 dB,
-with its 2-4 kHz band 37.8, 36.0 and 33.2 dB below the band under 1 kHz
+together. A held /a/ at 4, 8 and 16 cmH2O is at -32.8, -22.4 and -13.7 dB,
+with its 2-4 kHz band 37.9, 36.2 and 33.4 dB below the band under 1 kHz
 (before: the same tilt at 4 and 8, and 6 dB from 8 to 16). The pressure
 above the glottis also slows the folds, by 1 % of the pitch per cmH2O: the
 pitch dips by 5 % in a long /b/ and by 3 % in a /z/, and stays in an /m/.
 That is 1.2 Hz per cmH2O at 120 Hz, below the 2-6 Hz per cmH2O found across
 the folds (Titze 1989), as the planned pitch already dips after a voiced
-consonant. The two-mass folds do both from their equations: 8.6 and 7.9 dB
-per doubling, a tilt 7.6 and 3.6 dB less steep, and a pitch 5 Hz lower at
+consonant. The two-mass folds do both from their equations: 8.9 and 7.9 dB
+per doubling, a tilt 6.1 and 5.6 dB less steep, and a pitch 3 Hz lower at
 4 cmH2O than at 8.
 Lung and intraoral pressures are smoothed per sample, so a closure never
 produces steps. Everything the sample loop takes from the control rate
@@ -1241,7 +1261,7 @@ in brackets are the adult male targets described under Speech.
 | /a/ scaled to 0.75 | F2 ratio 1.329 (ideal 1.333) |
 | LF spectral slope, Rd 1, 1-5 kHz | -11.8 dB/oct (flow derivative), -17.9 dB/oct (flow) |
 | LF H1-H2 | Rd 0.5: -2.0 dB, Rd 1: 3.8 dB, Rd 2.5: 17.5 dB (pressed to breathy) |
-| Two-mass F0 vs tension | Q 0.7: 96 Hz, Q 1.2: 165 Hz, Q 1.8: 243 Hz; automatic tension within 4 % of the target |
+| Two-mass F0 vs tension | Q 0.7: 88 Hz, Q 1.2: 166 Hz, Q 1.8: 240 Hz; automatic tension within 4 % of the target |
 | /s/ | peak 4875 Hz, centroid 6258 Hz, -9.8 dB re /a/ (male /s/: peak 4-5 kHz, mean 5-6 kHz, Jongman et al. 2000) |
 | /ʃ/ | peak 3797 Hz, centroid 3844 Hz, 0.7-1.8 kHz band 6.9 dB below the 2-3.5 kHz band, -6.0 dB re /a/ (3.8 dB louder than /s/; Jongman et al. 2000: peak about 3-4 kHz, mean 4.2 kHz, lower for men) |
 | Fricative spectrum, waveguide vs reference | /ʃ/ obstacle source: worst difference 1.2 dB over 8 bands, 0.5-8 kHz |
@@ -1289,7 +1309,7 @@ in brackets are the adult male targets described under Speech.
 | Head shapes | 120 sounds on 13 heads (vault 0.6 and 1.45, arch 0.8 and 1.25, pharynx 0.7 and 1.4, tongue 0.92 and 1.08, frenulum 0.6, mouth 0.8 and 1.2, lips 0.7 and 1.4): every stop, nasal and click closes, every other consonant keeps its passage within 0.8-1.15, no vowel narrows below 0.25 cm²; only the laterals closed by the dorsum (ʎ ʟ) under the lowest vault or the biggest tongue are approximate. On a vault of 0.6 "kaka gaga tata cece" builds 42-100 % of the lungs' pressure behind each closure |
 | Palate and arch | F2 of /i/ 2192 Hz: 2036 with a vault of 1.3, 2258 with 0.7; 2140 with an arch of 1.2, 2237 with 0.85 |
 | Language prosody | unstressed against stressed vowels: German 0.46, Spanish 0.78, Japanese 1.00; a long vowel in Japanese 2.0 times a short one (Spanish 1.7); the same four words, Spanish accents the first 4.5 st above French, which accents only the last (3.7 st above the one before); a yes/no question: Spanish rises to the end (112 -> 163 Hz), Hungarian and Greek peak on the last stress and fall (152 -> 98 Hz) |
-| Falsetto | 300 Hz, fold thickness 1 -> 0.3: LF H1-H2 3.9 -> 13.4 dB, H1 over the harmonic near 3 kHz 29.4 -> 41.4 dB, 8.1 dB weaker; two-mass still at 300 Hz, H1-H2 7.3 -> 9.5 dB, slope 37.0 -> 42.2 dB |
+| Falsetto | 300 Hz, fold thickness 1 -> 0.3: LF H1-H2 4.0 -> 13.7 dB, H1 over the harmonic near 3 kHz 35.3 -> 54.4 dB, 8.1 dB weaker; two-mass still at 300 Hz, H1-H2 9.9 -> 21.1 dB, slope 38.0 -> 55.5 dB |
 | Fold length | folds 0.7 as long open a glottis 0.70 as wide at its peak; two-mass folds 0.6 as long still follow a 220 Hz target (220 Hz) |
 | Lips | F2 of /u/ 873 Hz: 817 with lips 1.4 times as thick (the tract 0.7 cm longer), 931 with 0.7; 898 with a mouth 1.2 times as wide, 851 with 0.8 |
 | Tongue | F2 of /a/ 1297 Hz: 1228 with a tongue of 1.08, 1412 with 0.92; with a frenulum of 0.6 /t d n/ close with the jaw raised and the tip of /r/ no longer reaches its contact |
@@ -1301,7 +1321,7 @@ in brackets are the adult male targets described under Speech.
 | Epilarynx | narrowest section of the tube above the folds 0.43 cm² at rest, 0.19 with the sphincter at 0.5, shut at 1; at 0.5 the band 2.4-3.6 kHz rises against the first formant's by 3.7 dB (/a/), 4.6 (/i/), 8.9 (/u/) in the transfer function and by 2.3 dB in a held /a/ |
 | Subglottal resonances | trachea (2.54 cm², 12 cm) and 2, 4, 8 bronchi (3.14, 3.42, 3.89 cm² over 4.4, 1.9, 1.2 cm), 19.5 cm in all: 520 (B 43), 1324 (B 39), 2195 (B 62) Hz, against 554 ± 42, 1327 ± 77, 2179 ± 126 Hz measured on men (Lulich et al. 2012); with rigid walls the first at 469 Hz; 0.87 times the size: 598, 1522, 2523 Hz (women 660 ± 47, 1513 ± 69, 2426 ± 101) |
 | Subglottal impedance | the tube at its closed end: 216, 210 and 151 dyn s/cm⁵ at the three peaks; the resonances the engine keeps are within 0.1 dB of it there, within 1.5 dB half a width to either side |
-| Subglottal resonances in the voice | held /a/, harmonics at 480, 1320, 2160 Hz, with the airways below against without: folds apart -3.6, -2.6, -2.6 dB (away from them -0.2, -0.1 dB); modal -0.6, -2.0, -0.9 dB; the level changes by 0.2 dB; two-mass folds -0.7 dB |
+| Subglottal resonances in the voice | held /a/, harmonics at 480, 1320, 2160 Hz, with the airways below against without: folds apart -3.6, -2.6, -2.6 dB (away from them -0.2, -0.1 dB); modal -0.6, -2.0, -0.9 dB; the level changes by 0.2 dB; two-mass folds -0.2 dB |
 | Epiglottals | ʡ shut 16.7 cm from the lips, its closure 64 dB below the vowel in [ˈaʡa]; ʜ 0.10 cm² at 16.5 cm (ħ at 12.3), 28 dB below the vowel; a voice with a twang keeps the sphincter at its setting through every other sound |
 | ɧ | front passage 0.10 cm², back one 0.12 cm², 0.32 cm² at least between them; a second hiss through the whole middle of [ˈaɧa], 3.0 dB below the first; spectral peak 1.3 kHz against 3.8 for [ʃ]; no second hiss in four ordinary sentences |
 | Click jet | [ǀ]: the 8 ms after the front opens, above 3 kHz, -0.1 dB against the vowel with its jet, -18.1 dB without (the pop alone); the hiss of the jet alone peaks at 3.0 kHz |
@@ -1312,9 +1332,11 @@ in brackets are the adult male targets described under Speech.
 | Italian linking | "anche un banco in gamba" a ŋ k e u m b a ŋ k o i ŋ g a m b a; "in fondo, un vino" ɱ f, ɱ v; no change across a pause or in a long n; "la terra è rossa" has two stresses, and the verb left at the end of "chi ce la ha?" keeps its own |
 | Function words elsewhere | Spanish "la casa de Pedro": la and de without stress, a de at the end of a phrase with it; Polish "na stole": one stress, on stole |
 | Breath groups | lung pressure against the same sentence without the fall: "la luna. le stelle" 88.4 % at the end of the first sentence, 99.6 % at the start of the second; "la luna, le stelle" 95.4 % and 93.6 % |
-| Loudness and brightness | held /a/ at 4, 8, 16 cmH2O, LF source: -32.8, -22.5, -14.1 dB, 2-4 kHz against 0-1 kHz -37.8, -36.0, -33.2 dB; two-mass source: -21.6, -13.0, -5.1 dB and -33.6, -26.0, -22.4 dB |
+| Loudness and brightness | held /a/ at 4, 8, 16 cmH2O, LF source: -32.8, -22.4, -13.7 dB, 2-4 kHz against 0-1 kHz -37.9, -36.2, -33.4 dB; two-mass source, its tension held: -30.6, -21.7, -13.8 dB and -36.7, -30.6, -25.0 dB, pitch 118, 121, 121 Hz |
 | Pitch in voiced consonants | LF source, against the planned pitch: long /b/ -5.1 %, /z/ -3.4 %, /m/ -0.3 % |
-| Two-mass folds apart | held /a/: -14.4 dB together, -19.3 dB a little apart, -34.8 dB and no pitch wide apart (LF source -38.2 dB) |
+| Two-mass folds apart | held /a/: -21.9 dB together (LF source -22.4), -26.8 dB a little apart (-25.9); at 0.7 of the full opening -36.4 dB and no pitch; wide apart -35.2 dB (-38.2) |
+| Two-mass flow, glottis wide | 1354, 1508 and 1629 cm³/s at 0.7, 0.85 and 1 of the full opening, steady within 1 % (LF source 1210, 1366, 1493: the folds at rest add their own opening) |
+| Two-mass folds speaking | "he has a house": -26.0 dB, peak 0.26 (LF source -26.4 dB, 0.28); 20 cm³/s through the glottis 0.2 s after the end |
 | Ejective | [kʼ] 10.6 cmH2O behind the shut glottis (lungs 8), larynx up 0.88 cm, no flow from the lungs; mouth flow in the 30 ms after the burst 66 cm³/s against 463 for [k] |
 | Implosive | [ɓ] 2.7 cmH2O behind the lips against 4.5 for [b], voicing amplitude at the release 0.69 against 0.49, larynx down 1.25 cm |
 | Voiceless implosive | [ɓ̥] -8.7 cmH2O at the release, mouth flow -349 cm³/s (the air drawn in) |
@@ -1423,11 +1445,12 @@ in brackets are the adult male targets described under Speech.
   linearly in the sample loop; a strong closure damping term keeps closed
   cavities stable.
 - The two-mass model is the 4-mass asymmetric form without collision
-  dynamics beyond the contact spring. Its flow equation is stable only with
-  a narrow glottis: with the folds drawn apart the masses go on moving
-  unheard while their pulses are faded from the flow, where real folds stop
-  by themselves. With it the glottal end of the tract is a hard wall, and a
-  held /a/ is about 8 dB louder than with the LF source.
+  dynamics beyond the contact spring. All of an open glottis is beside its
+  folds, whose rest position does not widen: real folds drawn apart are
+  apart along their length. Its breath has more of the band between 0.9 and
+  1.5 kHz than the LF source's (7 dB with the glottis wide open): an open
+  glottis ends the tract in whatever its flow equation gives, where the LF
+  source limits how far the reflection at the glottal end may fall.
 - The airways below the glottis are their resonances below 4 kHz, not a
   tube run section by section, and they end in an open end after three
   generations of bronchi, where the measured resonances put it: nothing
