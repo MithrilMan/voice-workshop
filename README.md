@@ -1083,7 +1083,17 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   the closing articulator further past its contact and the jaw up (a velar,
   which sets no jaw of its own, takes it for the closure), as speakers do in
   fast speech (Kuehn & Moll 1976). /g/ after an open vowel now closes, and at
-  1.5 times the usual rate so do /t/ and /k/. Every consonant lets
+  1.5 times the usual rate so do /t/ and /k/.
+  A velar is made where its vowel is, the /k/ of "chi" further forward than
+  that of "cosa", and nothing in the plan says so: the body of the tongue,
+  which is slow, is still on its way from one vowel to the next when it
+  meets the palate. The front edge of the contact, where the cavity the
+  burst rings in ends, is 6.9 cm from the lips before /i/, 7.8 before /a/,
+  8.0 before /u/ and 9.0 before /o/; the tip of the tongue, which is fast
+  and has a ridge to go to, moves by 0.5 cm. Aiming the body itself halfway
+  to the vowel's place was tried and left out: the /k/ of "chi" came
+  further forward still and its burst, already weaker than speakers', lost
+  another 6 dB. Every consonant lets
   its target go just before the planned release, earlier for the slower
   articulators (tongue body, jaw, velum, in proportion to their time
   constants), so that all of them open together. In the tract model the
@@ -1321,6 +1331,7 @@ in brackets are the adult male targets described under Speech.
 | Airways below a wide glottis | the flow is the airways' (1.5 cmH2O per l/s) below 1.21 cmH2O with the glottis wide open (0.56 cm²), 0.35 cmH2O at 0.3 cm², 0.010 cmH2O for the glottis of a voice (0.05 cm²) |
 | Sibilant in a sentence | the /s/ of "stanotte": narrower than 0.2 cm² 5 ms into its sound, the teeth sounding through 76 % of it; the releases of the two /t/ 0.9 and 4.6 dB below its hiss |
 | Bursts | RMS of 10 ms at the burst less 30 ms at the start of the vowel, as Nicolaidis et al. (2019) measured Greek /p t k/ (theirs in brackets): "la pata" -15.2 dB (-11.2), "la pita" -11.2 (-11.0), "la tata" -13.7 (-10.7), "la tita" -13.1 (-13.0), "la cata" -18.9 (-5.9), "la chita" -16.6 (-11.1); the voice starts after 10, 5, 19, 16, 27 and 25 ms (16, 14, 12, 23, 30, 63); without the pop of the air let out the burst of /p/ loses 1.6 dB, that of /t/ nothing: it is a hiss |
+| Place of a velar | front edge of the contact when the stop is let go: 6.9 cm from the lips before /i/, 7.8 before /a/, 8.0 before /u/, 9.0 before /o/; /t/ 3.9 before /i/, 4.4 before /o/ |
 | Motion of the tube | a section follows the measures of its shape with a speed that changes, from one sample to the next, 450 times less than if it ran to each measure and stopped there; it lands on a closure with no speed left; a steady flow through a narrowing that comes and goes in 20 ms: the sharpest sample of the flow at the lips 71 dB below the swing the gesture makes |
 | Pinched nose | held /m/: nasal airflow 231 -> 0 cm³/s, mouth pressure 8.0 cmH2O (the lung pressure), the hum silent |
 | Italian G2P | sasso, mamma, voce, rosa (northern /z/), gnocchi, figlio (long ʎ), scena, chiesa, città; IPA parsing |

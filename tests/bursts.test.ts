@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { VoiceEngine } from '../src/dsp/engine/engine';
 import { textToPhones } from '../src/dsp/speech/g2p';
+import { passageIn, constrictionOf } from '../src/dsp/speech/derive';
+import type { Articulators } from '../src/dsp/tract/types';
 import { builtinVoice } from '../src/dsp/voice/builtin';
 import { utterance } from '../src/dsp/voice/utterance';
 import { note } from './helpers';
@@ -51,6 +53,27 @@ function burst(text: string, ipa: string, pop = true): { rel: number; vot: numbe
   return { rel: win(seen - 0.005, 0.01) - win(onset, 0.03), vot: onset - release };
 }
 
+/** where the mouth is shut when the stop is let go: the front edge of the contact, which ends the cavity the burst rings in, cm from the lips */
+function shutAt(text: string, ipa: string): number {
+  const u = utterance(builtinVoice('man')!.design, textToPhones(text, 'it'), 'it');
+  const t = u.score.phones.filter((q) => q.ipa === ipa)[0];
+  const e = new VoiceEngine(fs, u.params);
+  e.snapArticulators(); e.snapPressure(); e.playScore(u.score);
+  const block = new Float32Array(48);
+  let last: Articulators | undefined;
+  for (let i = 0; i < (u.score.duration + 0.1) * fs; i += 48) {
+    e.process(block, 48);
+    const shut = e.telemetry().constrictionArea < 0.005;
+    if (i / fs > t.t0 - 0.02 && shut) last = { ...(e as unknown as { art: Articulators }).art };
+    else if (last) break;
+  }
+  if (!last) return -1;
+  // (the tip is shut in the engine by a finer grid than the one measured here: as narrow as the narrowest, to 0.02 cm²)
+  const least = Math.max(0, constrictionOf(last).area) + 0.02;
+  for (let x = 1; x < 14; x += 0.1) if (passageIn(last, [x - 0.2, x + 0.2]) < least) return x;
+  return -1;
+}
+
 describe('bursts of the voiceless stops', () => {
   it('the burst of the tip of the tongue is a hiss, not a pop', () => {
     // the same bursts without the pop of the air let out
@@ -80,5 +103,19 @@ describe('bursts of the voiceless stops', () => {
       expect(got['k' + v].vot).toBeGreaterThan(got['t' + v].vot);
       expect(got['k' + v].vot).toBeLessThan(0.07);
     }
+  });
+
+  it('a velar is made where its vowel is, a tip of the tongue stays at the ridge', () => {
+    // nothing in the plan says so: the body of the tongue, which is slow, is
+    // still on its way from one vowel to the next when it meets the palate
+    const k = { i: shutAt('la chita', 'k'), a: shutAt('la cata', 'k'), u: shutAt('la cuta', 'k'), o: shutAt('la cota', 'k') };
+    const t = { i: shutAt('la tita', 't'), o: shutAt('la tota', 't') };
+    note('place of a velar', `let go at ${k.i.toFixed(1)} cm from the lips before /i/, ${k.a.toFixed(1)} before /a/, ${k.u.toFixed(1)} before /u/, ${k.o.toFixed(1)} before /o/; /t/ at ${t.i.toFixed(1)} before /i/ and ${t.o.toFixed(1)} before /o/`);
+    expect(k.i).toBeLessThan(k.a);
+    expect(k.a).toBeLessThan(k.u);
+    expect(k.u).toBeLessThan(k.o);
+    expect(k.o - k.i).toBeGreaterThan(1);
+    expect(k.o - k.i).toBeLessThan(2.5);
+    expect(Math.abs(t.o - t.i)).toBeLessThan(0.8);
   });
 });
