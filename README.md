@@ -1037,6 +1037,21 @@ sibilants. The teeth panel draws the front and side views with the live jet.
     Italian uses rules of the same form: stressed vowels long in open
     syllables (x1.55) and short before a geminate or a coda, unstressed and
     function-word vowels short, geminates x1.85, phrase-final lengthening.
+    The speaking rate acts on the same compressible part, so a faster voice
+    does not shorten every sound alike: the minimum is a larger share of a
+    consonant than of a vowel, and of an unstressed vowel than of a stressed
+    one. The part that gives is scaled by whatever makes the whole last
+    1/rate of what it lasts at the usual rate; with a quarter of it left,
+    at about 1.5 times the usual rate, the vowels are near their minimum
+    and everything is shortened together from there on. Between a slow rate
+    (0.9) and a fast one (1.15) the Italian vowels come down to 0.74 of
+    their duration and the stops to 0.83, the English ones to 0.72 and 0.83.
+    Speakers of English asked to talk slowly and then fast had 0.75 for
+    the vowels and 0.9 for the consonants of /pVp/ syllables (Gay 1978), and
+    0.74 for a stressed vowel against 0.8 for the stop after it (Port 1981;
+    both as reviewed by Katsuda & Kang 2026). A language read from its
+    transcription, which has no table of minimum durations, takes the
+    share they have in those two: 0.45 of a vowel, 0.65 of a consonant.
   - *Intonation*: the Fujisaki model (Fujisaki & Hirose 1984): ln F0 = ln Fb
     + phrase commands (impulses through α² t e^(-αt), α = 2/s: the slow rise
     and declination of each phrase) + accent commands (steps through
@@ -1332,6 +1347,7 @@ in brackets are the adult male targets described under Speech.
 | Sibilant in a sentence | the /s/ of "stanotte": narrower than 0.2 cm² 5 ms into its sound, the teeth sounding through 76 % of it; the releases of the two /t/ 0.9 and 4.6 dB below its hiss |
 | Bursts | RMS of 10 ms at the burst less 30 ms at the start of the vowel, as Nicolaidis et al. (2019) measured Greek /p t k/ (theirs in brackets): "la pata" -15.2 dB (-11.2), "la pita" -11.2 (-11.0), "la tata" -13.7 (-10.7), "la tita" -13.1 (-13.0), "la cata" -18.9 (-5.9), "la chita" -16.6 (-11.1); the voice starts after 10, 5, 19, 16, 27 and 25 ms (16, 14, 12, 23, 30, 63); without the pop of the air let out the burst of /p/ loses 1.6 dB, that of /t/ nothing: it is a hiss |
 | Place of a velar | front edge of the contact when the stop is let go: 6.9 cm from the lips before /i/, 7.8 before /a/, 8.0 before /u/, 9.0 before /o/; /t/ 3.9 before /i/, 4.4 before /o/ |
+| Speaking rate | the whole lasts 1/rate of what it lasts at the usual rate, from 0.6 to 2.5 times (Italian within 1 %; English, whose aspiration follows the root of the rate, within 15 %); between a slow rate (0.9) and a fast one (1.15): Italian vowels 0.74 and stops 0.83 of their duration, English 0.72 and 0.83 (speakers 0.75 and 0.9, Gay 1978; 0.74 and 0.8, Port 1981); slower than usual (0.9): vowels +14 % and stops +9 %, English +15 % and +8 %; from 2 to 2.5 times vowels and stops both 0.80 |
 | Motion of the tube | a section follows the measures of its shape with a speed that changes, from one sample to the next, 450 times less than if it ran to each measure and stopped there; it lands on a closure with no speed left; a steady flow through a narrowing that comes and goes in 20 ms: the sharpest sample of the flow at the lips 71 dB below the swing the gesture makes |
 | Pinched nose | held /m/: nasal airflow 231 -> 0 cm³/s, mouth pressure 8.0 cmH2O (the lung pressure), the hum silent |
 | Italian G2P | sasso, mamma, voce, rosa (northern /z/), gnocchi, figlio (long ʎ), scena, chiesa, città; IPA parsing |
@@ -1526,6 +1542,13 @@ in brackets are the adult male targets described under Speech.
   20 Hz of F1 over the 6 dB either side of a speaking voice, and in this
   geometry more jaw lowers F1 in the open back vowels. The vowels are not
   lengthened either.
+- The speaking rate shortens the sounds, not the movements: the organs are
+  no quicker in fast speech and no slower in slow speech, the pauses and
+  the breath of an aspirated stop follow the rate by rules of their own
+  (in proportion, and with its root), and fricatives and nasals give as
+  much as stops. In Japanese, which tells long sounds from short ones,
+  speakers changed their vowels and their stops alike and their fricatives
+  and nasals less (Katsuda & Kang 2026).
 - A breath is taken only at a full stop, never before the first sentence,
   and it is the same breath whatever is said next: it is not deeper before
   a long sentence. The lungs are a pressure, not a volume that runs out.
@@ -1614,6 +1637,7 @@ in brackets are the adult male targets described under Speech.
 - Espy-Wilson, C. Y., Boyce, S. E., Jackson, M., Narayanan, S. & Alwan, A. (2000). Acoustic modeling of American English /r/. JASA 108.
 - Fujisaki, H. & Hirose, K. (1984). Analysis of voice fundamental frequency contours for declarative sentences of Japanese. J. Acoust. Soc. Jpn. (E) 5.
 - Klatt, D. H. (1979). Synthesis by rule of segmental durations in English sentences. In Frontiers of Speech Communication Research. Academic Press.
+- Katsuda, H. & Kang, Y. (2026). Speaking rate effects on Japanese vowel and consonant length contrasts. Journal of Phonetics 115, 101473.
 - Cohn, A. C. (1990). Phonetic and phonological rules of nasalization. UCLA Working Papers in Phonetics 76.
 - Laprie, Y., Elie, B. & Tsukanova, A. (2015). 2D articulatory velum modeling applied to copy synthesis of sentences containing nasal phonemes. ICPhS 2015, Glasgow.
 - Lindblom, B. (1963). Spectrographic study of vowel reduction. JASA 35.

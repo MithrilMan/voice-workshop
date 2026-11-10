@@ -140,6 +140,8 @@ interface Unit {
   wordFinalSyl: boolean;
   polysyllabic: boolean;
   dur: number;
+  /** the part of its duration that a faster voice cannot take away, s */
+  floor: number;
 }
 
 const FRAME = 0.005;
@@ -264,7 +266,7 @@ function analyse(phones: Phone[], literal = false, shape?: Head): Unit[] {
     if (p.wordStart && prevU && !prevU.p.wordEnd && !prevU.p.pause) word++;
     units.push({
       p, ph, vowel: isNucleus(ph), word, syl: -1, w0: 0, w1: 0, stressed: false, coda: false,
-      phraseFinal: false, boundary: 'stop', wordFinalSyl: false, polysyllabic: false, dur: 0,
+      phraseFinal: false, boundary: 'stop', wordFinalSyl: false, polysyllabic: false, dur: 0, floor: 0,
     });
     if (p.wordEnd || p.pause) word++;
   }
@@ -362,6 +364,17 @@ const KLATT: Record<string, [number, number]> = {
  */
 const BREATH = { after: 0.03, before: 0.07, edge: 0.06, least: 0.12 };
 
+/** the share of a sound that cannot be shortened, where no table gives its minimum duration */
+const NEUTRAL_FLOOR = { vowel: 0.45, consonant: 0.65 };
+
+/**
+ * The least that is left, in the fastest speech, of the part of a sound that
+ * can be shortened. With a quarter left the vowels are near their minimum
+ * durations and the whole is about 1.5 times as fast: past that, everything
+ * is shortened together.
+ */
+const RATE_LEAST = 0.25;
+
 /** Inherent and minimum durations for Italian, ms (stops: closure plus release). */
 const ITALIAN: Record<string, [number, number]> = {
   a: [120, 55], e: [115, 50], 'ɛ': [118, 52], o: [115, 50], 'ɔ': [118, 52], i: [100, 45], u: [100, 45], 'ə': [80, 40],
@@ -398,6 +411,7 @@ function englishDuration(u: Unit, next: Unit | undefined, prev: Unit | undefined
     if (pc && nc) pr *= 0.5; else if (pc || nc) pr *= 0.7;
     if (u.phraseFinal && u.coda) pr *= lengthen(1.4, st);
   }
+  u.floor = min / 1000;
   return (min + (inh - min) * pr) / 1000;
 }
 
@@ -423,6 +437,7 @@ function italianDuration(u: Unit, next: Unit | undefined, prev: Unit | undefined
   }
   let d = min + (inh - min) * pr;
   if (u.p.long && !u.vowel) d *= 1.85;
+  u.floor = (min * (u.p.long && !u.vowel ? 1.85 : 1)) / 1000;
   return d / 1000;
 }
 
@@ -454,6 +469,9 @@ function neutralDuration(u: Unit, next: Unit | undefined, prev: Unit | undefined
     // a tense (fortis) consonant holds its closure longer (Korean: Cho, Jun & Ladefoged 2002)
     if (u.ph.fortis) d *= 1.3;
   }
+  // (no table of minimum durations for a language read from its transcription:
+  // the share they have in the Italian and English ones)
+  u.floor = d * (u.vowel ? NEUTRAL_FLOOR.vowel : NEUTRAL_FLOOR.consonant);
   return d;
 }
 
@@ -484,8 +502,10 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // durations
   for (let i = 0; i < units.length; i++) {
     const u = units[i];
+    u.floor = 0;
     if (nat.timing) u.dur = (literal ? neutralDuration : en ? englishDuration : italianDuration)(u, units[i + 1], units[i - 1], st, lp);
     else u.dur = u.ph.dur * (u.p.long && !u.vowel ? 1.9 : 1);
+    const hard = u.dur > 0 ? Math.min(1, u.floor / u.dur) : 0;
     if (u.p.halfLong) u.dur *= 1.3;
     if (u.p.extraShort) u.dur *= 0.55;
     // the nasal of a prenasalized stop is a short lead-in to it
@@ -497,7 +517,28 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       const contacts = u.p.long ? 4 : u.p.wordStart ? 3 : isCons(units[i - 1]) ? 1 : 2;
       u.dur = Math.max(u.dur, contacts * 0.036);
     }
-    u.dur /= rate;
+    u.floor = hard * u.dur;
+  }
+  // The speaking rate. A faster voice does not shorten every sound alike:
+  // each has a part that gives and a minimum that does not (Klatt 1979), and
+  // the minimum is a larger share of a consonant than of a vowel, of an
+  // unstressed vowel than of a stressed one. Said fast instead of slowly,
+  // vowels lose 25 % where consonants lose 10 % (Gay 1978), or 26 % against
+  // the 20 % of the stop after them (Port 1981); in Arabic, said
+  // fast vowels lose 25 % and said slowly gain 50 %, consonants 12 % either way
+  // (Port et al. 1980; all three as reviewed by Katsuda & Kang 2026).
+  // The part that gives is scaled by whatever
+  // makes the whole last 1/rate of what it lasts at the usual rate.
+  if (rate !== 1) {
+    let all = 0, hard = 0;
+    for (const u of units) { all += u.dur; hard += u.floor; }
+    const soft = all - hard;
+    if (hard <= 0 || soft <= 0) for (const u of units) u.dur /= rate;
+    else {
+      let give = (all / rate - hard) / soft, squeeze = 1;
+      if (give < RATE_LEAST) { give = RATE_LEAST; squeeze = all / rate / (hard + soft * give); }
+      for (const u of units) u.dur = squeeze * (u.floor + (u.dur - u.floor) * give);
+    }
   }
 
   // segments
