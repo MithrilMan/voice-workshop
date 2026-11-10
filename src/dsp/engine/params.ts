@@ -238,6 +238,13 @@ export interface Score {
   duration: number;
   /** slow random wander of F0 while the score plays (Klatt's flutter, 0..100; 25 is natural) */
   flutter?: number;
+  /**
+   * a living voice: with a seed the flutter is a random wander (another for
+   * each seed) instead of Klatt's three sines, and the breath and the
+   * tension of the folds wander too, by `variation` (1 = usual)
+   */
+  seed?: number;
+  variation?: number;
   /** time constant (s) of the F0 smoothing while the score plays, when its contour is already smooth */
   f0Tau?: number;
   /** multipliers of the articulators' time constants while the score plays (a slack or a crisp speaker) */

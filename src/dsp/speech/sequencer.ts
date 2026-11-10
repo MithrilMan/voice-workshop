@@ -9,6 +9,7 @@ import { normalizeIpa } from './ipaReader';
 import { ProsodyStyle, styleOf, lengthen, ST } from './style';
 import { Setting, settingOf, isNeutral, adjust, nasalizable } from '../voice/setting';
 import { LanguageProsody, prosodyOf } from './languages';
+import { Rng } from '../util/rng';
 
 /**
  * Turns phones into a gestural score: piecewise targets for every articulator
@@ -82,6 +83,13 @@ export interface ProsodyOptions {
   tauScale?: Partial<Record<keyof Articulators, number>>;
   /** the speaker's way of speaking: melody, pauses, accents, phrase ends (the planner's own values by default) */
   style?: Partial<ProsodyStyle>;
+  /**
+   * a living speaker: with a seed every syllable, pause and accent is a
+   * little different, by the style's variation, and differently for each
+   * seed (the same seed, the same saying); without one the rules alone,
+   * the same every time
+   */
+  seed?: number;
   /** the speaker's articulatory setting: the posture kept beneath every sound (none by default) */
   setting?: Partial<Setting>;
   /**
@@ -488,12 +496,33 @@ const ga = (t: number, beta: number) => (t > 0 ? Math.min(1 - (1 + beta * t) * M
 
 interface Command { t1: number; t2: number; a: number; beta: number }
 
+/**
+ * How much a living speaker varies at variation 1: the standard deviations
+ * of log-normal factors on the length of each syllable (half of it a tempo
+ * that drifts over a few syllables), of each pause, on the height of each
+ * pitch accent, of the phrase commands and of the boundary tones, and on
+ * the push and tension of each stressed syllable and the relaxing of each
+ * phrase end. Chosen, not measured.
+ */
+const VARY = { tempo: 0.08, drift: 0.7, pause: 0.2, accent: 0.2, phrase: 0.15, boundary: 0.15, push: 0.3, end: 0.2 };
+
 // ---------------------------------------------------------------- the score
 
 export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   const o: ProsodyOptions = { ...DEFAULT_PROSODY, ...opts, natural: { ...NATURAL_ALL, ...(opts.natural ?? {}) } };
   const nat = o.natural;
   const st = styleOf(o.style);
+  // a living speaker (a seed): one random stream for each kind of variation,
+  // so that one kind does not shift another's draws
+  const live = o.seed !== undefined && st.variation > 0 ? st.variation : 0;
+  const streams = new Map<number, Rng>();
+  const draw = (stream: number): number => {
+    let r = streams.get(stream);
+    if (!r) streams.set(stream, (r = new Rng(((o.seed! | 0) * 7919 + stream * 104729) | 0)));
+    return r.gauss();
+  };
+  /** a random factor around 1 (log-normal, sd at variation 1), 1 without a seed */
+  const vary = (stream: number, sd: number): number => (live ? Math.exp(live * sd * draw(stream)) : 1);
   const rate = Math.max(0.3, o.rate);
   const literal = o.literal ?? (phones.length > 0 && phones.every((p) => p.literal));
   const en = !literal && o.lang === 'en';
@@ -522,6 +551,22 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       u.dur = Math.max(u.dur, contacts * 0.036);
     }
     u.floor = hard * u.dur;
+  }
+  // a living speaker's syllables are each a little longer or shorter than the
+  // rules have them, and the tempo drifts over a few syllables (a trill keeps
+  // the length of its contacts)
+  if (live) {
+    let syl = -1, drift = 0, f = 1;
+    for (const u of units) {
+      if (u.syl !== syl) {
+        syl = u.syl;
+        drift = VARY.drift * drift + Math.sqrt(1 - VARY.drift ** 2) * draw(1);
+        f = Math.exp((live * VARY.tempo * (drift + draw(1))) / Math.SQRT2);
+      }
+      if (u.ph.manner === 'trill') continue;
+      u.dur *= f;
+      u.floor *= f;
+    }
   }
   // The speaking rate. A faster voice does not shorten every sound alike:
   // each has a part that gives and a minimum that does not (Klatt 1979), and
@@ -601,7 +646,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     }
     // a pause inside the utterance; after the last sound the voice simply stops
     if (u.p.pause && i < units.length - 1) {
-      const d = (u.p.pause === 'long' ? st.pauseLong : st.pauseShort) / rate;
+      const d = ((u.p.pause === 'long' ? st.pauseLong : st.pauseShort) / rate) * vary(2, VARY.pause);
       segs.push({ ipa: '_', ph: PHONEMES._, t0: t, t1: t + d, unit: i, label: '_' });
       t += d;
     }
@@ -1055,7 +1100,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       const isEnd = i === units.length - 1 || !!u.p.pause;
       if (!isEnd) continue;
       const startT = segs.find((s) => s.unit === phraseStart)?.t0 ?? 0;
-      phraseCmds.push({ t: startT - 0.25, a: st.phrase * (first ? 0.32 : u.boundary === 'comma' || units[phraseStart - 1]?.boundary === 'comma' ? 0.16 : 0.26) });
+      phraseCmds.push({ t: startT - 0.25, a: st.phrase * (first ? 0.32 : u.boundary === 'comma' || units[phraseStart - 1]?.boundary === 'comma' ? 0.16 : 0.26) * vary(4, VARY.phrase) });
       first = false;
       // accents on the stressed vowels of content words
       const acc: number[] = [];
@@ -1076,7 +1121,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
         const vs = vowelSeg(j);
         if (!vs) return;
         const nuclear = n === acc.length - 1;
-        let a = height;
+        let a = height * vary(3, VARY.accent);
         // a yes/no question has a low nuclear accent before its final rise
         if (nuclear && yesNo) a = riseFall ? a * 1.3 : 0;
         if (en || lp?.peak === 'early' || riseFall && nuclear) {
@@ -1099,10 +1144,11 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       const lv = lastV >= 0 ? vowelSeg(lastV) : undefined;
       const endT = segs.filter((s) => s.unit <= i).reduce((m, s) => Math.max(m, s.t1), 0);
       if (lv) {
-        if (riseFall) accentCmds.push({ t1: lv.t0 + 0.02, t2: endT + 0.2, a: -st.finalFall * ST, beta: 12 });
-        else if (yesNo) accentCmds.push({ t1: lv.t0 - 0.1, t2: endT + 0.2, a: st.questionRise * ST, beta: 16 });
-        else if (boundary === 'comma') accentCmds.push({ t1: lv.t0, t2: endT + 0.1, a: st.continuation * ST, beta: 16 });
-        else accentCmds.push({ t1: lv.t0 - 0.02, t2: endT + 0.2, a: -st.finalFall * ST, beta: 12 }); // final lowering
+        const bv = vary(5, VARY.boundary);
+        if (riseFall) accentCmds.push({ t1: lv.t0 + 0.02, t2: endT + 0.2, a: -st.finalFall * ST * bv, beta: 12 });
+        else if (yesNo) accentCmds.push({ t1: lv.t0 - 0.1, t2: endT + 0.2, a: st.questionRise * ST * bv, beta: 16 });
+        else if (boundary === 'comma') accentCmds.push({ t1: lv.t0, t2: endT + 0.1, a: st.continuation * ST * bv, beta: 16 });
+        else accentCmds.push({ t1: lv.t0 - 0.02, t2: endT + 0.2, a: -st.finalFall * ST * bv, beta: 12 }); // final lowering
       }
       phraseStart = i + 1;
     }
@@ -1173,6 +1219,9 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   const falls = (u: Unit) => u.boundary === 'stop' || u.boundary === 'wh';
   const phraseEnds = segs.filter((s) => s.ph.manner === 'silence').map((s) => ({ t: s.t0, fall: falls(units[s.unit]) }))
     .concat([{ t, fall: units.length > 0 && falls(units[units.length - 1]) }]);
+  // a living speaker pushes each stressed syllable, and relaxes into each phrase end, by its own amount
+  const push = stressedVowels.map(() => vary(6, VARY.push));
+  const relax = phraseEnds.map(() => vary(7, VARY.end));
   // breath groups: the lungs are refilled at a full stop, so their pressure
   // falls from the start of each sentence to its end, not once over them all
   const breaths: { t0: number; t1: number }[] = [];
@@ -1305,21 +1354,21 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
         let br = breaths[0];
         for (const b of breaths) if (time >= b.t0) br = b;
         ps *= 1 - st.declination * (br.t1 > br.t0 ? Math.min(1, (time - br.t0) / (br.t1 - br.t0)) : 0);
-        for (const v of stressedVowels) {
+        stressedVowels.forEach((v, k) => {
           const c = 0.5 * (v.t0 + v.t1), w = (v.t1 - v.t0) + 0.08;
           const d = Math.abs(time - c);
-          if (d < w) { const e = 0.5 * (1 + Math.cos((Math.PI * d) / w)); ps *= 1 + st.stressPs * e; rd -= st.stressRd * e; }
-        }
+          if (d < w) { const e = 0.5 * (1 + Math.cos((Math.PI * d) / w)) * push[k]; ps *= 1 + st.stressPs * e; rd -= st.stressRd * e; }
+        });
         // the end of each phrase relaxes: less pressure, breathier voice
         // (a speaker who ends statements in creak, vocal fry, drops into it instead)
-        for (const pe of phraseEnds) {
+        phraseEnds.forEach((pe, k) => {
           const d = pe.t - time;
           if (d >= 0 && d < st.endWindow) {
             const e = 1 - d / st.endWindow, c = pe.fall ? st.endCreak : 0;
-            ps *= 1 - st.endPs * e; rd += (st.endRd * (1 - c) - 0.6 * c) * e;
+            ps *= 1 - Math.min(0.9, st.endPs * relax[k]) * e; rd += (st.endRd * relax[k] * (1 - c) - 0.6 * c) * e;
             if (c > 0) fry = Math.max(fry, c * Math.min(1, 1.6 * e));
           }
-        }
+        });
       }
       // a pause is quiet: the lungs hold back instead of blowing through the open glottis
       if (sg?.ph.manner === 'silence' && sg.t1 - sg.t0 > 0.1 && time > sg.t0 + 0.04 && time < sg.t1 - 0.06) ps *= 0.08;
@@ -1345,7 +1394,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // contour): the engine only rounds off the 5 ms frame steps, without the
   // slower glide it gives to a slider, which would shave the accent peaks
   const scaled = Object.values(tauScale).some((v) => v !== undefined && v !== 1);
-  return { frames, phones: sp, duration, flutter: nat.micro ? st.flutter : 0, f0Tau: 0.006, ...(scaled ? { tauScale } : {}) };
+  return { frames, phones: sp, duration, flutter: nat.micro ? st.flutter : 0, f0Tau: 0.006, ...(scaled ? { tauScale } : {}), ...(live ? { seed: o.seed, variation: live } : {}) };
 }
 
 /** A sustained vowel or a glide between targets, for the singing / A-B demos. */

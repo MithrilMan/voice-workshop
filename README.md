@@ -134,7 +134,8 @@ Four modes, switchable in the header and remembered in the browser:
   levels of the hiss at a constriction and of the hiss on the teeth, the
   most of s and ʃ, as in the Noise panel of the Lab), the habits (the
   posture kept beneath every sound, a twang among it, and the precision), the melody (usual
-  pitch, accents, downstep, the ends of statements and questions, with the
+  pitch, accents, downstep, the ends of statements and questions, how much
+  it varies from one saying to the next, with the
   pitch the voice will give the sentence drawn above them) and the rhythm
   and breath (rate, pauses, lengthening, loudness and its fall). The voice
   being edited is the voice that sounds, held on a vowel or saying the
@@ -1123,6 +1124,20 @@ sibilants. The teeth panel draws the front and side views with the live jet.
     voiceless obstruent, -0.8 st after a voiced one, decaying in 35 ms), and
     flutter, the slow F0 wander of Klatt & Klatt (1990): F0 (1 + FL/5000 (sin
     2π 12.7 t + sin 2π 7.1 t + sin 2π 4.7 t)), FL = 25.
+  - *Living variation*, with a seed (the app gives a new one to every
+    sentence it says; the tests, the fit and the melody drawn in the studio
+    have none, and the rules alone): the length of each syllable is
+    multiplied by a log-normal factor (sd 8 %, half of it a tempo that
+    drifts over a few syllables), each pause by one of 20 %, the height of
+    each pitch accent by one of 20 %, the phrase commands and the boundary
+    tones by 15 %, the push and tension of each stressed syllable by 30 %
+    and the relaxing into each phrase end by 20 %. The flutter becomes a
+    random wander of the same rms over about 2-12 Hz (three noises, each
+    low-passed twice) instead of the three sines, and the lung pressure
+    (4 % rms) and Rd (0.06 rms) wander over 0.7-5 Hz. All of it is scaled
+    by the voice's variation (1 by default, 0 the rules alone) and differs
+    with the seed; the same seed says it the same way again. The figures
+    are chosen, not measured.
   - *Voice quality*: more lung pressure (+14 %) and a tenser source (Rd -0.12)
     on stressed syllables; lower pressure and a breathier source (Rd +0.55)
     over the last 280 ms of each phrase; a lung pressure that falls by 12 %
@@ -1285,8 +1300,8 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   - *Prosodic style*: the pitch floor, the strength of the phrase commands,
     the downstep and its floor, the final fall, the rises of questions and of
     commas, the microprosody, the flutter, the pauses, the final lengthening,
-    the fall of the lung pressure, the push of an accent and the way a phrase
-    ends. A style can end its statements in creak (vocal fry): over the last
+    the fall of the lung pressure, the push of an accent, the way a phrase
+    ends and how much all of it varies. A style can end its statements in creak (vocal fry): over the last
     stretch of the phrase the source makes slow, irregular pulses with
     alternate ones weaker, about seven semitones lower, pressed rather than
     breathy (fry is about 25-70 Hz: Hollien & Michel 1968); questions and
@@ -1379,6 +1394,27 @@ score of a voice saying something: one turn of a dialogue.
   folds of the simulator are more regular (cepstral peak 0.2-0.5 dB
   higher) with a smaller H1-H2 (0.3-3.7 dB), and the band at 0.5-1 kHz
   is 2-3.5 dB off in four of the five.
+- Copy synthesis (`src/dsp/voice/copy.ts`, `scripts/copy-test.ts`): a
+  recording's timing, melody and loudness put on a voice of the simulator
+  saying the same text, to hear how much of a voice that sounds alive is
+  in its prosody and how much in its sound. Our saying and the recording
+  are aligned by dynamic time warping of their cepstra (25 ms frames
+  every 10 ms, 26 mel bands from 100 Hz to 7.6 kHz, c1-c12, the mean of
+  the speech removed; symmetric steps within a band about the diagonal,
+  the path smoothed over 70 ms). The score is resampled on the
+  recording's time, its pitch replaced by the recording's (gliding in log
+  across the voiceless stretches) and its lung pressure multiplied by the
+  slow swell of the gap between the two loudnesses (voiced frames, about
+  100 ms, within 8 dB, 9.6 dB for each doubling of the pressure, as a
+  held vowel; twice). Pitch and pressure are given three time constants
+  early, the lag of the engine's smoothing (18 and 60 ms). The script
+  writes, for each sentence, the recording, our saying by the rules, the
+  same living, and the copies of timing, of timing and melody, and of all
+  three, with a page that plays them side by side. On the five reference
+  voices (15 sentences) the sounds of the copies lie a median 14-57 ms
+  from the recording's, against 55-427 ms by our rules, the pitch
+  0.2-0.32 semitone off (jitter and flutter included), the swell of the
+  loudness 0.6-2.1 dB rms off against 1.9-4.3.
 
 ## Main parameters
 
@@ -1522,6 +1558,8 @@ in brackets are the adult male targets described under Speech.
 | Phonemizer | French "Bonjour, comment ça va ? Je m'appelle Mireille." bɔ̃ʒˈuʁ kɔmˈɑ̃ sˈa vˈa? ʒˈə mapˈɛl miʁˈɛj (5 words from the dictionary, 2 from the model); Mandarin 你好，世界 ni˨˩˦ xɑʊ˨˩˦ ʂɚ˥˩ tɕjɛ˥˩ (dictionary, tones read); German "Guten Morgen, wie geht es dir?" gˈuːtən mˈɔʁgən viː get ˈɛs dˈiːʁ (model, 6 words in 0.5 s including loading it, Node, one thread); dictionary format, word splitting, the longest dictionary words, greedy decoding and fixed stress tested on a scripted network |
 | Voice print | held /a/: formants 730 / 1286 / 2590 Hz (the waveguide's own 729 / 1298 / 2594); with the woman's head 844 / 1632 / 3056 Hz |
 | Voice fit | the Sky-like voice saying "Is it raining in the city today? Not at all.", found again from the woman's (effort 0.3): distance 2.97 → 0.44 in 49 renderings, median pitch 192 Hz against 192 |
+| Living variation | "ieri sera, sulla spiaggia, abbiamo guardato la luna piena salire sopra il mare." over 30 seeds: its sounds 8.6 % longer or shorter (sd), its accent peaks moved by 0.89 st (sd), the whole 95-106 % of the saying by the rules; at variation 2, 17.2 % and 1.93 st |
+| Copy synthesis | "la luna piena sale sopra il mare" copied onto the same said slower (rate 0.8), higher (140 Hz) and with wider phrases: middles of the sounds 308 → 4 ms apart (median), pitch 4.35 → 0.15 st off, swell of the loudness 0.8 → 0.4 dB rms off |
 
 ## Simplifications and limits
 
@@ -1740,6 +1778,13 @@ in brackets are the adult male targets described under Speech.
   25-33 dB below the loudest frames, where silence is counted from 35 dB
   below (one of 0.3 s goes down to 65 dB below), so the fit has to make
   the pauses longer than the recording's before they are measured at all.
+- The living variation draws each factor on its own from spreads that are
+  chosen, not measured on speakers: a person's longer syllable, higher
+  accent and stronger push tend to come together, on the word that
+  matters, where here they fall where they fall. Copy synthesis keeps our
+  articulation, and the alignment is only as good as the two sayings are
+  alike: on the sentence with four /t/ between vowels ("The little button
+  on the water bottle") it drifts by 49-57 ms, elsewhere by 14-36.
 
 ## References
 
@@ -1849,6 +1894,7 @@ in brackets are the adult male targets described under Speech.
 ```bash
 npx tsx scripts/say.ts out/            # render example sentences to WAV, print phones, durations and pitch range
 npx tsx scripts/fit-voice.ts list.json --out=a.voice.json   # fit a voice to WAV recordings and their texts
+npx tsx scripts/copy-test.ts list.json --n=3 --out=.ref/copy    # a recording's timing, melody and loudness on our voice, to listen to
 npx tsx scripts/say.ts out/ en "any sentence"   # one sentence; add --flat for the robot version
 npx tsx scripts/say.ts out/ it "la luna" --voice=deep   # with a starting voice, or --voice=my.voice.json from the studio
 npx tsx scripts/g2p.ts en "the water bottle"    # phones of a text and where each English word came from

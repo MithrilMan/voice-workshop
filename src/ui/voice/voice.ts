@@ -116,7 +116,8 @@ export class VoiceController {
 
   /**
    * How the voice says a text in a language: its habits and style, with the
-   * pitch and lung pressure the hands have now (the lab's sliders).
+   * pitch and lung pressure the hands have now (the lab's sliders), and a
+   * new seed each time, so that it never says a sentence twice alike.
    */
   speechOptions(lang: string): ScoreOptions {
     const m = this._manual;
@@ -124,6 +125,8 @@ export class VoiceController {
       ...voiceSpeech(this._active, lang), f0: m.source.f0, ps: Math.max(6, m.source.ps),
       // the head the hands have now: its sounds are aimed for its mouth
       head: { anatomy: { ...m.anatomy }, teeth: { ...m.teeth } },
+      // a living voice: never the same saying twice
+      seed: Math.floor(Math.random() * 2 ** 31),
     };
   }
   get lanes(): Lanes { return this._lanes; }

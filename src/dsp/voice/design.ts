@@ -287,6 +287,8 @@ export const VOICE_FIELDS: Field[] = [
     { it: 'Le piccole spinte di altezza delle vocali chiuse e delle consonanti sorde: 0 le toglie.', en: 'The small pitch pushes of close vowels and voiceless consonants: 0 removes them.' }, 0, 2, 0.05),
   n('speaking.style.flutter', 'melody', G.phrase, { it: 'Ondeggiamento', en: 'Flutter' },
     { it: 'Il lento vagare dell’altezza di una voce viva (Klatt & Klatt 1990): 25 naturale.', en: 'The slow wander of the pitch of a living voice (Klatt & Klatt 1990): 25 natural.' }, 0, 100, 1),
+  n('speaking.style.variation', 'melody', G.phrase, { it: 'Variabilità', en: 'Variation' },
+    { it: 'Quanto la voce cambia da una sillaba all’altra e da una volta all’altra: durate, pause, altezza degli accenti, spinta, e un lento ondeggiare del fiato e della tensione. 0 = sempre uguale, come una macchina; 1 = come di solito.', en: 'How much the voice changes from one syllable to the next and from one saying to the next: lengths, pauses, height of the accents, push, and a slow wander of the breath and the tension. 0 = the same every time, like a machine; 1 = usual.' }, 0, 2, 0.05),
   n('speaking.style.finalFall', 'melody', G.ends, { it: 'Discesa finale', en: 'Final fall' },
     { it: 'Quanto scende la voce alla fine di un’affermazione.', en: 'How far the voice falls at the end of a statement.' }, 0, 8, 0.1, 'st'),
   n('speaking.style.questionRise', 'melody', G.ends, { it: 'Salita della domanda', en: 'Question rise' },

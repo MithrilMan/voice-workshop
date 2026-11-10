@@ -10,6 +10,7 @@ import { Aero, newJetInfo, JetInfo, RE_CRIT, kineticResistances, rootThroughZero
 import { TurbulenceSource, ShapedNoise } from '../noise/noise';
 import { ButterworthLowpass } from '../util/biquad';
 import { Rng } from '../util/rng';
+import { Wander } from '../util/wander';
 import { smoothstep } from '../util/math';
 import { TamChannel, TAM_TAU } from '../speech/tam';
 import { Articulators, ARTICULATOR_KEYS } from '../tract/types';
@@ -17,6 +18,16 @@ import { EngineParams, Score, ScoreFrame, defaultParams } from './params';
 
 /** Output samples between control updates. */
 const CTRL = 32;
+/**
+ * A living voice (a score with a seed): the corners of its random wanders,
+ * Hz, and how far the breath (share of the lung pressure) and the tension of
+ * the folds (Rd) wander, rms, at variation 1. The pitch wanders over the
+ * band of Klatt's flutter (sines at 4.7, 7.1 and 12.7 Hz) and as much (rms);
+ * the breath and the tension more slowly, over syllables and words. Chosen,
+ * not measured: about half a decibel of loudness and a twentieth of the
+ * range of Rd.
+ */
+const WANDER = { f0: [2, 5, 12], slow: [0.7, 2, 5], ps: 0.04, rd: 0.06 };
 /** Minimum time between geometry recomputations (s). */
 const GEOM_INTERVAL = 0.0027;
 /** Radiated pressure at 1 m per unit dU/dt: rho / (4 pi r), in Pa. */
@@ -484,6 +495,8 @@ export class VoiceEngine {
 
   // score
   private score: Score | null = null;
+  /** the wanders of a living voice, while a score with a seed plays */
+  private wander: { f0: Wander; ps: Wander; rd: Wander } | null = null;
   private scoreTime = 0;
   private scoreIdx = 0;
   private scoreHold = 0.25;
@@ -522,6 +535,8 @@ export class VoiceEngine {
     this.scoreIdx = 0;
     this.tam.f0.tau = score.f0Tau ?? TAM_TAU.f0;
     for (const k of ARTICULATOR_KEYS) this.tam[k].tau = TAM_TAU[k] * (score.tauScale?.[k] ?? 1);
+    const s = score.seed;
+    this.wander = s === undefined ? null : { f0: new Wander(s + 101, WANDER.f0), ps: new Wander(s + 202, WANDER.slow), rd: new Wander(s + 303, WANDER.slow) };
   }
 
   stopScore(): void { this.score = null; this.restoreTau(); }
@@ -591,7 +606,10 @@ export class VoiceEngine {
     const ck = fr ? fr.click : 0;
     this.clickDelta = ck - this.click;
     this.click = ck;
-    this.rdOffset = fr ? fr.rd : 0;
+    // a living voice wanders: its pitch (the flutter), its breath, its tension
+    const w = this.score ? this.wander : null;
+    const live = w ? this.score!.variation ?? 1 : 0;
+    this.rdOffset = fr ? fr.rd + (w ? live * WANDER.rd * w.rd.step(dt) : 0) : 0;
     // a glottal stop closes within a few milliseconds
     this.gate += ((fr ? fr.gate : 1) - this.gate) * (1 - Math.exp(-dt / 0.006));
     this.stiff += ((fr ? fr.stiff : 0) - this.stiff) * (1 - Math.exp(-dt / STIFF_TAU));
@@ -599,12 +617,15 @@ export class VoiceEngine {
     this.creak += ((fr ? fr.creak : 0) - this.creak) * (1 - Math.exp(-dt / 0.02));
     this.abduction = this.tam.abduction.step(fr ? fr.abduction : p.abduction, dt);
     const vib = p.source.vibratoDepth > 0 ? Math.pow(2, (p.source.vibratoDepth / 1200) * Math.sin(2 * Math.PI * p.source.vibratoRate * this.time)) : 1;
-    // flutter: slow quasi-random F0 wander of a living voice (Klatt & Klatt 1990)
+    // flutter: slow quasi-random F0 wander of a living voice (Klatt & Klatt
+    // 1990), with a seed a random one of the same rms (three sines of
+    // amplitude A: A times the square root of 1.5)
     const fl = this.score?.flutter ?? 0;
     const tt = this.time;
-    const flutter = fl > 0 ? 1 + (fl / 50 / 100) * (Math.sin(2 * Math.PI * 12.7 * tt) + Math.sin(2 * Math.PI * 7.1 * tt) + Math.sin(2 * Math.PI * 4.7 * tt)) : 1;
+    const flutter = w ? 1 + (fl / 50 / 100) * Math.sqrt(1.5) * w.f0.step(dt)
+      : fl > 0 ? 1 + (fl / 50 / 100) * (Math.sin(2 * Math.PI * 12.7 * tt) + Math.sin(2 * Math.PI * 7.1 * tt) + Math.sin(2 * Math.PI * 4.7 * tt)) : 1;
     this.f0 = this.tam.f0.step(fr ? fr.f0 : p.source.f0, dt) * vib * flutter;
-    const psTarget = fr ? fr.ps : p.phonate ? p.source.ps : 0;
+    const psTarget = fr ? fr.ps * (w ? 1 + live * WANDER.ps * w.ps.step(dt) : 1) : p.phonate ? p.source.ps : 0;
     this.psCur = this.tam.ps.step(psTarget, dt) * CMH2O;
 
     // geometry

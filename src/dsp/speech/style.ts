@@ -41,6 +41,14 @@ export interface ProsodyStyle {
   endCreak: number;
   /** the breath taken in at a full stop: how hard the lungs pull, cmH2O (0 = a silent pause) */
   breath: number;
+  /**
+   * how much a living speaker varies, from one syllable to the next and from
+   * one saying to the next: the length of the syllables and pauses, the
+   * height of the accents, the push and tension of the stressed syllables,
+   * and a slow wander of the breath and the voice (0 = a machine, the same
+   * every time; 1 = usual). Only where the score has a seed.
+   */
+  variation: number;
 }
 
 /** one semitone in log units of F0 */
@@ -67,6 +75,7 @@ export const DEFAULT_STYLE: Readonly<ProsodyStyle> = Object.freeze({
   endRd: 0.55,
   endCreak: 0,
   breath: 3,
+  variation: 1,
 });
 
 /** a style with every field, from a partial one */
