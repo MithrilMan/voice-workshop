@@ -90,6 +90,14 @@ export interface ProsodyOptions {
    * the same every time
    */
   seed?: number;
+  /**
+   * the timing of a recording (copy synthesis): a factor on the length of
+   * each sound, in the order of the sounds of score.phones that are not
+   * pauses, and the length of each pause, s, in their order; applied after
+   * the rules, the variation and the rate, so that every gesture is still
+   * planned whole
+   */
+  timing?: { stretch: number[]; pauses: number[] };
   /** the speaker's articulatory setting: the posture kept beneath every sound (none by default) */
   setting?: Partial<Setting>;
   /**
@@ -589,6 +597,10 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       for (const u of units) u.dur = squeeze * (u.floor + (u.dur - u.floor) * give);
     }
   }
+  if (o.timing) units.forEach((u, i) => {
+    const f = o.timing!.stretch[i];
+    if (f > 0 && Number.isFinite(f)) { u.dur *= f; u.floor *= f; }
+  });
 
   // segments
   const segs: Seg[] = [];
@@ -596,6 +608,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   const label = (u: Unit) => u.p.ipa;
   /** the sonorants an aspirated stop devoices: the stop's unit, and how long the folds stay apart after its release */
   const devoiced: { unit: number; t0: number; t1: number }[] = [];
+  let pauseNo = 0;
   for (let i = 0; i < units.length; i++) {
     const u = units[i];
     const ph = u.ph;
@@ -646,7 +659,8 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     }
     // a pause inside the utterance; after the last sound the voice simply stops
     if (u.p.pause && i < units.length - 1) {
-      const d = ((u.p.pause === 'long' ? st.pauseLong : st.pauseShort) / rate) * vary(2, VARY.pause);
+      const given = o.timing?.pauses[pauseNo++];
+      const d = given !== undefined && given >= 0 ? Math.max(0.01, given) : ((u.p.pause === 'long' ? st.pauseLong : st.pauseShort) / rate) * vary(2, VARY.pause);
       segs.push({ ipa: '_', ph: PHONEMES._, t0: t, t1: t + d, unit: i, label: '_' });
       t += d;
     }

@@ -1401,20 +1401,38 @@ score of a voice saying something: one turn of a dialogue.
   are aligned by dynamic time warping of their cepstra (25 ms frames
   every 10 ms, 26 mel bands from 100 Hz to 7.6 kHz, c1-c12, the mean of
   the speech removed; symmetric steps within a band about the diagonal,
-  the path smoothed over 70 ms). The score is resampled on the
-  recording's time, its pitch replaced by the recording's (gliding in log
-  across the voiceless stretches) and its lung pressure multiplied by the
-  slow swell of the gap between the two loudnesses (voiced frames, about
-  100 ms, within 8 dB, 9.6 dB for each doubling of the pressure, as a
-  held vowel; twice). Pitch and pressure are given three time constants
-  early, the lag of the engine's smoothing (18 and 60 ms). The script
-  writes, for each sentence, the recording, our saying by the rules, the
-  same living, and the copies of timing, of timing and melody, and of all
-  three, with a page that plays them side by side. On the five reference
-  voices (15 sentences) the sounds of the copies lie a median 14-57 ms
-  from the recording's, against 55-427 ms by our rules, the pitch
-  0.2-0.32 semitone off (jitter and flutter included), the swell of the
-  loudness 0.6-2.1 dB rms off against 1.9-4.3.
+  the path smoothed over 70 ms). Each sound of ours is then given the
+  length of the stretch of the recording the path gives it (within 40 %
+  and three times its own, never under 20 ms, what one cannot take passed
+  to the next), each pause the recording's, and a silence of the
+  recording of 150 ms or more inside one of our words becomes a pause at
+  its end, aligned again; the planner plans the saying again on those
+  lengths (the score option `timing`, three rounds), so that every
+  gesture is made whole, and the score starts where the recording does.
+  Its pitch is replaced by the recording's (gliding in log across the
+  voiceless stretches) and its lung pressure multiplied by the slow swell
+  of the gap between the two loudnesses (voiced frames, about 100 ms,
+  within 8 dB, 9.6 dB for each doubling of the pressure, as a held vowel;
+  twice). Pitch and pressure are given three time constants early, the
+  lag of the engine's smoothing (18 and 60 ms). The script writes, for
+  each sentence, the recording, our saying by the rules, the same living,
+  and the copies of timing, of timing and melody, and of all three, with
+  a page that plays them side by side. On the five reference voices (15
+  sentences) the copies lie a median 11-47 ms from the recording (the
+  alignment of the two, again), against 55-427 ms by our rules, the pitch
+  0.18-0.32 semitone off (jitter and flutter included), the swell of the
+  loudness 0.5-1.5 dB rms off against 1.9-4.0.
+- Cross-synthesis (`crossSynth`, `scripts/copy-test.ts --cross`): the
+  fine structure of one saying (its linear-prediction residual: the
+  pulses of the folds, their irregularity, the breath and the noise of
+  the consonants) through the spectral envelope of another (formants and
+  tilt), on the same timing. Every 5 ms a predictor of order 4 + fs/1 kHz
+  is fitted on 25 ms (Hann, pre-emphasis 0.97) of each; the first is
+  inverse filtered with its own, brought to the level of the second's
+  own residual (gliding over the 5 ms) and filtered by the second's. On
+  our copy and the recording it tells whether what sounds mechanical in
+  ours is in the source or in the mouth: the page plays the recording,
+  the same through the analysis (a check), our copy, and the two crossings.
 
 ## Main parameters
 
@@ -1559,7 +1577,8 @@ in brackets are the adult male targets described under Speech.
 | Voice print | held /a/: formants 730 / 1286 / 2590 Hz (the waveguide's own 729 / 1298 / 2594); with the woman's head 844 / 1632 / 3056 Hz |
 | Voice fit | the Sky-like voice saying "Is it raining in the city today? Not at all.", found again from the woman's (effort 0.3): distance 2.97 → 0.44 in 49 renderings, median pitch 192 Hz against 192 |
 | Living variation | "ieri sera, sulla spiaggia, abbiamo guardato la luna piena salire sopra il mare." over 30 seeds: its sounds 8.6 % longer or shorter (sd), its accent peaks moved by 0.89 st (sd), the whole 95-106 % of the saying by the rules; at variation 2, 17.2 % and 1.93 st |
-| Copy synthesis | "la luna piena sale sopra il mare" copied onto the same said slower (rate 0.8), higher (140 Hz) and with wider phrases: middles of the sounds 308 → 4 ms apart (median), pitch 4.35 → 0.15 st off, swell of the loudness 0.8 → 0.4 dB rms off |
+| Copy synthesis | "la luna piena sale sopra il mare" copied onto the same said slower (rate 0.8), higher (140 Hz) and with wider phrases: middles of the sounds 308 → 4 ms apart (median), pitch 4.96 → 0.15 st off, swell of the loudness 1.1 → 0.4 dB rms off |
+| Cross-synthesis | "la luna piena" crossed with itself: the same samples; the man's folds through the woman's mouth: pitch 112 Hz (the man's 112), centroid of 200-1000 Hz in the /u/ 332 Hz (the woman's 321, the man's 301) |
 
 ## Simplifications and limits
 
@@ -1784,7 +1803,10 @@ in brackets are the adult male targets described under Speech.
   matters, where here they fall where they fall. Copy synthesis keeps our
   articulation, and the alignment is only as good as the two sayings are
   alike: on the sentence with four /t/ between vowels ("The little button
-  on the water bottle") it drifts by 49-57 ms, elsewhere by 14-36.
+  on the water bottle") the copies stay 30-47 ms off, elsewhere 11-33.
+  The linear-prediction envelope holds the tilt of the source as well as
+  the formants, so the crossing splits the fine structure from the
+  envelope, not exactly the folds from the mouth.
 
 ## References
 
@@ -1895,6 +1917,7 @@ in brackets are the adult male targets described under Speech.
 npx tsx scripts/say.ts out/            # render example sentences to WAV, print phones, durations and pitch range
 npx tsx scripts/fit-voice.ts list.json --out=a.voice.json   # fit a voice to WAV recordings and their texts
 npx tsx scripts/copy-test.ts list.json --n=3 --out=.ref/copy    # a recording's timing, melody and loudness on our voice, to listen to
+npx tsx scripts/copy-test.ts list.json --n=3 --cross            # the fine structure of each through the envelope of the other
 npx tsx scripts/say.ts out/ en "any sentence"   # one sentence; add --flat for the robot version
 npx tsx scripts/say.ts out/ it "la luna" --voice=deep   # with a starting voice, or --voice=my.voice.json from the studio
 npx tsx scripts/g2p.ts en "the water bottle"    # phones of a text and where each English word came from

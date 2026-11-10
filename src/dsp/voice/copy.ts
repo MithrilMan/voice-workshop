@@ -9,12 +9,14 @@
  * a person is in its prosody, and how much in its sound.
  */
 import type { Clip } from '../analysis/voiceprint';
-import type { Score, ScoreFrame, ScorePhone } from '../engine/params';
-import { Articulators, ARTICULATOR_KEYS } from '../tract/types';
+import type { Score, ScoreFrame } from '../engine/params';
 import { yin } from '../analysis/pitch';
 import { melBank, applyMel } from '../analysis/mel';
 import { powerSpectrum, hann } from '../util/fft';
+import { autocorr, levinson } from '../analysis/lpc';
 import { TAM_TAU } from '../speech/tam';
+import { phonemeFor } from '../speech/derive';
+import type { Phone } from '../speech/g2p';
 
 /** analysis hop and window, s */
 const HOP = 0.01;
@@ -159,32 +161,100 @@ function inverse(f: (t: number) => number, lo: number, hi: number): (y: number) 
   };
 }
 
-/** a frame of the score at any time: the numbers between two frames, the rest from the nearer */
-function frameAt(fr: ScoreFrame[], t: number): ScoreFrame {
-  const x = Math.max(0, Math.min(fr[fr.length - 1].t, t)) / FRAME;
-  const i = Math.max(0, Math.min(fr.length - 2, Math.floor(x))), u = x - i;
-  const a = fr[i], b = fr[i + 1];
-  const out = { ...(u < 0.5 ? a : b) } as ScoreFrame & Record<string, unknown>;
-  for (const k of Object.keys(a)) {
-    const va = (a as unknown as Record<string, unknown>)[k], vb = (b as unknown as Record<string, unknown>)[k];
-    if (typeof va === 'number' && typeof vb === 'number') out[k] = va + (vb - va) * u;
+export interface Timing { stretch: number[]; pauses: number[] }
+
+/** a silence of the recording this long, at the end of a word, is a pause our text did not have */
+const PAUSE_MIN = 0.15;
+
+/**
+ * A score said with the recording's timing: every sound of our saying is
+ * made as long as the stretch of the recording the alignment gives it (no
+ * shorter than 40 % of ours nor than 20 ms, since a slip of the alignment
+ * is not a sound, and no longer than three times; what one cannot take
+ * passes to the next, so that the sounds after it stay where the
+ * recording has them), every pause as long as
+ * the recording's, and the planner plans every gesture again on those
+ * lengths, so that none is cut short. A silence of the recording inside a
+ * word of ours, where our text has no pause, becomes one at the end of
+ * that word (or of the word before, if it lies early in the sound); the
+ * phones said, with those pauses, come back with the score, to be aligned
+ * again. Three rounds, as some parts (the breath after a stop) keep their
+ * own length. The score then waits for the recording's first sound.
+ */
+export function copyTiming(phones: Phone[], plan: (phones: Phone[], timing?: Timing) => Score, rec: Analysis, ourTime: (tRec: number) => number, recSeconds: number): { score: Score; phones: Phone[] } {
+  const plain = plan(phones);
+  const recTime = inverse(ourTime, -1, recSeconds + 5);
+  const top = Math.max(...rec.level);
+  /** the longest silence of the recording between two times, and its middle */
+  const silence = (t0: number, t1: number) => {
+    let best = 0, mid = 0, run = 0;
+    for (let k = Math.max(0, Math.ceil((t0 - WIN / 2) / HOP)); k < rec.level.length && centre(k) <= t1; k++) {
+      if (rec.level[k] < top - GATE) { run++; if (run * HOP > best) { best = run * HOP; mid = centre(k) - (best - HOP) / 2; } } else run = 0;
+    }
+    return { len: best, mid };
+  };
+  // the sounds the planner keeps (one unit each), and the phone of each
+  const kept = phones.map((p, i) => (phonemeFor(p.ipa) ? i : -1)).filter((i) => i >= 0);
+  const want: number[] = [], after: number[] = [];
+  let k = -1, debt = 0;
+  for (const p of plain.phones) {
+    const a = recTime(p.t0), b = recTime(p.t1);
+    if (p.ipa === '_') { if (k >= 0) after[k] = (after[k] ?? 0) + Math.max(0.01, b - a + debt); debt = 0; continue; }
+    k++;
+    const ours = p.t1 - p.t0, s = silence(a, b);
+    let len = b - a;
+    if (s.len >= PAUSE_MIN) {
+      // the end of this word, or of the one before
+      const ends = (j: number) => !!(phones[kept[j]]?.wordEnd || phones[kept[j]]?.pause);
+      let j = k;
+      if (s.mid > 0.5 * (a + b)) { while (j < kept.length - 1 && !ends(j)) j++; }
+      else { j = k - 1; while (j >= 0 && !ends(j)) j--; }
+      if (j >= 0) { len -= s.len; after[j] = (after[j] ?? 0) + s.len; }
+    }
+    want[k] = Math.min(3 * ours, Math.max(0.4 * ours, 0.02, len + debt));
+    debt += len - want[k];
   }
-  if (a.art && b.art) {
-    const art = {} as Articulators;
-    for (const k of ARTICULATOR_KEYS) art[k] = a.art[k] + (b.art[k] - a.art[k]) * u;
-    out.art = art;
+  const last = want.length - 1;
+  const said = phones.map((p) => ({ ...p }));
+  after.forEach((len, j) => { if (len > 0 && j < last && !said[kept[j]].pause) said[kept[j]] = { ...said[kept[j]], pause: 'short', wordEnd: true }; });
+  const pauses: number[] = [];
+  for (let j = 0; j < last; j++) if (said[kept[j]]?.pause) pauses.push(after[j] ?? 0.01);
+  const stretch = want.map(() => 1);
+  let sc = plan(said, { stretch: [...stretch], pauses });
+  for (let round = 0; round < 3; round++) {
+    const now = sc.phones.filter((p) => p.ipa !== '_');
+    if (now.length !== want.length) return { score: plain, phones };
+    now.forEach((p, j) => { if (p.t1 > p.t0) stretch[j] *= want[j] / (p.t1 - p.t0); });
+    sc = plan(said, { stretch: [...stretch], pauses });
   }
-  return out;
+  // our first sound where the recording's is: later (rest until then), or earlier, its lead in cut short
+  const start = recTime(plain.phones[0]?.t0 ?? 0) - (sc.phones[0]?.t0 ?? 0);
+  const cut = Math.min(-start, (sc.phones[0]?.t0 ?? 0) - 0.01);
+  return { score: start > FRAME ? delay(sc, start) : cut > FRAME ? advance(sc, cut) : sc, phones: said };
 }
 
-/** the score said with the recording's timing: each of its moments where the map puts it */
-export function warpScore(sc: Score, ourTime: (tRec: number) => number, recSeconds: number): Score {
-  const recTime = inverse(ourTime, -1, recSeconds + 5);
-  const duration = Math.max(0.1, recTime(sc.duration));
-  const frames: ScoreFrame[] = [];
-  for (let k = 0; k * FRAME <= duration + 0.25; k++) frames.push({ ...frameAt(sc.frames, ourTime(k * FRAME)), t: k * FRAME });
-  const phones: ScorePhone[] = sc.phones.map((p) => ({ ...p, t0: recTime(p.t0), t1: recTime(p.t1) }));
-  return { ...sc, frames, phones, duration };
+/** a score that begins earlier, the start of its lead in cut */
+function advance(sc: Score, s: number): Score {
+  const k = Math.round(s / FRAME), d = k * FRAME;
+  return {
+    ...sc,
+    frames: sc.frames.slice(k).map((f) => ({ ...f, t: f.t - d })),
+    phones: sc.phones.map((p) => ({ ...p, t0: p.t0 - d, t1: p.t1 - d })),
+    duration: sc.duration - d,
+  };
+}
+
+/** a score that begins later, at rest until then */
+function delay(sc: Score, s: number): Score {
+  const k = Math.round(s / FRAME), d = k * FRAME, first: ScoreFrame = sc.frames[0];
+  const lead: ScoreFrame[] = [];
+  for (let i = 0; i < k; i++) lead.push({ ...first, t: i * FRAME });
+  return {
+    ...sc,
+    frames: [...lead, ...sc.frames.map((f) => ({ ...f, t: f.t + d }))],
+    phones: sc.phones.map((p) => ({ ...p, t0: p.t0 + d, t1: p.t1 + d })),
+    duration: sc.duration + d,
+  };
 }
 
 /**
@@ -255,4 +325,56 @@ export function swell(rec: Analysis, ours: Analysis): number[] {
     return w > 0.3 ? Math.max(-8, Math.min(8, a / w)) : 0;
   });
   return smooth;
+}
+
+/**
+ * Cross-synthesis by linear prediction: the fine structure of one clip (its
+ * residual: the pulses of the folds, their irregularity, the noise of the
+ * breath and of the consonants) through the spectral envelope of another
+ * (its formants and the tilt of its spectrum), on the same timing. Every
+ * 5 ms a predictor (order 4 + fs/1 kHz) is fitted on 25 ms of each,
+ * pre-emphasized; the first is inverse filtered with its own, the result
+ * brought to the level of the second's own residual and filtered by the
+ * second's. A clip crossed with itself comes back as it was. With the two
+ * sayings lined up in time and pitch (copy synthesis), it tells whether
+ * what sounds mechanical in one of them is in its source or in its mouth.
+ */
+export function crossSynth(source: Clip, mouth: Clip): Float32Array {
+  const fs = source.fs, n = Math.min(source.samples.length, mouth.samples.length);
+  const order = Math.round(4 + fs / 1000), hop = Math.round(0.005 * fs), win = Math.round(0.025 * fs);
+  const pre = (x: Float32Array) => { const y = new Float64Array(n); for (let i = 0; i < n; i++) y[i] = x[i] - 0.97 * (i ? x[i - 1] : 0); return y; };
+  const xs = pre(source.samples), xm = pre(mouth.samples);
+  const w = hann(win);
+  /** the predictor and residual energy per sample of the frame centred at c */
+  const fit = (x: Float64Array, c: number) => {
+    const f = new Float64Array(win);
+    let ws = 0;
+    for (let i = 0; i < win; i++) { const k = c - (win >> 1) + i; f[i] = k >= 0 && k < n ? x[k] * w[i] : 0; ws += w[i] * w[i]; }
+    const r = autocorr(f, order);
+    r[0] *= 1 + 1e-6;
+    const { a, err } = levinson(r, order);
+    return { a, e: err / ws };
+  };
+  const y = new Float64Array(n), e = new Float64Array(n);
+  let gWas = NaN;
+  for (let b = 0; b * hop < n; b++) {
+    const c = b * hop + (hop >> 1);
+    const s = fit(xs, c), m = fit(xm, c);
+    // the source's own residual, at the level of the mouth's
+    // (gliding from the block before, so that it does not click)
+    const g = Math.min(30, Math.sqrt(m.e / Math.max(s.e, 1e-20))), g0 = Number.isNaN(gWas) ? g : gWas;
+    gWas = g;
+    for (let i = b * hop; i < Math.min(n, (b + 1) * hop); i++) {
+      let v = xs[i];
+      for (let k = 1; k <= order; k++) v += s.a[k] * (i - k >= 0 ? xs[i - k] : 0);
+      e[i] = (g0 + ((g - g0) * (i - b * hop)) / hop) * v;
+      let u = e[i];
+      for (let k = 1; k <= order; k++) u -= m.a[k] * (i - k >= 0 ? y[i - k] : 0);
+      y[i] = u;
+    }
+  }
+  const out = new Float32Array(n);
+  let prev = 0;
+  for (let i = 0; i < n; i++) { prev = y[i] + 0.97 * prev; out[i] = prev; }
+  return out;
 }
