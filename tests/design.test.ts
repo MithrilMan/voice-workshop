@@ -89,7 +89,9 @@ describe('a voice as data', () => {
     all.name = 'Una voce con tutto cambiato'; all.notes = 'note';
     const big = await voiceToLink(all);
     expect(await voiceFromLink(`#lang=it&${big}`)).toEqual(all);
-    expect(Math.max(...lengths)).toBeLessThan(200);
+    // (a starting voice changes a few fields; the one fitted to a reference voice, eighteen)
+    expect(Math.max(...lengths.filter((_, i) => BUILTIN_VOICES[i].id !== 'sky'))).toBeLessThan(200);
+    expect(Math.max(...lengths)).toBeLessThan(400);
     expect(big.length).toBeLessThan(1200);
     for (const bad of ['', '#voice=', '#voice=v9.abc', '#voice=v1.!!!', '#voice=v1.AAAA', `#voice=v1u.${btoa('[1,2]')}`, `#voice=v1u.${'A'.repeat(40000)}`]) expect(await voiceFromLink(bad), bad).toBeNull();
   });

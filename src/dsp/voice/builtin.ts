@@ -62,6 +62,16 @@ export const BUILTIN_VOICES: BuiltinVoice[] = [
   voice('hollow', { it: 'Cava', en: 'Hollow' }, { it: 'faringe molto ampia e labbra arrotondate', en: 'a very wide pharynx and rounded lips' }, (d) => {
     d.speaking.f0 = 108; d.body.anatomy.pharynxWidth = 1.45; d.habits.lipRound = 0.35; d.habits.lipProtrude = 0.3;
   }),
+  // fitted by measurement to the sentences of a reference voice: the usual
+  // pitch and its range, the formants of the vowels, the balance of the
+  // spectrum and the pace (a voice of the same kind, not a copy of it)
+  voice('sky', { it: 'Sky-like', en: 'Sky-like' }, { it: 'donna, voce bassa e morbida con una melodia ampia (circa 170 Hz, 13 semitoni), adattata a misura su una voce di riferimento', en: 'a woman, low and soft with a wide melody (about 170 Hz, 13 semitones), fitted by measurement to a reference voice' }, (d) => {
+    d.body.anatomy.scale = 0.87; d.body.anatomy.pharynx = 0.9; d.body.anatomy.palateHeight = 0.8; d.body.anatomy.tongueSize = 0.94;
+    d.phonation.rd = 1.2; d.phonation.chink = 0.045; d.phonation.peakArea = 0.09; d.phonation.aspiration = -4; d.phonation.jitter = 1;
+    d.habits.tongueX = 0.08; d.habits.epilarynx = 0.2;
+    d.speaking.f0 = 172; d.speaking.accent = 8; d.speaking.rate = 1.08;
+    Object.assign(d.speaking.style, { phrase: 1.7, floor: 7, finalFall: 3.5, pauseShort: 0.3, pauseLong: 0.45 });
+  }),
 ];
 
 export const builtinVoice = (id: string): BuiltinVoice | undefined => BUILTIN_VOICES.find((v) => v.id === id);

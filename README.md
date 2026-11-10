@@ -109,9 +109,13 @@ Four modes, switchable in the header and remembered in the browser:
   remembered for that bench in the browser.
 - **Voices**, a studio to make a voice of your own, keep it and share it.
   On one side the library: your voices, kept in the browser, a new voice,
-  import (a `.voice.json` file, chosen or dropped on the page) and fourteen
+  import (a `.voice.json` file, chosen or dropped on the page) and fifteen
   starting voices (man, woman, child, deep, whisper, vocal fry, breathy,
-  pressed, raspy, dark, bright, nasal, warm, hollow). On the other the voice
+  pressed, raspy, dark, bright, nasal, warm, hollow, and "Sky-like": a
+  woman's voice fitted by measurement to the sentences of a neural
+  text-to-speech voice, in its usual pitch and range, the formants of its
+  vowels, the balance of its spectrum and its pace; a voice of the same
+  kind, not a copy, whose third formant stays 5 % higher). On the other the voice
   being edited: its name and notes; save, duplicate, export as a file and
   a link that opens it; a test sentence in any of the languages, with
   patterns for a statement, a yes/no question, a question with "where" and
