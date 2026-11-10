@@ -27,7 +27,7 @@ const FULL_SCALE_PA = 0.3;
  * wall and obstacle gains put held /s/ about 9 dB and /f/ about 17 dB below
  * /a/, with jets of the true hydraulic diameter of each passage.
  */
-export const NOISE_K = { aspiration: 0.15, wall: 0.07, obstacle: 1.35, user: 0.04, bypass: 0.004, burst: 0.08 };
+export const NOISE_K = { aspiration: 0.15, wall: 0.07, obstacle: 1.35, user: 0.04, bypass: 0.004, burst: 0.5 };
 /**
  * What thin folds change in the LF source (Zhang 2016: the vertical thickness
  * of the medial surface sets the closed quotient and the slope of the
@@ -72,12 +72,15 @@ type TrillKey = 'tipY' | 'lipOpen' | 'tongueX';
  * per cmH2O), how far past the contact the spring holds it (articulator
  * units), the direction that shuts it and how fast the passage opens near
  * the contact (cm^2 per unit). The alveolar trill is about 26 Hz (Recasens
- * 1991; Ladefoged & Maddieson 1996).
+ * 1991; Ladefoged & Maddieson 1996): that is the rate of its contacts, and
+ * the spring alone is slower. Pressed on the contact, where the tissue is
+ * stiffer, and pushed off it by the air, the tip beats at 26 Hz with a
+ * spring of 19; the lips and the uvula at about 30.
  */
 const TRILL: Record<TrillKey, { f: number; zeta: number; kp: number; press: number; dir: number; slope: number }> = {
-  tipY: { f: 26, zeta: 0.08, kp: 2000, press: 0.1, dir: 1, slope: 0.42 },
-  lipOpen: { f: 24, zeta: 0.08, kp: 2000, press: 0.3, dir: -1, slope: 1.7 },
-  tongueX: { f: 28, zeta: 0.08, kp: 2000, press: 0.3, dir: -1, slope: 0.8 },
+  tipY: { f: 19, zeta: 0.08, kp: 1070, press: 0.1, dir: 1, slope: 0.42 },
+  lipOpen: { f: 18, zeta: 0.08, kp: 1125, press: 0.3, dir: -1, slope: 1.7 },
+  tongueX: { f: 21, zeta: 0.08, kp: 1125, press: 0.3, dir: -1, slope: 0.8 },
 };
 /** stiffness of the tissue pressed against the other side, times the spring */
 const TRILL_CONTACT = 2;
@@ -87,6 +90,103 @@ const TRILL_CONTACT = 2;
  * the tongue body, drawn down and back, enlarges it (cm^3).
  */
 const CLICK = { walls: 3e-5, dv: 0.6 };
+/** how fast the folds stiffen and slacken (s) */
+const STIFF_TAU = 0.005;
+/**
+ * A seal that has just broken with pressure behind it: the air parts its soft
+ * surfaces before the articulator has moved away. A centimetre of seal
+ * (`width`) with the stiffness of the walls opens 0.12 cm^2 under 8 cmH2O,
+ * within a millisecond: the release of a stop is then a quick rise, a pause
+ * while the pressure falls, and the rise the articulator makes. The burst is
+ * made in the pause (Hanson & Stevens 2000)
+ */
+const SEAL = { width: 1, tau: 0.0004, max: 0.2 };
+/** time the release transient takes to move from one place of the tract to another (s) */
+const PUFF_MOVE = 0.004;
+
+/**
+ * Where a flow is let into the tract. A flow that changed place at once would
+ * be a click of its own: it moves over a few milliseconds, the whole of it
+ * always let out somewhere.
+ */
+class Outlet {
+  at = 0;
+  from = 0;
+  mix = 1;
+  aim(j: number, step: number): void {
+    if (this.mix >= 1 && j !== this.at) { this.from = this.at; this.at = j; this.mix = 0; }
+    if (this.mix < 1) this.mix = Math.min(1, this.mix + step);
+  }
+}
+
+/**
+ * The walls of the cavity behind a closure, for the slow flow: per unit area
+ * a mass (g/cm^2), a resistance (dyn s/cm^3) and a stiffness (dyn/cm^3), the
+ * values of Ishizaka, French & Flanagan (1975) as tabulated by Titze,
+ * Palaparthi & Smith (2014). With the compliance of the whole tract, 1e-3
+ * cm^5/dyn (Stevens 1998), the stiffness gives the wall about 67 cm^2: they
+ * yield and come back in 12 ms, critically damped near 34 Hz.
+ */
+const CAVITY_WALL = { compliance: 1.0e-3, mass: 1.5, res: 800, stiff: 66667 };
+
+/**
+ * A few measures followed the way the sections of the tract follow theirs:
+ * along the quadratic B-spline of the values measured. Each stretch is a
+ * cubic from the place and the speed of the moment to half way between the
+ * last two measures, reached with the speed that leads from one to the other.
+ * Counted in control updates.
+ */
+class Follow {
+  readonly x: Float64Array;
+  private goal: Float64Array;
+  private v: Float64Array;
+  private x0: Float64Array;
+  private v0: Float64Array;
+  private c2: Float64Array;
+  private c3: Float64Array;
+  private X: Float64Array;
+  private V: Float64Array;
+  private i = 0;
+  private n = 0;
+  constructor(init: number[]) {
+    const k = init.length;
+    this.x = Float64Array.from(init);
+    this.goal = Float64Array.from(init);
+    this.X = Float64Array.from(init);
+    this.v = new Float64Array(k); this.x0 = new Float64Array(k); this.v0 = new Float64Array(k);
+    this.c2 = new Float64Array(k); this.c3 = new Float64Array(k); this.V = new Float64Array(k);
+  }
+  /** there at once, and at rest */
+  snap(g: ArrayLike<number>): void {
+    for (let k = 0; k < this.x.length; k++) { this.x[k] = this.goal[k] = this.X[k] = g[k]; this.v[k] = this.V[k] = 0; }
+    this.i = this.n = 0;
+  }
+  /** a new measure, to be followed over n updates (the same again brings them to it, and to rest) */
+  to(g: ArrayLike<number>, n: number): void {
+    for (let k = 0; k < this.x.length; k++) {
+      const X = 0.5 * (this.goal[k] + g[k]), V = (g[k] - this.goal[k]) / n;
+      const D = X - this.x[k] - this.v[k] * n, E = (V - this.v[k]) * n;
+      this.x0[k] = this.x[k]; this.v0[k] = this.v[k];
+      this.c3[k] = (E - 2 * D) / (n * n * n); this.c2[k] = (3 * D - E) / (n * n);
+      this.X[k] = X; this.V[k] = V; this.goal[k] = g[k];
+    }
+    this.i = 0; this.n = n;
+  }
+  /** one more stretch to the last measure */
+  coast(n: number): void { this.to(this.goal, n); }
+  step(): Float64Array {
+    if (this.i >= this.n) return this.x;
+    const i = ++this.i;
+    for (let k = 0; k < this.x.length; k++) {
+      if (i === this.n) { this.x[k] = this.X[k]; this.v[k] = this.V[k]; }
+      else {
+        this.x[k] = this.x0[k] + i * (this.v0[k] + i * (this.c2[k] + i * this.c3[k]));
+        this.v[k] = this.v0[k] + i * (2 * this.c2[k] + 3 * i * this.c3[k]);
+      }
+    }
+    return this.x;
+  }
+}
 
 /** Volume of an area function from the glottis to s cm (cm^3). */
 function volumeTo(areas: ArrayLike<number>, dx: number, s: number): number {
@@ -206,6 +306,11 @@ export class VoiceEngine {
   /** Rd change and glottal gate from the score */
   private rdOffset = 0;
   private gate = 1;
+  /** folds held stiff by the score (0..1), smoothed: they do not vibrate */
+  private stiff = 0;
+  /** a closure was made, and what the pressure holds open of it since it broke (cm^2) */
+  private sealed = false;
+  private parted = 0;
 
   // geometry
   geom: TractGeometry | null = null;
@@ -213,12 +318,37 @@ export class VoiceEngine {
   nasal: NasalTract;
   private geomKey = '';
   private sinceGeom = 1;
+  /** the tract has not yet come to the shape it was last given (it moves half a measure behind) */
+  private tractBehind = false;
   private fineMinArea = 1;
   private fineMinS = 0;
   /** wetted perimeter and lateral width of the narrowest passage (0 = round) */
   private fineMinPerimeter = 0;
   private fineMinWidth = 0;
   private constrictionIndex = 0;
+  /**
+   * The narrowest passage as the aerodynamics sees it: its area, perimeter
+   * and width, the way from its exit to the incisors and the height of the
+   * slit between them. The geometry is measured every few milliseconds, and
+   * these follow the measures along the same curve as the areas of the
+   * waveguide, and as late. Taken at once, a closure would open in steps, and
+   * the flow, the pressure and the hiss of the release with it: a click at
+   * every step. Ahead of the waveguide, the air of a release (and the inflow
+   * of a click) would be let into sections that have not opened yet, and
+   * sound many times louder there.
+   */
+  private pass = { area: 1, perimeter: 0, width: 0, toTeeth: -1, slitH: 0.3 };
+  private passTo = { area: 1, perimeter: 0, width: 0, toTeeth: -1, slitH: 0.3 };
+  /** the passage and the front passage of a click on their way: area, perimeter, width, way to the teeth, slit, front of the click */
+  private passage = new Follow([1, 0, 0, -1, 0.3, 1]);
+  private passGoal = new Float64Array([1, 0, 0, -1, 0.3, 1]);
+  /** where the transient of a release is let into the tract: the place of the closure that opened */
+  private burstJunction = 0;
+  /** where the transient is let out now, the place it is leaving, and how far it has moved (0 to 1) */
+  private puffOut = new Outlet();
+  /** the same for the inflow of a click: the front passage as it opened */
+  private clickJunction = 0;
+  private clickOut = new Outlet();
   /** air behind the narrowest passage (cm^3), and the change of it still to be felt by the pressure */
   private cavityVolume = -1;
   private pendingDV = 0;
@@ -244,6 +374,8 @@ export class VoiceEngine {
   private clickDelta = 0;
   private clickOn = false;
   private clickFrontArea = 1;
+  /** the front passage as last measured: the one the cavity sees glides to it, as the passage of the lungs' air does */
+  private clickFrontTo = 1;
   private clickFrontIndex = -1;
   private clickVolume = 0;
   private rClick = new Ramp(0);
@@ -271,8 +403,10 @@ export class VoiceEngine {
   private glottalRe = 0;
   private dflow = 0;
   private aspMean = 0;
-  private mouthSlow = 0;
   private mouthNow = 0;
+  /** the air let out of the cavity that the tract's own waves do not carry, and its slow part */
+  private puffNow = 0;
+  private puffSlow = 0;
   private poNow = 0;
   private psNow = 0;
   private mouthCoef = 0.1;
@@ -294,6 +428,7 @@ export class VoiceEngine {
   private rPs = new Ramp(0);
   private rPo = new Ramp(0);
   private rMouth = new Ramp(0);
+  private rPuff = new Ramp(0);
   private rUg = new Ramp(0);
   private rWall = new Ramp(0);
   private rObs = new Ramp(0);
@@ -360,7 +495,22 @@ export class VoiceEngine {
 
   // ------------------------------------------------------------ control
 
-  private targetFrame(): { art: Articulators | null; abduction: number; f0: number; ps: number; tip: number; lips: number; dorsum: number; rd: number; gate: number; tense: number; creak: number; trill: number; trillKey?: TrillKey; trillAt: number; trillOpen: number; click: number } | null {
+  /** lets a flow into the tract at its outlet; returns the part that leaves through the lips, which radiates as it is */
+  private letOut(o: Outlet, flow: number): number {
+    if (flow === 0) return 0;
+    const wg = this.wg;
+    let atLips = 0;
+    for (let k = 0; k < 2; k++) {
+      const v = k === 0 ? flow * o.mix : flow * (1 - o.mix);
+      const j = k === 0 ? o.at : o.from;
+      if (v === 0) continue;
+      if (j >= N_SECTIONS - 2) atLips += v;
+      else { wg.monoJunction[wg.monoCount] = j; wg.monoValue[wg.monoCount++] = v; }
+    }
+    return atLips;
+  }
+
+  private targetFrame(): { art: Articulators | null; abduction: number; f0: number; ps: number; tip: number; lips: number; dorsum: number; rd: number; gate: number; tense: number; creak: number; trill: number; trillKey?: TrillKey; trillAt: number; trillOpen: number; click: number; stiff: number } | null {
     const sc = this.score;
     if (!sc) return null;
     if (this.scoreTime > sc.duration + this.scoreHold) { this.score = null; this.restoreTau(); return null; }
@@ -377,7 +527,7 @@ export class VoiceEngine {
     return {
       art, abduction: mix(a.abduction, b.abduction), f0: mix(a.f0, b.f0), ps: mix(a.ps, b.ps),
       tip: mix(a.tip ?? 0, b.tip ?? 0), lips: mix(a.lips ?? 0, b.lips ?? 0), dorsum: mix(a.dorsum ?? 0, b.dorsum ?? 0),
-      rd: mix(a.rd ?? 0, b.rd ?? 0), gate: mix(a.gate ?? 1, b.gate ?? 1), tense: mix(a.tense ?? 0, b.tense ?? 0), creak: mix(a.creak ?? 0, b.creak ?? 0),
+      rd: mix(a.rd ?? 0, b.rd ?? 0), gate: mix(a.gate ?? 1, b.gate ?? 1), tense: mix(a.tense ?? 0, b.tense ?? 0), creak: mix(a.creak ?? 0, b.creak ?? 0), stiff: mix(a.stiff ?? 0, b.stiff ?? 0),
       trill: mix(a.trill ?? 0, b.trill ?? 0), trillKey: a.trillKey ?? b.trillKey, trillAt: a.trillAt ?? b.trillAt ?? 0, trillOpen: a.trillOpen ?? b.trillOpen ?? 0,
       click: mix(a.click ?? 0, b.click ?? 0),
     };
@@ -403,6 +553,7 @@ export class VoiceEngine {
     this.rdOffset = fr ? fr.rd : 0;
     // a glottal stop closes within a few milliseconds
     this.gate += ((fr ? fr.gate : 1) - this.gate) * (1 - Math.exp(-dt / 0.006));
+    this.stiff += ((fr ? fr.stiff : 0) - this.stiff) * (1 - Math.exp(-dt / STIFF_TAU));
     this.tense += ((fr ? fr.tense : 0) - this.tense) * (1 - Math.exp(-dt / 0.02));
     this.creak += ((fr ? fr.creak : 0) - this.creak) * (1 - Math.exp(-dt / 0.02));
     this.abduction = this.tam.abduction.step(fr ? fr.abduction : p.abduction, dt);
@@ -428,6 +579,9 @@ export class VoiceEngine {
     this.rPs.set(this.psCur);
     this.rPo.set(this.aero.po);
     this.rMouth.set(this.aero.uMouth);
+    // (the pulses of the voice are already in the tract, with their mean flow: a
+    // closure made on a voiced sound sends them elsewhere, and lets out no air)
+    this.rPuff.set(this.aero.uMouth + this.aero.uNose - Math.min(1, this.voicingAmp) * this.aero.ug);
     this.rUg.set(this.aero.ug);
     this.rClick.set(this.clickAero.uMouth);
     this.rWall.set(this.wallAmp);
@@ -486,9 +640,24 @@ export class VoiceEngine {
     return s;
   }
 
+  /** samples of the tract from one measure of the shape to the next */
+  private geomSteps(): number {
+    const tick = CTRL / this.fsOut;
+    return Math.round(this.fsT * Math.ceil(GEOM_INTERVAL / tick - 1e-9) * tick);
+  }
+
   private updateGeometry(force: boolean): void {
     const key = this.artKey();
-    if (!force && key === this.geomKey) return;
+    if (!force && key === this.geomKey) {
+      // the head stands still: one more stretch brings the tract to its shape, and to rest
+      if (this.tractBehind) {
+        this.tractBehind = false;
+        this.sinceGeom = 0;
+        this.wg.setGeometry(this.af, this.nasal, this.fsT, this.geomSteps());
+        this.passage.coast(Math.ceil(GEOM_INTERVAL / (CTRL / this.fsOut) - 1e-9));
+      }
+      return;
+    }
     this.geomKey = key;
     this.sinceGeom = 0;
     const p = this.params;
@@ -545,6 +714,32 @@ export class VoiceEngine {
         else { sc.s = g.s[i2]; sc.perimeter = g.hits[i2].perimeter; sc.width = g.hits[i2].width; }
       }
     }
+    // the passage of the aerodynamics glides to this measure. The jet leaves
+    // the passage where the tract opens up again; from there to the incisors
+    // it spreads and slows down. The incisors are not more of the passage but
+    // what stands in front of it: a channel of the tongue that runs up to
+    // them (a sibilant said with the jaw a little lower, between two open
+    // vowels) lets its jet out at the teeth, and how much of it their edges
+    // catch is for the jet's width against the slit to say. Looked for past
+    // them, the way out was found at the lips, and the sibilant lost its
+    // teeth whenever the slit was less than twice its channel
+    const gm = this.geom;
+    const to = this.passTo;
+    to.area = Math.max(0, this.fineMinArea);
+    to.perimeter = this.fineMinPerimeter;
+    to.width = this.fineMinWidth;
+    to.slitH = gm ? gm.slit.height : 0.3;
+    to.toTeeth = -1;
+    if (gm) {
+      let exitS = this.fineMinS;
+      const behind = this.fineMinS < gm.teethPos;
+      for (let i = 0; i <= gm.lastRay; i++) {
+        if (gm.s[i] <= this.fineMinS) continue;
+        if (behind && gm.s[i] >= gm.teethPos) { exitS = gm.teethPos; break; }
+        if (gm.hits[i].area > 2.2 * Math.max(this.fineMinArea, 1e-3)) { exitS = gm.s[i]; break; }
+      }
+      to.toTeeth = gm.teethPos - exitS;
+    }
     const af = this.af;
     const n = N_SECTIONS;
     // tract rate follows the length so that one sample = one section
@@ -569,15 +764,19 @@ export class VoiceEngine {
     const shutAt = Math.min(n - 1, Math.max(0, Math.floor(this.fineMinS / af.dx)));
     if (port > 2e-3 && this.fineMinArea < 0.004 && shutAt <= coupling) coupling = Math.max(2, shutAt - 1);
     this.nasal = buildNasal(af.dx, scale, port, coupling, this.nasal.dx === af.dx ? this.nasal : undefined, noseOf(p.anatomy));
-    const steps = Math.round(this.fsT * GEOM_INTERVAL * 1.05);
     this.wg.lossParams.base = 70 * p.losses;
     this.wg.lossParams.narrow = 45 * p.losses;
-    this.wg.setGeometry(af, this.nasal, this.fsT, force ? 1 : steps);
+    this.wg.setGeometry(af, this.nasal, this.fsT, force ? 1 : this.geomSteps());
+    this.tractBehind = !force;
     // constriction and noise injection points
     const dx = af.dx;
     this.aspJunction = Math.max(1, Math.min(n - 2, Math.round(1.0 / dx)));
     let ci = Math.min(n - 1, Math.max(0, Math.floor(this.fineMinS / dx)));
     this.constrictionIndex = ci;
+    // the transient of a release belongs to the closure that opened: it stays
+    // there while it lasts, also when another place becomes the narrowest
+    // (the lips of /p/ opening wider than the tongue of the vowel behind them)
+    if (this.fineMinArea < 0.004 || Math.abs(this.puffNow - this.puffSlow) < 5 + 0.05 * Math.abs(this.puffSlow)) this.burstJunction = ci;
     // the air between the glottis and the narrowest passage, and the larynx
     // as a piston under it: raised, it shortens the pharynx below the bend
     // (the drawing is squeezed evenly there) and takes away the air of that
@@ -619,13 +818,19 @@ export class VoiceEngine {
         if (g.hits[i].area < m) { m = g.hits[i].area; ms = g.s[i]; }
       }
       if (g.slit.area < m && g.teethPos > from) { m = g.slit.area; ms = g.teethPos; }
-      this.clickFrontArea = Number.isFinite(m) ? m : 1;
+      this.clickFrontTo = Number.isFinite(m) ? m : 1;
       this.clickFrontIndex = Math.min(n - 2, Math.max(0, Math.floor(ms / dx)));
+      // the inflow keeps the place it started from: the narrowest passage wanders as the tongue leaves
+      if (this.clickFrontTo < 0.004 || Math.abs(this.clickNow - this.clickSlow) < 5) this.clickJunction = this.clickFrontIndex;
       this.clickVolume = Math.max(0, volumeTo(af.areas, dx, ms) - volumeTo(af.areas, dx, this.fineMinS));
       // the inward jet hits the cavity half a centimetre behind the front passage
       const back = Math.floor(this.fineMinS / dx) + 1;
       this.clickJetJunction = Math.max(back, this.clickFrontIndex - Math.max(1, Math.round((0.5 * p.anatomy.scale) / dx)));
     } else { this.clickFrontIndex = -1; this.clickJetJunction = -1; }
+    const pg = this.passGoal;
+    pg[0] = to.area; pg[1] = to.perimeter; pg[2] = to.width; pg[3] = to.toTeeth; pg[4] = to.slitH; pg[5] = this.clickFrontTo;
+    if (force || !Number.isFinite(to.area)) this.passage.snap(pg);
+    else this.passage.to(pg, Math.ceil(GEOM_INTERVAL / (CTRL / this.fsOut) - 1e-9));
     // exit of the constriction: first section downstream that opens up
     let exit = ci;
     const ac = Math.max(af.areas[ci], 1e-3);
@@ -662,7 +867,7 @@ export class VoiceEngine {
     let vib = 0;
     if (p.voicing) {
       if (p.source.model === 'lf') vib = 0.45 * p.source.peakArea * (1 - THIN.swing * thinness(p.source)) * s2 * this.voicingAmp;
-      else vib = (Math.max(0, this.tm.amin) * 0.5 + 0.5 * Math.max(0, p.source.restArea)) * (1 - smoothstep(0.25, 0.6, this.abduction));
+      else vib = (Math.max(0, this.tm.amin) * 0.5 + 0.5 * Math.max(0, p.source.restArea)) * (1 - smoothstep(0.25, 0.6, this.abduction)) * (1 - this.stiff);
     }
     return (vib + gapOf(p.source) * s2) * this.gate + abd;
   }
@@ -673,7 +878,22 @@ export class VoiceEngine {
     const ag = this.meanGlottalArea();
     // the air leaves the nose through the nostrils: pinched, they stop it
     const nasalArea = Math.min(portArea(this.art.velum, p.anatomy.nasalLeak, scale), 1.0 * scale * scale, nostrilArea(scale, noseOf(p.anatomy)));
-    const oral = Math.max(0, this.fineMinArea);
+    const ps = this.pass, on = this.passage.step();
+    ps.area = Math.max(0, on[0]);
+    ps.perimeter = on[1];
+    ps.width = on[2];
+    ps.toTeeth = on[3];
+    ps.slitH = on[4];
+    this.clickFrontArea = Math.max(0, on[5]);
+    let oral = ps.area;
+    if (oral < 0.004) { this.sealed = true; this.parted = 0; }
+    else if (this.sealed) {
+      // a trill is this same push, with the mass and the spring of its articulator
+      const want = this.trillKey ? 0 : Math.min(SEAL.max * scale * scale, ((SEAL.width * scale) / CAVITY_WALL.stiff) * Math.max(this.aero.po, 0));
+      this.parted += (want - this.parted) * (1 - Math.exp(-dt / SEAL.tau));
+      if (oral >= want) { this.sealed = false; this.parted = 0; }
+      else oral = Math.max(oral, this.parted);
+    }
     // two narrow passages in series pass the flow of one of area (A1^-2 + A2^-2)^-1/2,
     // and each takes the share (A / A_k)^2 of the drop of pressure
     const a2 = this.second.area;
@@ -688,14 +908,19 @@ export class VoiceEngine {
     // implosive, they take in a few times more, Westbury 1983) and the air
     // itself, V / (rho c^2)
     const air = Math.max(this.cavityVolume, 0) / (RHO * C_SOUND * C_SOUND);
-    const walls = this.tense >= 0 ? 1 - 0.8 * this.tense : 1 - 2 * this.tense;
-    const compliance = 1.0e-3 * scale * scale * scale * walls + air;
+    const walls = this.tense >= 0 ? 1 - 0.8 * this.tense : 1 - 5 * this.tense;
+    const s3 = scale * scale * scale;
+    const wallCompliance = CAVITY_WALL.compliance * s3 * walls;
+    const compliance = wallCompliance + air;
+    // the area of wall that yields: tensed, the same wall is stiffer
+    const wallArea = CAVITY_WALL.compliance * s3 * CAVITY_WALL.stiff;
     // sub-steps for the stiff closure/release dynamics
     const sub = 4;
     for (let i = 0; i < sub; i++) {
       this.aero.step(dt / sub, {
         ps: this.psCur, glottalArea: ag, oralArea: both, nasalArea: nasalArea > 2e-3 ? nasalArea : 0,
         compliance, dVdt: take / dt,
+        wallCompliance, wallResistance: CAVITY_WALL.res / wallArea / Math.max(1, walls), wallMass: CAVITY_WALL.mass / wallArea,
       });
     }
     // the cavity of a click, shut off from the lungs by its back closure: the
@@ -716,24 +941,19 @@ export class VoiceEngine {
     const adduction = 1 - smoothstep(0.25, 0.6, this.abduction);
     const pressureGate = smoothstep(1.2, 3.5, dp);
     const drive = dp < 8 ? Math.pow(dp / 8, 0.9) : Math.sqrt(Math.min(dp, 30) / 8);
-    this.voicingAmp = p.voicing ? adduction * pressureGate * drive : 0;
+    this.voicingAmp = p.voicing ? adduction * pressureGate * drive * (1 - this.stiff) : 0;
 
     // jet and turbulence sources
-    const g = this.geom;
-    const teethPos = g ? g.teethPos : this.af.length - 1;
-    const slitH = g ? g.slit.height : 0.3;
-    // distance from the constriction exit to the incisors
-    let exitS = this.fineMinS;
-    if (g) {
-      for (let i = 0; i <= g.lastRay; i++) {
-        if (g.s[i] <= this.fineMinS) continue;
-        if (g.hits[i].area > 2.2 * Math.max(this.fineMinArea, 1e-3)) { exitS = g.s[i]; break; }
-      }
-    }
     const share1 = oral > 0 ? (both / oral) ** 2 : 1;
-    this.aero.jet(oral, g ? teethPos - exitS : -1, slitH, this.jet, this.fineMinPerimeter, this.fineMinWidth, share1);
+    // (a seal parted by the pressure is a slit as wide as the seal, a few
+    // hundredths of a centimetre high: taken for a round hole of its area, its
+    // jet would be turbulent at once and reach the teeth at full speed, and a
+    // /t/ would be let go with the hiss of an /s/)
+    let jetP = ps.perimeter, jetW = ps.width;
+    if (oral > ps.area) { jetW = Math.max(ps.width, SEAL.width * scale); jetP = 2 * (jetW + oral / jetW); }
+    this.aero.jet(oral, ps.toTeeth, ps.slitH, this.jet, jetP, jetW, share1);
     // the jets lose their kinetic pressure where they expand: flow resistances
-    kineticResistances(this.af.areas, this.aero.uMouth, this.wg.resTarget, this.constrictionIndex, this.fineMinArea);
+    kineticResistances(this.af.areas, this.aero.uMouth, this.wg.resTarget, this.constrictionIndex, oral);
     const n = this.params.noise;
     const db = (x: number) => Math.pow(10, x / 20);
     this.wallAmp = n.fricationOn ? NOISE_K.wall * this.jet.wallSource * db(n.frication) : 0;
@@ -834,7 +1054,7 @@ export class VoiceEngine {
       // pulses fade from the flow, as the voice of the LF source does. The
       // masses go on moving unheard: their rest position is not widened, as
       // this model's flow equation is not stable with a wide glottis
-      const grip = 1 - smoothstep(0.25, 0.6, abduction);
+      const grip = (1 - smoothstep(0.25, 0.6, abduction)) * (1 - this.stiff);
       const um = this.tm.step(dt, p.voicing ? ps : 0, po, wg.pMinus, z0, this.uMean) * gate;
       const uf = um * grip;
       ag = Math.max(0, this.tm.amin) * grip + steadyArea;
@@ -878,9 +1098,14 @@ export class VoiceEngine {
       const amp = NOISE_K.aspiration * Math.pow(10, n.aspiration / 20) * ((1 - m) * this.aspMean + m * inst);
       asp = amp * this.aspNoise.next();
     }
-    // flow modulation of the supraglottal sources: the glottal pulses pass through the constriction
+    // flow modulation of the supraglottal sources: the glottal pulses pass
+    // through the constriction, on top of its mean flow. That is the mean
+    // flow of the glottis in a held fricative; while the air behind a closure
+    // is let out the passage carries much more, and the pulses are a small
+    // share of it
     const ug = this.rUg.at(ph);
-    const mod = ug > 1 ? Math.min(3, Math.pow(Math.max(0, u) / Math.max(ug, 1), 1.5)) : 1;
+    const through = Math.max(ug, this.mouthNow, 1);
+    const mod = ug > 1 ? Math.min(3, Math.pow(Math.max(0, 1 + (u - ug) / through), 1.5)) : 1;
     const wallAmp = this.rWall.at(ph), obsAmp = this.rObs.at(ph);
     const wall = wallAmp > 0 ? wallAmp * mod * this.wallNoise.next() : 0;
     const wallAmp2 = this.rWall2.at(ph);
@@ -909,21 +1134,26 @@ export class VoiceEngine {
     // (the aerodynamic flow is updated at the control rate: smooth it to
     // remove the staircase, keeping the millisecond-scale release transient)
     this.mouthNow += (this.rMouth.at(ph) - this.mouthNow) * this.mouthCoef;
+    this.puffNow += (this.rPuff.at(ph) - this.puffNow) * this.mouthCoef;
+    let atLips = 0;
+    wg.monoCount = 0;
     if (n.burstOn) {
-      this.mouthSlow += (this.mouthNow - this.mouthSlow) * this.slowCoef;
-      wg.monoJunction = Math.min(N_SECTIONS - 2, this.constrictionIndex);
-      wg.monoValue = NOISE_K.burst * (this.mouthNow - this.mouthSlow);
-    } else wg.monoJunction = -1;
-    // a click: the air rushing into its rarefied cavity as the front opens
+      this.puffSlow += (this.puffNow - this.puffSlow) * this.slowCoef;
+      const fast = NOISE_K.burst * (this.puffNow - this.puffSlow);
+      this.puffOut.aim(this.burstJunction, 1 / (PUFF_MOVE * this.fsT));
+      atLips += this.letOut(this.puffOut, fast);
+    }
+    // a click: the air rushing into its rarefied cavity as the front opens,
+    // the same kind of flow as a burst's, inward
     this.clickNow += (this.rClick.at(ph) - this.clickNow) * this.mouthCoef;
     this.clickSlow += (this.clickNow - this.clickSlow) * this.slowCoef;
-    if (n.burstOn && this.clickFrontIndex >= 0) {
-      wg.monoJunction = Math.min(N_SECTIONS - 2, this.clickFrontIndex);
-      wg.monoValue = NOISE_K.burst * (this.clickNow - this.clickSlow);
+    if (n.burstOn) {
+      this.clickOut.aim(this.clickJunction, 1 / (PUFF_MOVE * this.fsT));
+      atLips += this.letOut(this.clickOut, NOISE_K.burst * (this.clickNow - this.clickSlow));
     }
 
     wg.step();
-    const uOut = wg.lipFlow + wg.nosFlow + p.wallRadiation * wg.wallFlow;
+    const uOut = wg.lipFlow + wg.nosFlow + p.wallRadiation * wg.wallFlow + atLips;
     let rad = (uOut - this.uPrev) * fs;
     this.uPrev = uOut;
     if (p.bypassTract) rad = this.dflow + (asp + wall + obs + user) * NOISE_K.bypass * fs;

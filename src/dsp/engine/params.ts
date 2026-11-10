@@ -217,6 +217,12 @@ export interface ScoreFrame {
   gate?: number;
   /** creak (0..1): slow, irregular pulses with alternate ones weaker (laryngealized sounds, vocal fry) */
   creak?: number;
+  /**
+   * folds held stiff (0..1): close to each other, they do not vibrate. The
+   * glottis of a plain voiceless stop at its release: little air passes, so
+   * the burst is short, and the voice starts after a short lag
+   */
+  stiff?: number;
   /** walls of the cavity tensed (up to 1: they do not yield to the pressure of an ejective) or let go (down to -1: they give way, as in an implosive) */
   tense?: number;
 }

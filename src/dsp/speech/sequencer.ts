@@ -145,6 +145,14 @@ interface Unit {
 const FRAME = 0.005;
 /** how much earlier than its sound a consonant gesture starts (s) */
 const CONS_ONSET = 0.02;
+/** how long before its sound a closure may be found shut already, when its timing is measured (s) */
+const SHUT_EARLY = 0.02;
+/** the articulators that set out earlier for a closure that would be late: the slow ones of the mouth (the tip and the lips are quick, and wait) */
+const EARLY = new Set<keyof Articulators>(ARTICULATOR_KEYS.filter((k) => TAM_TAU[k] > 0.01 && k !== 'velum' && k !== 'larynx' && k !== 'epilarynx'));
+/** a fricative is taken for made when its passage is within this of the one it is held with */
+const FRIC_NEAR = 1.5;
+/** how far into its sound a fricative may still be narrowing (s) */
+const FRIC_ONSET = 0.015;
 /** how long before its planned release a consonant lets its target go (s) */
 const RELEASE_LEAD = 0.012;
 /** articulators that keep the middle of a vowel for the vowel, and how many of
@@ -195,6 +203,11 @@ const SHORT_LAG: Partial<Record<Place, number>> = {
   bilabial: 0.008, labiodental: 0.008, dental: 0.012, alveolar: 0.012, postalveolar: 0.012, retroflex: 0.012,
   alveolopalatal: 0.016, palatal: 0.016, velar: 0.02, uvular: 0.022, pharyngeal: 0.022, epiglottal: 0.022,
 };
+/** the folds of such a stop: how long before the release they come together again (s), and how far apart they stay */
+const STIFF_LEAD = 0.045;
+/** how far the walls are let go behind a voiced stop (1: as an implosive's) */
+const VOICED_SLACK = 0.2;
+const STIFF_ABD = 0.12;
 /** height of a vowel on the chart (its first symbol), for its intrinsic pitch */
 const vowelHeight = (ipa: string): number | undefined => IPA_VOWELS[normalizeIpa(ipa)[0]]?.height;
 
@@ -543,7 +556,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
 
   // ---------------------------------------------------------- articulation
   // per-key anchor points: (interval, value) at the segments that specify the key
-  const anchors: Record<string, { t0: number; t1: number; v: number; cons?: boolean; mid?: number; piston?: Seg; seg?: Seg }[]> = {};
+  const anchors: Record<string, { t0: number; t1: number; v: number; cons?: boolean; mid?: number; piston?: Seg; seg?: Seg; floor?: number }[]> = {};
   for (const k of ARTICULATOR_KEYS) anchors[k] = [];
   const neutral: Articulators = { ...DEFAULT_ARTICULATORS, ...PHONEMES['ə'].art };
   // the speaker's setting, on every value a sound gives an articulator (`own`: the sound sets it itself)
@@ -604,7 +617,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
         const t0 = piston ? s.t0 + 0.4 * (s.t1 - s.t0) : Math.max(core, s.t0 - lead - (m === 'stop' ? 0 : CONS_ONSET));
         if (prev && (prev.t1 > t0 || piston)) prev.t1 = Math.max(prev.t0, t0);
         const release = (m === 'fricative' ? 2 : 1) * RELEASE_LEAD * (tau(k) / TAM_TAU.tipY);
-        anchors[k].push({ t0: Math.max(t0, prev ? prev.t1 : -Infinity), t1: piston ? s.t1 : Math.max(t0 + 0.01, s.t1 - release), v, cons: true, seg: s, ...(piston ? { piston: s } : {}) });
+        anchors[k].push({ t0: Math.max(t0, prev ? prev.t1 : -Infinity), t1: piston ? s.t1 : Math.max(t0 + 0.01, s.t1 - release), v, cons: true, seg: s, floor: core, ...(piston ? { piston: s } : {}) });
         // a click opens its front first: the back closure (and the tip of a
         // lateral click) holds on a little longer, while the sides of a
         // lateral click open
@@ -672,18 +685,21 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     .filter((s) => s.ph.airstream !== 'click' && !units[s.unit].p.glottalized && !s.ph.unreleased)
     .map((s) => ({ s, ck: closingKey(s.ph) }))
     .filter((c) => c.ck && anchors[c.ck.key].some((a) => a.seg === c.s));
-  for (let iter = 0; iter < 5 && shutting.length; iter++) {
+  const moved = () => {
     const trs = {} as Record<keyof Articulators, TamChannel>;
     for (const k of ARTICULATOR_KEYS) trs[k] = new TamChannel(valueAt(k, 0), tau(k));
     const ys = {} as Record<keyof Articulators, number[]>;
     for (const k of ARTICULATOR_KEYS) ys[k] = [];
     for (let i = 0; i * FRAME <= duration; i++) for (const k of ARTICULATOR_KEYS) ys[k].push(trs[k].step(valueAt(k, i * FRAME), FRAME));
-    const artAt = (time: number) => {
+    return (time: number) => {
       const i = Math.max(0, Math.min(ys.jaw.length - 1, Math.round(time / FRAME)));
       const a = {} as Articulators;
       for (const k of ARTICULATOR_KEYS) a[k] = ys[k][i];
       return a;
     };
+  };
+  for (let iter = 0; iter < 5 && shutting.length; iter++) {
+    const artAt = moved();
     let pushed = false;
     for (const { s, ck } of shutting) {
       // shut at some point in the second half of the closure
@@ -713,6 +729,56 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       pushed = true;
     }
     if (!pushed) break;
+  }
+
+  // and it closes when its sound is due. The lips shut some 40 ms after they
+  // set out, the tongue leaving an open vowel 70-80 ms after, with the jaw
+  // it rides on: a gesture that set out a fixed time before its sound would
+  // shut late, its closure would last a few milliseconds, and the breath of a
+  // voiceless one, whose folds part on time, would hiss through the passage
+  // still closing. The gesture sets out as much earlier as it would be late
+  // (the vowel before keeps its middle), and the moment the mouth is shut is
+  // kept for the folds
+  const shutAt = new Map<Seg, number>();
+  // (a click keeps the timing of its two closures: only its folds wait for them)
+  // A fricative is as narrow as it is meant when its sound is due, by the
+  // same means: coming from an open vowel its channel would still be closing
+  // through most of it (a sibilant twice as wide as it is held has no hiss
+  // to speak of), and narrow enough only where it ends
+  const hissing = new Map<Seg, number>();
+  for (const s of segs) {
+    if (s.ph.manner !== 'fricative' || s.part || s.ph.airstream === 'click' || !closingKey(s.ph)) continue;
+    const a = constrictionOf(s.ph.art, shape).area;
+    if (a > CLOSED_AREA && a < 1) hissing.set(s, FRIC_NEAR * a);
+  }
+  const closing = [...shutting.map((c) => c.s), ...segs.filter((s) => s.part === 'closure' && s.ph.airstream === 'click'), ...hissing.keys()];
+  for (let iter = 0; iter < 3 && closing.length; iter++) {
+    const artAt = moved();
+    let earlier = false;
+    for (const s of closing) {
+      const click = s.ph.airstream === 'click';
+      const two = click && s.ph.approx !== 'click';
+      const near = hissing.get(s);
+      const shut = (a: Articulators) => (two ? passageIn(a, CLICK_FRONT, shape) <= 0.004 && passageIn(a, CLICK_BACK_WINDOW, shape) <= 0.004 : constrictionOf(a, shape).area < (near ?? CLOSED_AREA));
+      let at = s.t0 - SHUT_EARLY;
+      while (at < s.t1 && !shut(artAt(at))) at += FRAME;
+      if (at >= s.t1) continue;
+      if (near === undefined) shutAt.set(s, at);
+      const late = at - s.t0 - (near === undefined ? 0 : FRIC_ONSET);
+      if (late < FRAME || iter === 2) continue;
+      for (const k of ARTICULATOR_KEYS) {
+        if (!EARLY.has(k)) continue;
+        const i = anchors[k].findIndex((x) => x.seg === s);
+        if (i < 0 || anchors[k][i].piston) continue;
+        const a = anchors[k][i], prev = anchors[k][i - 1];
+        const t0 = Math.max(a.t0 - late, a.floor ?? -Infinity, prev ? (prev.cons ? prev.t1 : prev.t0 + FRAME) : -Infinity);
+        if (t0 >= a.t0) continue;
+        a.t0 = t0;
+        if (prev && prev.t1 > t0) prev.t1 = t0;
+        earlier = true;
+      }
+    }
+    if (!earlier) break;
   }
 
   // the piston of an ejective or an implosive starts when the mouth is shut,
@@ -1016,14 +1082,15 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   let breath0 = 0;
   for (const s of segs) if (s.ph.manner === 'silence' && units[s.unit].p.pause === 'long') { breaths.push({ t0: breath0, t1: s.t0 }); breath0 = s.t1; }
   breaths.push({ t0: breath0, t1: duration });
-  // unaspirated voiceless stops (Italian, English after s) keep the folds
-  // apart through the closure and bring them together just after the burst:
-  // the voice starts with a short lag, longest behind the slow release of the
-  // tongue body (Italian: short lag, under about 30 ms, /k/ the longest)
+  // unaspirated voiceless stops (Italian, English after s) part the folds in
+  // the closure and have them nearly together again, held stiff, when it
+  // opens: little air follows the burst, and the voice starts with a short
+  // lag, longest behind the slow release of the tongue body (Italian: short
+  // lag, under about 30 ms, /k/ the longest)
   const held = (u: Unit) => !!u.p.glottalized || !!u.ph.unreleased;
   const shortLag = segs.filter((s) => s.part === 'release' && !s.ph.voiced && units[s.unit].ph.manner === 'stop' && !held(units[s.unit])
     && !units[s.unit].ph.airstream && !segs.some((a) => a.unit === s.unit && a.part === 'aspiration') && !devoiced.some((d) => d.unit === s.unit))
-    .map((s) => ({ t0: s.t0, t1: s.t0 + (SHORT_LAG[placeOf(s.ph) ?? 'alveolar'] ?? 0.012) }));
+    .map((s) => ({ t0: Math.max(s.t0 - STIFF_LEAD, (segs.find((a) => a.unit === s.unit)?.t0 ?? s.t0) + 0.01), t1: s.t0 + (SHORT_LAG[placeOf(s.ph) ?? 'alveolar'] ?? 0.012) }));
   // a breathy-voiced stop (bʱ) is released into murmur: the folds vibrate
   // apart, with a breathy pulse shape, for the first part of the vowel
   const murmur = segs.filter((s) => s.part === 'release' && s.ph.voiced && units[s.unit].ph.phonation === 'breathy')
@@ -1038,8 +1105,13 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // closure, drawn outward with the falling larynx, so that the vibrating
   // glottis can keep filling the cavity without the pressure rising behind it
   const expand = segs.filter((s) => s.part === 'closure' && units[s.unit].ph.airstream === 'implosive' && units[s.unit].ph.voiced).map((s) => ({ t0: s.t0, t1: s.t1 }));
+  // a voiced stop does a little of the same: the speaker slackens the walls and makes room behind the
+  // closure (Westbury 1983: voiced stops come with large increases of the volume above the glottis), or
+  // the pressure would stop the voice within the closure
+  const slack = segs.filter((s) => s.part === 'closure' && !units[s.unit].ph.airstream && units[s.unit].ph.voiced).map((s) => ({ t0: s.t0, t1: s.t1 }));
   const frames: ScoreFrame[] = [];
   const n = Math.ceil((duration + 0.25) / FRAME);
+  let abdWas = 0;
   for (let i = 0; i <= n; i++) {
     const time = i * FRAME;
     const art = {} as Articulators;
@@ -1048,6 +1120,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     const sg = segAt(time + 0.01);
     let abd = 0;
     let gate = 1;
+    let wait = false;
     // before the first sound the folds are already together, ready to vibrate
     // (no breathy [h] onset); after the last one they part a little while the
     // lungs stop pushing, so the voice ends without a hiss of escaping air
@@ -1066,17 +1139,28 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
         // the stop part of an affricate keeps the glottis open into its hiss
         const aspirated = (unit.ph.manner === 'affricate' && !unit.ph.voiced) || segs.some((s) => s.unit === sg.unit && s.part === 'aspiration') || devoiced.some((d) => d.unit === sg.unit);
         if (sg.part === 'release') abd = aspirated ? 0.55 : 0.04;
-        else abd = 0.5;
+        else {
+          abd = 0.5;
+          // the folds part as the mouth shuts, not before
+          wait = time + 0.01 < (shutAt.get(sg) ?? -Infinity);
+        }
       } else if (m === 'stop') abd = unit.ph.airstream === 'implosive' ? 0 : en && unit.p.wordStart ? 0.12 : 0.02;
       else abd = sg.ph.abduction;
     }
-    for (const w of shortLag) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) abd = Math.max(abd, 0.5);
+    if (wait) abd = abdWas;
+    else abdWas = abd;
+    let stiff = 0;
+    for (const w of shortLag) {
+      if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) abd = STIFF_ABD;
+      if (time >= w.t0 && time < w.t1) stiff = 1;
+    }
     for (const w of devoiced) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) abd = Math.max(abd, 0.55);
     // a breathy or whispering speaker's folds never quite meet (except where they must shut)
     if (habit && gate > 0) abd = Math.max(abd, setting.abduction);
     // and tenses the walls of the pharynx, so that the rising larynx compresses the air instead of stretching them
     let tense = 0;
     for (const w of glottalHold) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) { abd = 0; gate = 0; tense = 1; }
+    for (const w of slack) if (time >= w.t0 && time < w.t1) tense = -VOICED_SLACK;
     for (const w of expand) if (time >= w.t0 && time < w.t1) tense = -1;
     // the voice quality of the segment: murmur (breathy) or creak
     let quality = 0;
@@ -1116,7 +1200,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     const tip = flickAt('tipY', time), lips = flickAt('lipOpen', time), dorsum = flickAt('tongueX', time);
     const tr = trills.find((w) => time >= w.t0 && time < w.t1);
     frames.push({
-      t: time, art, abduction: abd, f0: f0At(time) * (fry > 0 ? Math.pow(2, (-FRY_DROP * fry) / 12) : 1), ps, ...(Math.max(creak, fry) > 0 ? { creak: Math.max(creak, fry) } : {}), tip, ...(lips ? { lips } : {}), ...(dorsum ? { dorsum } : {}), rd, gate, ...(tense ? { tense } : {}),
+      t: time, art, abduction: abd, f0: f0At(time) * (fry > 0 ? Math.pow(2, (-FRY_DROP * fry) / 12) : 1), ps, ...(Math.max(creak, fry) > 0 ? { creak: Math.max(creak, fry) } : {}), tip, ...(lips ? { lips } : {}), ...(dorsum ? { dorsum } : {}), rd, gate, ...(stiff ? { stiff } : {}), ...(tense ? { tense } : {}),
       ...(tr ? { trill: 1, trillKey: tr.key, trillAt: tr.at, ...(tr.open ? { trillOpen: tr.open } : {}) } : {}),
       ...(clickAt(time) > 0 ? { click: clickAt(time) } : {}),
     });

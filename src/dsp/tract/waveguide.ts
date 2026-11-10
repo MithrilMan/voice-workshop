@@ -99,26 +99,40 @@ export interface WaveguideLossParams {
 // intensities of speech sounds (Fletcher 1953; Fry 1979).
 export const DEFAULT_LOSSES: WaveguideLossParams = { base: 70, narrow: 45, nasal: 10 };
 
+/** samples a shape left without a new measure keeps its speed, before it stops where it is */
+const COAST = 8;
+
 class Branch {
   readonly n: number;
   f: Float64Array; b: Float64Array; fn: Float64Array; bn: Float64Array;
-  /** current section areas: they glide to the targets together with k */
+  /** current section areas (see setAreas for how they move) */
   area: Float64Array;
+  /** the areas at the end of the stretch under way */
   target: Float64Array;
-  dA: Float64Array;
-  k: Float64Array; dk: Float64Array;
+  /** the areas last asked for */
+  goal: Float64Array;
+  /** the motion of the areas: where they are (not clipped at a closure), their forward differences, the speed the stretch ends with */
+  private pos: Float64Array;
+  private d1: Float64Array; private d2: Float64Array; private d3: Float64Array;
+  private vEnd: Float64Array;
+  /** reflection coefficients of the junctions, those of the current areas */
+  k: Float64Array;
   loss: Float64Array;
   lossTarget: Float64Array;
   dLoss: Float64Array;
   private steps = 1;
+  private moving = false;
   constructor(n: number) {
     this.n = n;
     this.f = new Float64Array(n); this.b = new Float64Array(n);
     this.fn = new Float64Array(n); this.bn = new Float64Array(n);
     this.area = new Float64Array(n).fill(1);
     this.target = new Float64Array(n).fill(1);
-    this.dA = new Float64Array(n);
-    this.k = new Float64Array(Math.max(1, n - 1)); this.dk = new Float64Array(Math.max(1, n - 1));
+    this.goal = new Float64Array(n).fill(1);
+    this.pos = new Float64Array(n).fill(1);
+    this.d1 = new Float64Array(n); this.d2 = new Float64Array(n); this.d3 = new Float64Array(n);
+    this.vEnd = new Float64Array(n);
+    this.k = new Float64Array(Math.max(1, n - 1));
     this.loss = new Float64Array(n).fill(1);
     this.lossTarget = new Float64Array(n).fill(1);
     this.dLoss = new Float64Array(n);
@@ -136,26 +150,52 @@ class Branch {
   copyFrom(src: Branch, scale: number): void {
     this.f.set(src.f); this.b.set(src.b); this.fn.set(src.fn); this.bn.set(src.bn);
     for (let i = 0; i < this.n; i++) {
-      this.area[i] = this.target[i] = Math.max(AREA_CLOSED, src.area[i] * scale);
-      this.dA[i] = 0;
+      this.area[i] = this.target[i] = this.goal[i] = this.pos[i] = Math.max(AREA_CLOSED, src.area[i] * scale);
+      this.d1[i] = this.d2[i] = this.d3[i] = this.vEnd[i] = 0;
       this.loss[i] = this.lossTarget[i] = src.loss[i];
       this.dLoss[i] = 0;
     }
-    this.k.set(src.k); this.dk.fill(0);
+    this.k.set(src.k);
+    this.moving = false;
   }
-  /** sets target areas with a linear ramp of the reflection coefficients over `steps` samples */
+  /**
+   * Asks for new areas, a measure of the shape taken every `steps` samples.
+   *
+   * The areas do not run straight to each measure and wait there for the
+   * next: a shape that starts and stops three hundred times a second changes
+   * its speed at once each time, and where air flows steadily through the
+   * tract each change of speed is a small step of pressure, a tick. They
+   * follow the smooth curve the measures draw instead (their quadratic
+   * B-spline): within `steps` samples they come half way between the last
+   * measure and this one, moving by then at the speed that takes one to the
+   * other. Place and speed are continuous from stretch to stretch, a section
+   * that closes lands on its closure with no speed left, and one that opens
+   * leaves it from rest. The price is half a measure of delay (under 2 ms).
+   * A stretch cut short, or begun late, starts from the place and the speed
+   * of the moment (a cubic, which is that parabola when the measures come on
+   * time). One sample (`steps` <= 1) sets the areas at once.
+   */
   setAreas(src: ArrayLike<number>, steps: number): void {
     this.steps = Math.max(1, steps);
-    const inv = 1 / this.steps;
+    if (this.steps <= 1) {
+      for (let i = 0; i < this.n; i++) this.goal[i] = this.target[i] = Math.max(src[i], AREA_CLOSED);
+      this.settle();
+      return;
+    }
+    const N = this.steps, i1 = 1 / N, i2 = i1 * i1, i3 = i2 * i1;
+    let moving = false;
     for (let i = 0; i < this.n; i++) {
-      this.target[i] = Math.max(src[i], AREA_CLOSED);
-      this.dA[i] = (this.target[i] - this.area[i]) * inv;
+      const g0 = this.goal[i], g1 = Math.max(src[i], AREA_CLOSED);
+      const x0 = this.pos[i];
+      const v0 = this.d1[i] - 0.5 * this.d2[i] + this.d3[i] / 3;
+      const X = 0.5 * (g0 + g1), V = (g1 - g0) * i1;
+      const D = X - x0 - v0 * N, E = (V - v0) * N;
+      const c3 = (E - 2 * D) * i3, c2 = (3 * D - E) * i2;
+      this.d1[i] = v0 + c2 + c3; this.d2[i] = 2 * c2 + 6 * c3; this.d3[i] = 6 * c3;
+      this.goal[i] = g1; this.target[i] = X; this.vEnd[i] = V;
+      if (X !== x0 || v0 !== 0 || V !== 0) moving = true;
     }
-    for (let i = 0; i < this.n - 1; i++) {
-      const a1 = this.target[i], a2 = this.target[i + 1];
-      const kt = (a1 - a2) / (a1 + a2);
-      this.dk[i] = (kt - this.k[i]) * inv;
-    }
+    this.moving = moving;
   }
   /** losses glide with the areas (a closing section is damped progressively) */
   setLoss(fs: number, base: number, narrow: number, mult: number, shape?: ArrayLike<number>): void {
@@ -166,20 +206,46 @@ class Branch {
       this.dLoss[i] = (this.lossTarget[i] - this.loss[i]) * inv;
     }
   }
-  /** one sample of the geometry glide */
-  glide(): void {
-    const k = this.k, dk = this.dk, a = this.area, da = this.dA, l = this.loss, dl = this.dLoss;
-    for (let i = 0; i < this.n - 1; i++) k[i] += dk[i];
-    for (let i = 0; i < this.n; i++) { a[i] += da[i]; l[i] += dl[i]; }
+  private reflections(): void {
+    const a = this.area, k = this.k;
+    for (let i = 0; i < this.n - 1; i++) k[i] = (a[i] - a[i + 1]) / (a[i] + a[i + 1]);
   }
-  /** ends the glide exactly on the targets */
-  settle(): void {
-    for (let i = 0; i < this.n; i++) { this.area[i] = this.target[i]; this.dA[i] = 0; this.loss[i] = this.lossTarget[i]; this.dLoss[i] = 0; }
-    for (let i = 0; i < this.n - 1; i++) {
-      const a1 = this.target[i], a2 = this.target[i + 1];
-      this.k[i] = (a1 - a2) / (a1 + a2);
-      this.dk[i] = 0;
+  /** one sample of the motion */
+  glide(): void {
+    const n = this.n, l = this.loss, dl = this.dLoss;
+    for (let i = 0; i < n; i++) l[i] += dl[i];
+    if (!this.moving) return;
+    const a = this.area, x = this.pos, d1 = this.d1, d2 = this.d2, d3 = this.d3;
+    for (let i = 0; i < n; i++) {
+      const v = (x[i] += d1[i]);
+      d1[i] += d2[i]; d2[i] += d3[i];
+      a[i] = v > AREA_CLOSED ? v : AREA_CLOSED;
     }
+    this.reflections();
+  }
+  /** The end of a stretch: exactly where it was to end, going on at the speed it ends with. Tells whether the areas still move. */
+  arrive(): boolean {
+    let moving = false;
+    for (let i = 0; i < this.n; i++) {
+      this.area[i] = this.pos[i] = this.target[i];
+      this.d1[i] = this.vEnd[i]; this.d2[i] = this.d3[i] = 0;
+      if (this.vEnd[i] !== 0) moving = true;
+      this.loss[i] = this.lossTarget[i]; this.dLoss[i] = 0;
+    }
+    this.reflections();
+    this.moving = moving;
+    return moving;
+  }
+  /** stops the areas where they are */
+  rest(): void {
+    this.d1.fill(0); this.d2.fill(0); this.d3.fill(0); this.vEnd.fill(0);
+    this.moving = false;
+  }
+  /** puts the areas on the targets, at rest */
+  settle(): void {
+    for (let i = 0; i < this.n; i++) { this.area[i] = this.pos[i] = this.target[i]; this.loss[i] = this.lossTarget[i]; this.dLoss[i] = 0; }
+    this.reflections();
+    this.rest();
   }
 }
 
@@ -208,6 +274,7 @@ export class Waveguide {
   get supra(): Branch { return this.blind[1]; }
   get piriformAt(): number { return this.blindAt[0]; }
   private rampLeft = 0;
+  private coastLeft = 0;
   private lipRad: RadFilter = newRad();
   private nosRadL: RadFilter = newRad();
   private nosRadR: RadFilter = newRad();
@@ -222,9 +289,10 @@ export class Waveguide {
   srcJunction = new Int32Array(8);
   srcValue = new Float64Array(8);
   srcCount = 0;
-  /** monopole (volume velocity) source */
-  monoJunction = -1;
-  monoValue = 0;
+  /** monopole (volume velocity) sources at oral junctions; set before step */
+  monoJunction = new Int32Array(4);
+  monoValue = new Float64Array(4);
+  monoCount = 0;
 
   /**
    * Flow resistances of the jets, R / (rho c) in 1/cm^2, at the exit of each
@@ -309,7 +377,9 @@ export class Waveguide {
   }
 
   /**
-   * Sets new oral/nasal geometry, to be reached linearly within `steps` samples.
+   * Sets new oral/nasal geometry, a measure of the shape taken every `steps`
+   * samples (see Branch.setAreas for how the tract moves to it); one sample
+   * sets it at once.
    */
   setGeometry(af: AreaFunction, nt: NasalTract, fs: number, steps: number): void {
     this.fs = fs;
@@ -348,6 +418,7 @@ export class Waveguide {
     designRadiation(this.nasalL.target[this.nasalL.n - 1], fs, this.nosRadL, first);
     designRadiation(this.nasalR.target[this.nasalR.n - 1], fs, this.nosRadR, first);
     this.rampLeft = Math.max(1, steps);
+    this.coastLeft = 0;
   }
 
   /**
@@ -377,7 +448,7 @@ export class Waveguide {
         t = this.blind[q + 2];
         this.blind[q + 2] = old; this.blind[q] = t;
         this.blindAt[q + 2] = this.blindAt[q];
-        this.fadeLeft[q] = 2;
+        this.fadeLeft[q] = 3;
         t.copyFrom(old, FADE);
         this.shrink(old, steps);
       } else { t.reset(); t.setAreas(CLOSED_BRANCH, 1); t.settle(); }
@@ -386,7 +457,7 @@ export class Waveguide {
     t.setAreas(br.areas, steps);
   }
 
-  /** Lets go of the branches that have closed at the junction they left (two geometry updates after the move). */
+  /** Lets go of the branches that have closed at the junction they left (three geometry updates after the move). */
   private fadeBranches(steps: number): void {
     for (let q = 2; q < 4; q++) {
       if (this.blindAt[q] < 0) continue;
@@ -397,7 +468,7 @@ export class Waveguide {
 
   /** Narrows a branch to FADE of its areas, all alike, within `steps` samples. */
   private shrink(t: Branch, steps: number): void {
-    for (let i = 0; i < t.n; i++) this.shrunk[i] = t.target[i] * FADE;
+    for (let i = 0; i < t.n; i++) this.shrunk[i] = t.goal[i] * FADE;
     t.setAreas(this.shrunk, steps);
   }
 
@@ -405,6 +476,12 @@ export class Waveguide {
     const t = this.blind[q];
     t.setAreas(CLOSED_BRANCH, 1); t.settle(); t.reset();
     this.blindAt[q] = -1;
+  }
+
+  private glideAll(): void {
+    this.oral.glide(); this.nasal.glide(); this.nasalL.glide(); this.nasalR.glide();
+    for (const t of this.blind) t.glide();
+    for (const s of this.sinuses) s.tube.glide();
   }
 
   /** Characteristic impedance of the first (glottal) section. */
@@ -418,18 +495,18 @@ export class Waveguide {
     const o = this.oral, ns = this.nasal;
     const n = this.n;
     const J = this.coupling;
-    const ramp = this.rampLeft > 0;
-    if (ramp) {
+    if (this.rampLeft > 0) {
       this.rampLeft--;
       if (this.rampLeft === 0) {
-        o.settle(); ns.settle(); this.nasalL.settle(); this.nasalR.settle();
-        for (const t of this.blind) t.settle();
-        for (const s of this.sinuses) s.tube.settle();
-      } else {
-        o.glide(); ns.glide(); this.nasalL.glide(); this.nasalR.glide();
-        for (const t of this.blind) t.glide();
-        for (const s of this.sinuses) s.tube.glide();
-      }
+        // the next measure is due now: until it comes the shape keeps its speed
+        let on = o.arrive();
+        if (ns.arrive()) on = true;
+        if (this.nasalL.arrive()) on = true;
+        if (this.nasalR.arrive()) on = true;
+        for (const t of this.blind) if (t.arrive()) on = true;
+        for (const s of this.sinuses) if (s.tube.arrive()) on = true;
+        this.coastLeft = on ? COAST : 0;
+      } else this.glideAll();
       // radiation filters glide with the end areas
       const w = 1 / (this.rampLeft + 1);
       glideRad(this.lipRad, w);
@@ -437,6 +514,13 @@ export class Waveguide {
       glideRad(this.nosRadR, w);
       const ws = this.wallS, wst = this.wallST;
       for (let q = 0; q < ws.length; q++) ws[q] += (wst[q] - ws[q]) * w;
+    } else if (this.coastLeft > 0) {
+      if (--this.coastLeft > 0) this.glideAll();
+      else {
+        o.rest(); ns.rest(); this.nasalL.rest(); this.nasalR.rest();
+        for (const t of this.blind) t.rest();
+        for (const s of this.sinuses) s.tube.rest();
+      }
     }
     const f = o.f, b = o.b, fn = o.fn, bn = o.bn, k = o.k, loss = o.loss;
 
@@ -468,11 +552,16 @@ export class Waveguide {
       const rr = resOn ? (i === n - 2 ? rv[i] + rv[n - 1] : rv[i]) : 0;
       if (rr > 0) {
         // series resistance: same volume velocity on both sides, pressure
-        // drop R u across the junction (q = rho c u)
+        // drop R u across the junction (q = rho c u). Written with the
+        // reflection coefficient the junction scatters with when it has no
+        // resistance, so that a resistance that comes or goes changes the
+        // drop of pressure and nothing else: scattered any other way, on the
+        // steady flow of speech, the change would be a step of pressure,
+        // heard as a tick
         const a1 = o.area[i], a2 = o.area[i + 1];
-        const q = (2 * (fin - bin)) / (1 / a1 + 1 / a2 + rr);
-        fn[i + 1] = loss[i + 1] * (bin + q / a2);
-        bn[i] = loss[i] * (fin - q / a1);
+        const d = (fin - bin) / (1 + (rr * a1 * a2) / (a1 + a2));
+        fn[i + 1] = loss[i + 1] * (bin + (1 + k[i]) * d);
+        bn[i] = loss[i] * (fin - (1 - k[i]) * d);
         continue;
       }
       const w = k[i] * (fin - bin);
@@ -492,8 +581,11 @@ export class Waveguide {
       const j = this.blindAt[q];
       if (j < 0) continue;
       const t = this.blind[q];
-      const a1 = o.area[j], a2 = o.area[j + 1], a3 = t.area[0];
-      const pj = (2 * (a1 * f[j] + a2 * b[j + 1] + a3 * t.b[0])) / (a1 + a2 + a3);
+      // the two sides of the tract weigh as its reflection coefficient says
+      // (see the series resistance above): a branch that opens from a sliver,
+      // or closes to one, leaves the junction as it was
+      const w3 = t.area[0] / (o.area[j] + o.area[j + 1]);
+      const pj = ((1 + k[j]) * f[j] + (1 - k[j]) * b[j + 1] + 2 * w3 * t.b[0]) / (1 + w3);
       fn[j + 1] = loss[j + 1] * (pj - b[j + 1]);
       bn[j] = loss[j] * (pj - f[j]);
       t.fn[0] = t.loss[0] * (pj - t.b[0]);
@@ -516,9 +608,17 @@ export class Waveguide {
       for (let q = 0; q < wj.length; q++) {
         const j = wj[q];
         if (j === J || j === P || j === Q || j === P2 || j === Q2) {
-          // a branch joins here: the wall comes to rest instead of stopping dead
+          // a branch joins here: the wall comes to rest instead of stopping
+          // dead, and goes on taking its flow from the tract while it does
+          // (the fossae follow the larynx from junction to junction: a wall
+          // whose flow went at once when they arrived left a step of pressure
+          // above the glottis, a tick inside a vowel)
           wv[q] *= this.wallIdle; wy[q] *= this.wallIdle;
-          sum += ws[q] * wv[q];
+          const uw = ws[q] * wv[q];
+          sum += uw;
+          const c = (rc * uw) / (o.area[j] + o.area[j + 1]);
+          fn[j + 1] -= loss[j + 1] * c;
+          bn[j] -= loss[j] * c;
           continue;
         }
         const pj = fn[j + 1] + b[j + 1];
@@ -534,9 +634,10 @@ export class Waveguide {
       }
       this.wallFlow = sum;
     } else this.wallFlow = 0;
-    if (this.monoJunction >= 0 && this.monoJunction < n - 1) {
-      const j = this.monoJunction;
-      const v = (RHO * C_SOUND * this.monoValue) / Math.max(0.2, o.area[j] + o.area[j + 1]);
+    for (let k = 0; k < this.monoCount; k++) {
+      const j = this.monoJunction[k];
+      if (j < 0 || j >= n - 1) continue;
+      const v = (RHO * C_SOUND * this.monoValue[k]) / Math.max(0.2, o.area[j] + o.area[j + 1]);
       fn[j + 1] += loss[j + 1] * v;
       bn[j] += loss[j] * v;
     }

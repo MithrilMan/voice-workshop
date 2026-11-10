@@ -11,6 +11,14 @@ import { smoothstep } from '../util/math';
  * stops, and the aerodynamic limits of voicing (no transglottal pressure, no
  * vibration).
  *
+ * The walls do not follow the pressure at once: they have mass and they
+ * resist (Ishizaka, French & Flanagan 1975). With their constants given, the
+ * cavity is its air, small and quick, and beside it the walls, a mass on a
+ * damped spring that takes its volume in and gives it back in about ten
+ * milliseconds. So at the release of a stop the pressure falls as soon as the
+ * passage lets out more than the glottis and the walls can supply, instead of
+ * being held up by walls that would empty all at once.
+ *
  * Turbulence noise (Stevens 1971, 1998; Flanagan & Cherry 1969; Shadle 1985):
  *  - a jet forms at the narrowest passage, with velocity v = sqrt(2 Po / rho);
  *  - noise appears when the Reynolds number Re = v D / nu exceeds about 1800;
@@ -69,6 +77,14 @@ export interface AeroInputs {
   /** compliance of the cavity behind the constriction, its walls and its air (cm^5/dyn) */
   compliance: number;
   /**
+   * the part of that compliance that is the walls, reached through their
+   * resistance (dyn s/cm^5) and their mass (g/cm^4). Left out, the walls
+   * follow the pressure at once.
+   */
+  wallCompliance?: number;
+  wallResistance?: number;
+  wallMass?: number;
+  /**
    * rate of change of the volume of that cavity (cm^3/s): a larynx rising
    * with the glottis shut compresses the air in front of it (ejectives), one
    * lowering rarefies it (implosives), a tongue or jaw moving during a closure
@@ -86,11 +102,16 @@ export class Aero {
   uNose = 0;
   /** rate of change of the mouth flow (for the release transient) */
   dUMouth = 0;
+  /** volume the walls have yielded (cm^3), the pressure of their spring and the flow into them */
+  vWall = 0;
+  pw = 0;
+  uWall = 0;
 
-  reset(): void { this.po = 0; this.ug = 0; this.uMouth = 0; this.uNose = 0; this.dUMouth = 0; }
+  reset(): void { this.po = 0; this.ug = 0; this.uMouth = 0; this.uNose = 0; this.dUMouth = 0; this.vWall = 0; this.pw = 0; this.uWall = 0; }
 
   step(dt: number, x: AeroInputs): void {
     const ps = Math.max(0, x.ps);
+    if ((x.wallCompliance ?? 0) > 0) { this.stepWalls(dt, x, ps, x.wallCompliance!); return; }
     const ag2 = x.glottalArea * x.glottalArea;
     const aout = x.oralArea + x.nasalArea;
     const ao2 = aout * aout;
@@ -113,6 +134,47 @@ export class Aero {
     this.ug = x.glottalArea * k * Math.sqrt(Math.max(ps - this.po, 0));
     // below the outside pressure the air flows in (the burst of an implosive or a click goes inward)
     const sq = Math.sign(this.po) * Math.sqrt(Math.abs(this.po));
+    const um = x.oralArea * k * sq;
+    this.dUMouth = (um - this.uMouth) / dt;
+    this.uMouth = um;
+    this.uNose = x.nasalArea * k * sq;
+  }
+
+  /**
+   * The same balance with the walls as a branch of their own:
+   *   Ca dPo/dt = Ug - Umouth - Unose - dV/dt - Uw,
+   *   Lw dUw/dt = Po - Pw - Rw Uw,   Cw dPw/dt = Uw.
+   * The air alone is stiff (it follows the orifices in a fraction of a
+   * millisecond), so the step is implicit: the balance at the end of the step
+   * grows with the pressure there, and is solved by bisection.
+   */
+  private stepWalls(dt: number, x: AeroInputs, ps: number, cw: number): void {
+    const k = Math.sqrt(2 / RHO);
+    const ca = Math.max(x.compliance - cw, 1e-9);
+    const ag = x.glottalArea * k, ao = (x.oralArea + x.nasalArea) * k;
+    const q = x.dVdt ?? 0;
+    const lw = (x.wallMass ?? 0) / dt;
+    const pw0 = this.vWall / cw;
+    // the wall flow at the end of the step is linear in the pressure: (b + p) / z
+    const z = lw + (x.wallResistance ?? 0) + dt / cw;
+    const b = this.uWall * lw - pw0;
+    const p0 = this.po;
+    const h = (p: number) => (ca * (p - p0)) / dt - ag * Math.sqrt(Math.max(ps - p, 0)) + ao * Math.sign(p) * Math.sqrt(Math.abs(p)) + q + (b + p) / z;
+    let lo = Math.min(p0, pw0, 0) - 1, hi = Math.max(p0, pw0, ps) + 1;
+    let w = hi - lo;
+    for (let i = 0; i < 60 && h(lo) > 0; i++) { lo -= w; w *= 2; }
+    for (let i = 0; i < 60 && h(hi) < 0; i++) { hi += w; w *= 2; }
+    for (let i = 0; i < 60 && hi - lo > 1e-4; i++) {
+      const mid = 0.5 * (lo + hi);
+      if (h(mid) > 0) hi = mid; else lo = mid;
+    }
+    const p = 0.5 * (lo + hi);
+    this.po = p;
+    this.uWall = (b + p) / z;
+    this.vWall += this.uWall * dt;
+    this.pw = this.vWall / cw;
+    this.ug = ag * Math.sqrt(Math.max(ps - p, 0));
+    const sq = Math.sign(p) * Math.sqrt(Math.abs(p));
     const um = x.oralArea * k * sq;
     this.dUMouth = (um - this.uMouth) / dt;
     this.uMouth = um;
@@ -145,7 +207,7 @@ export class Aero {
     out.v = v; out.re = re; out.dh = dh; out.onset = onset;
     out.toTeeth = toTeeth;
     out.wallSource = base;
-    if (toTeeth > 0) {
+    if (toTeeth >= 0) {
       const x = toTeeth;
       const vt = x <= core ? v : x <= turn ? v * Math.sqrt(core / x) : (v * Math.sqrt(core / turn) * turn) / x;
       const width = dh * thin + 0.22 * x;
@@ -173,7 +235,9 @@ export class Aero {
  * the resonances of the cavities around a fricative and a stop release
  * (Birkholz, Jackel & Kroger 2007; Stevens 1998). `narrowIndex` and
  * `narrowArea` give the main constriction measured on the fine grid, narrower
- * than the mean area of its section.
+ * than the mean area of its section. It is the passage the flow was computed
+ * with, so no section counts as narrower: the areas may be those the tract is
+ * still gliding to (a closure a few milliseconds ahead of the flow).
  */
 export function kineticResistances(areas: ArrayLike<number>, flow: number, out: Float64Array, narrowIndex = -1, narrowArea = Infinity): Float64Array {
   out.fill(0);
@@ -181,10 +245,11 @@ export function kineticResistances(areas: ArrayLike<number>, flow: number, out: 
   flow = Math.abs(flow);
   if (!(flow > 0)) return out;
   const at = (i: number) => (i === narrowIndex ? Math.min(areas[i], narrowArea) : areas[i]);
+  const floor = Number.isFinite(narrowArea) ? narrowArea : 0;
   // the jet speed is bounded by the lung pressure (about 0.15 c)
   const r = (a: number, loss: number) => (loss * Math.min(flow / a, 0.15 * C_SOUND)) / (C_SOUND * a);
   for (let i = 1; i < n - 1; i++) {
-    const a = Math.max(at(i), 1e-4);
+    const a = Math.max(at(i), floor, 1e-4);
     if (a > at(i - 1) || a >= at(i + 1)) continue;
     // widest part downstream before the tract narrows again
     let j = i + 1;
@@ -193,7 +258,7 @@ export function kineticResistances(areas: ArrayLike<number>, flow: number, out: 
   }
   // the air always leaves the lips into open air, which takes all of its
   // kinetic pressure (exit loss), whether or not the lips are the narrowest
-  out[n - 1] = r(Math.max(at(n - 1), 1e-4), 1);
+  out[n - 1] = r(Math.max(at(n - 1), floor, 1e-4), 1);
   return out;
 }
 
