@@ -105,7 +105,7 @@ export type ScoreOptions = Partial<Omit<ProsodyOptions, 'natural'>> & { natural?
 
 export const DEFAULT_PROSODY: ProsodyOptions = { f0: 120, accent: 5, rate: 1, ps: 8, lang: 'it', lead: 0.03, natural: NATURAL_ALL };
 
-type Part = 'closure' | 'release' | 'aspiration';
+type Part = 'closure' | 'release' | 'aspiration' | 'frication';
 
 interface Seg {
   ipa: string;
@@ -374,6 +374,10 @@ const NEUTRAL_FLOOR = { vowel: 0.45, consonant: 0.65 };
  * is shortened together.
  */
 const RATE_LEAST = 0.25;
+/** how far past the channel of its hiss the tip of a fricated /t/ is pressed to shut it */
+const FRICATED_PRESS = 0.5;
+/** the passage through which the breath behind a fricated stop is first heard (cm²) */
+const FRICATED_OPEN = 0.01;
 
 /** Inherent and minimum durations for Italian, ms (stops: closure plus release). */
 const ITALIAN: Record<string, [number, number]> = {
@@ -558,19 +562,27 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       const dur = u.dur * frac;
       if (q.manner === 'stop') {
         const rel = Math.min(0.015, dur * 0.35);
-        segs.push({ ipa, ph: q, t0: t, t1: t + dur - rel, unit: i, part: 'closure', label: label(u) });
-        t += dur - rel;
-        segs.push({ ipa, ph: q, t0: t, t1: t + rel, unit: i, part: 'release', label: label(u) });
-        t += rel;
         // aspiration where it is written (ʰ); English voiceless stops are also
         // aspirated at the start of a stressed syllable (not after s)
         const nx = units[i + 1];
         const afterS = units[i - 1]?.p.ipa === 's' && units[i - 1].word === u.word;
         const written = !!q.aspirated && !q.voiced && ph.manner === 'stop' && !ph.airstream;
-        if (written || (en && !q.voiced && ph.manner === 'stop' && nx?.vowel && !u.coda && !afterS)) {
+        const aspirates = written || (en && !q.voiced && ph.manner === 'stop' && !!nx?.vowel && !u.coda && !afterS);
+        // English lets the tip of the tongue go slowly: what follows the burst
+        // of /t/ is a short hiss at the ridge, a [s], more than a breath of the
+        // glottis, and it ends in the voice as a fricative does. The closure is
+        // made where the hiss will be, so that it opens into its channel
+        const hiss = aspirates && en && !written && placeOf(q) === 'alveolar' ? phonemeFor('s', shape) : null;
+        if (hiss?.art.tipX !== undefined && hiss.art.tipY !== undefined) q = { ...q, art: { ...q.art, tipX: hiss.art.tipX, tipY: hiss.art.tipY + FRICATED_PRESS } };
+        segs.push({ ipa, ph: q, t0: t, t1: t + dur - rel, unit: i, part: 'closure', label: label(u) });
+        t += dur - rel;
+        segs.push({ ipa, ph: q, t0: t, t1: t + rel, unit: i, part: 'release', label: label(u) });
+        t += rel;
+        if (aspirates) {
           const vot = (VOT[placeOf(q) ?? 'alveolar'] ?? 0.065) * (u.stressed ? 1 : written ? 0.8 : 0.55) / Math.sqrt(rate);
           const asp = Math.max(0.005, vot - rel);
-          segs.push({ ipa, ph: q, t0: t, t1: t + asp, unit: i, part: 'aspiration', label: label(u) });
+          if (hiss) segs.push({ ipa, ph: hiss, t0: t, t1: t + asp, unit: i, part: 'frication', label: label(u) });
+          else segs.push({ ipa, ph: q, t0: t, t1: t + asp, unit: i, part: 'aspiration', label: label(u) });
           t += asp;
           // the aspiration takes over the start of the vowel (Klatt)
           if (nx?.vowel) nx.dur = Math.max(0.04, nx.dur - 0.5 * asp);
@@ -827,6 +839,43 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       }
     }
     if (!earlier) break;
+  }
+
+  // A fricated stop opens when its release is due. Its tip comes down from a
+  // closure pressed past the channel of the hiss, and how long that takes
+  // depends on the jaw under it (with the jaw high the channel is nearly
+  // shut, and the tip has most of its way to go before any air passes): the
+  // tip is let go as much earlier as the passage would open late
+  const fricated = segs.filter((s) => s.part === 'frication');
+  for (let iter = 0; iter < 6 && fricated.length; iter++) {
+    const artAt = moved();
+    let shifted = false;
+    for (const s of fricated) {
+      const c = segs.find((x) => x.unit === s.unit && x.part === 'closure');
+      if (!c) continue;
+      let at = FRAME * Math.round((0.5 * (c.t0 + c.t1)) / FRAME), before = 0, area = 0;
+      while (at < s.t1 && (area = constrictionOf(artAt(at), shape).area) < FRICATED_OPEN) { before = area; at += FRAME; }
+      // (between two frames, where the passage would cross the threshold; the
+      // motion simulated for a frame is where the engine, which steps toward
+      // a frame's targets through the frame, will be at the end of it. The
+      // targets are read once a frame: the tip is let go whole frames earlier,
+      // and by less than it is late after the first tries, since a tip let go
+      // earlier has also been pressed less far)
+      if (area > before) at -= FRAME * Math.min(1, (area - FRICATED_OPEN) / (area - before));
+      const late = FRAME * Math.round((at + FRAME - c.t1) / (iter < 2 ? 1 : 2) / FRAME);
+      if (!late) continue;
+      for (const k of ARTICULATOR_KEYS) {
+        const i = anchors[k].findIndex((x) => x.seg === s);
+        if (i < 1 || anchors[k][i - 1].seg !== c) continue;
+        const a = anchors[k][i], held = anchors[k][i - 1];
+        const t1 = Math.max(held.t0 + FRAME, Math.min(a.t1 - FRAME, held.t1 - late));
+        if (Math.abs(t1 - held.t1) < 1e-6) continue;
+        a.t0 = Math.max(t1, Math.min(a.t1 - FRAME, a.t0 - late));
+        held.t1 = t1;
+        shifted = true;
+      }
+    }
+    if (!shifted) break;
   }
 
   // the piston of an ejective or an implosive starts when the mouth is shut,
@@ -1155,7 +1204,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   /** a stop let go into silence: the end of the utterance, or a pause */
   const intoSilence = (s: Seg) => { const next = segs[segs.indexOf(s) + 1]; return !next || next.ph.manner === 'silence'; };
   const shortLag = segs.filter((s) => s.part === 'release' && !s.ph.voiced && units[s.unit].ph.manner === 'stop' && !held(units[s.unit]) && !intoSilence(s)
-    && !units[s.unit].ph.airstream && !segs.some((a) => a.unit === s.unit && a.part === 'aspiration') && !devoiced.some((d) => d.unit === s.unit))
+    && !units[s.unit].ph.airstream && !segs.some((a) => a.unit === s.unit && (a.part === 'aspiration' || a.part === 'frication')) && !devoiced.some((d) => d.unit === s.unit))
     .map((s) => ({ t0: Math.max(s.t0 - STIFF_LEAD, (segs.find((a) => a.unit === s.unit)?.t0 ?? s.t0) + 0.01), t1: s.t0 + (SHORT_LAG[placeOf(s.ph) ?? 'alveolar'] ?? 0.012) }));
   // a breathy-voiced stop (bʱ) is released into murmur: the folds vibrate
   // apart, with a breathy pulse shape, for the first part of the vowel
@@ -1215,7 +1264,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
         if (sg.part === 'closure') gate = 0;
       } else if (m === 'stop' && !sg.ph.voiced) {
         // the stop part of an affricate keeps the glottis open into its hiss
-        const aspirated = (unit.ph.manner === 'affricate' && !unit.ph.voiced) || segs.some((s) => s.unit === sg.unit && s.part === 'aspiration') || devoiced.some((d) => d.unit === sg.unit);
+        const aspirated = (unit.ph.manner === 'affricate' && !unit.ph.voiced) || segs.some((s) => s.unit === sg.unit && (s.part === 'aspiration' || s.part === 'frication')) || devoiced.some((d) => d.unit === sg.unit);
         if (sg.part === 'release') abd = aspirated ? 0.55 : intoSilence(sg) ? 0.5 : 0.04;
         else {
           abd = 0.5;
@@ -1289,7 +1338,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   const sp: ScorePhone[] = [];
   for (const s of segs) {
     const prev = sp[sp.length - 1];
-    if (prev && prev.ipa === s.label && (s.part === 'release' || s.part === 'aspiration' || units[s.unit].ph.manner === 'affricate') && sp.length && segs[segs.indexOf(s) - 1]?.unit === s.unit) { prev.t1 = s.t1; continue; }
+    if (prev && prev.ipa === s.label && (s.part === 'release' || s.part === 'aspiration' || s.part === 'frication' || units[s.unit].ph.manner === 'affricate') && sp.length && segs[segs.indexOf(s) - 1]?.unit === s.unit) { prev.t1 = s.t1; continue; }
     sp.push({ ipa: s.label, t0: s.t0, t1: s.t1 });
   }
   // the melody is already a smooth curve (Fujisaki's filters, the drawn

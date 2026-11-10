@@ -239,11 +239,12 @@ describe('breathy voice and pulsed aspiration', () => {
   });
 
   it('the breath after an aspirated stop is not a hiss', () => {
-    // "tattoo", as an English speaker says it: the breath between the burst of
-    // the first /t/ and the voice. With a source falling at 6 dB/octave, 65 %
-    // of it lay above 6 kHz, where its vowel has next to nothing
+    // "park", as an English speaker says it: the breath between the burst of
+    // /p/ and the voice (the tip of an English /t/ makes a hiss of its own
+    // there). With a source falling at 6 dB/octave, 56 % of it lay above
+    // 6 kHz, where its vowel has next to nothing
     loadEnglishLexicon();
-    const u = utterance(builtinVoice('man')!.design, textToPhones('tattoo', 'en'), 'en');
+    const u = utterance(builtinVoice('man')!.design, textToPhones('park', 'en'), 'en');
     const e = new VoiceEngine(fs, u.params);
     e.snapArticulators(); e.playScore(u.score);
     const n = Math.round((u.score.duration + 0.1) * fs), out = new Float32Array(n);
@@ -255,11 +256,11 @@ describe('breathy voice and pulsed aspiration', () => {
       if (closed && release < 0 && tel.constrictionArea > 0.005) release = i;
       if (release > 0 && onset < 0 && tel.voicingAmp > 0.2) onset = i;
     }
-    // (the first 14 ms are the burst, made at the teeth)
+    // (the first 14 ms are the burst, made at the lips)
     const breath = out.subarray(release + 14 * 48, onset);
     const high = bandPower(breath, fs, 6000, 20000, 512) * 14000, all = bandPower(breath, fs, 200, 20000, 512) * 19800;
     const mid = 10 * Math.log10(bandPower(breath, fs, 8000, 16000, 512) / bandPower(breath, fs, 1000, 3000, 512));
-    note('breath of an aspirated stop', `"tattoo", from 14 ms after the first /t/ is let go to the voice (${((onset - release) / 48 - 14).toFixed(0)} ms): ${(100 * high / all).toFixed(0)} % of it above 6 kHz, 8-16 kHz ${mid.toFixed(1)} dB against 1-3 kHz (65 % and -2.6 dB with a source falling half as fast)`);
+    note('breath of an aspirated stop', `"park", from 14 ms after /p/ is let go to the voice (${((onset - release) / 48 - 14).toFixed(0)} ms): ${(100 * high / all).toFixed(0)} % of it above 6 kHz, 8-16 kHz ${mid.toFixed(1)} dB against 1-3 kHz (56 % and +0.5 dB with a source falling half as fast)`);
     expect(high / all).toBeLessThan(0.3);
     expect(mid).toBeLessThan(-6);
   });

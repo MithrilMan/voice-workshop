@@ -5,7 +5,7 @@ import { passageIn, constrictionOf } from '../src/dsp/speech/derive';
 import type { Articulators } from '../src/dsp/tract/types';
 import { builtinVoice } from '../src/dsp/voice/builtin';
 import { utterance } from '../src/dsp/voice/utterance';
-import { note, loadEnglishLexicon } from './helpers';
+import { note, loadEnglishLexicon, bandPower } from './helpers';
 
 /**
  * How loud the burst of a stop is against the vowel that follows.
@@ -76,9 +76,10 @@ function shutAt(text: string, ipa: string): number {
 
 /**
  * every /t/ of a word as the studio plays it: its burst against the start of its vowel (as above),
- * for how many milliseconds its hiss stays within 10 dB of that start, and when the voice begins
+ * for how many milliseconds its hiss stays within 10 dB of that start, when the voice begins,
+ * how much of the noise before it lies below 3 kHz, and by how much its first 15 ms stand over the rest
  */
-function hisses(text: string, lang: string): { rel: number; loud: number; vot: number }[] {
+function hisses(text: string, lang: string): { rel: number; loud: number; vot: number; low: number; step: number }[] {
   const u = utterance(builtinVoice('man')!.design, textToPhones(text, lang), lang);
   const e = new VoiceEngine(fs, u.params);
   e.snapArticulators(); e.playScore(u.score);
@@ -105,25 +106,40 @@ function hisses(text: string, lang: string): { rel: number; loud: number; vot: n
     const vowel = win(onset / 1000, 0.03);
     let loud = 0;
     for (let i = release - 1; i < onset; i++) if (ms(i) > vowel - 10) loud++;
-    rows.push({ rel: win(release / 1000 - 0.005, 0.01) - vowel, loud, vot: onset - release });
+    const noise = out.subarray(release * 48, Math.max(release + 6, onset - 5) * 48);
+    const low = bandPower(noise, fs, 200, 3000, 256) * 2800 / (bandPower(noise, fs, 200, 20000, 256) * 19800);
+    const level = (a: number, b: number) => { let q = 0; for (let k = a * 48; k < b * 48; k++) q += out[k] * out[k]; return 10 * Math.log10(q / ((b - a) * 48) + 1e-14); };
+    const step = onset - release > 30 ? level(release, release + 15) - level(release + 15, onset - 5) : 0;
+    rows.push({ rel: win(release / 1000 - 0.005, 0.01) - vowel, loud, vot: onset - release, low, step });
   }
   return rows;
 }
 
 describe('bursts of the voiceless stops', () => {
-  it('an aspirated stop hisses longer than one let go with the folds together', () => {
-    // With the folds wide apart the air keeps coming after the tongue has left,
-    // and hisses at the teeth. How loud and how long is a stated limit: no
-    // measurement of an English burst was at hand to set it against
+  it('an English /t/ is let go into a hiss at the ridge, an Italian one into its vowel', () => {
+    // The tip of an English /t/ before a vowel comes off slowly, through the
+    // channel of an [s]: what is heard between the closure and the voice is
+    // that hiss, high and even, with no louder stage at its start. (Let go at
+    // once with the folds wide apart, the air hissed at the teeth through a
+    // passage as wide as a vowel's: 16 ms as loud as the vowel, a third and
+    // more of them between 0.9 and 3 kHz, and then a faint breath.) An
+    // Italian /t/ is over in a few milliseconds
     loadEnglishLexicon();
     const en = hisses('tattoo', 'en'), it = hisses('tattoo', 'it'), tea = hisses('tea', 'en')[0], ti = hisses('ti', 'it')[0];
-    const say = (r: { rel: number; loud: number; vot: number }) => `${r.rel.toFixed(1)} dB, ${r.loud} ms within 10 dB of the vowel, voice after ${r.vot} ms`;
-    note('aspirated release', `"tattoo" in English: ${en.map(say).join('; ')}; in Italian: ${it.map(say).join('; ')}; "tea" ${say(tea)}; Italian "ti" ${say(ti)}`);
+    const say = (r: { rel: number; loud: number; vot: number; low: number; step: number }) => `voice after ${r.vot} ms, ${r.loud} ms within 10 dB of the vowel, ${(100 * r.low).toFixed(0)} % below 3 kHz${r.vot > 30 ? `, first 15 ms ${r.step >= 0 ? '+' : ''}${r.step.toFixed(1)} dB on the rest` : ''}`;
+    note('fricated release', `"tattoo" in English: ${en.map(say).join('; ')}; in Italian: ${it.map(say).join('; ')}; "tea" ${say(tea)}; Italian "ti" ${say(ti)}`);
     expect(en.length).toBe(2);
     expect(it.length).toBe(2);
     for (let i = 0; i < 2; i++) {
       expect(en[i].vot).toBeGreaterThan(it[i].vot + 15);
       expect(en[i].loud).toBeGreaterThan(it[i].loud);
+      expect(en[i].low).toBeLessThan(0.15);
+    }
+    for (const r of [en[1], tea]) {
+      expect(r.vot).toBeGreaterThan(50);
+      expect(r.vot).toBeLessThan(90);
+      expect(r.low).toBeLessThan(0.15);
+      expect(r.step).toBeLessThan(6);
     }
   });
 

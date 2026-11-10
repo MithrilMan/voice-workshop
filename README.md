@@ -766,8 +766,8 @@ Flanagan & Cherry 1969; Shadle 1985):
   against 1 kHz, 14 at 5, 26 at 10: two poles at 2.5 kHz are 2.9, 12.3 and
   22.6 dB down). Falling at 6 dB per octave, as the jets of the mouth do,
   it was radiated flat up to 20 kHz: the breath after an aspirated stop
-  had 65 % of its energy above 6 kHz, where its vowel has next to nothing,
-  a hiss as bright as a sibilant; it has 20 %. The jets of the mouth keep
+  had 56 % of its energy above 6 kHz, where its vowel has next to nothing,
+  a hiss as bright as a sibilant; it has 12 %. The jets of the mouth keep
   the gentler fall, with which the sibilants and the bursts were matched to
   measured ones.
 - **Release burst**: a monopole at the closure that opened, proportional to
@@ -1162,7 +1162,13 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   precision of a voice, below).
   Stops are split into closure and release. English voiceless stops at the
   start of a stressed syllable (not after /s/) keep the glottis open past the
-  release: aspiration, a voice onset time of about 60-70 ms. With an l, r,
+  release: aspiration, a voice onset time of about 60-70 ms. The tip of an
+  English /t/ before a vowel is let go slowly: the closure is made where an
+  [s] is, pressed past its channel, and opens into it, so that what is
+  heard up to the voice is a short hiss at the ridge more than a breath of
+  the glottis (English /t/ is often affricated: Buizza & Plug 2012). The
+  tip sets out early enough for the channel to open when the release is
+  due, whatever the jaw under it is doing. With an l, r,
   w or j after the stop in the same onset the open glottis lasts into it
   and the voice starts later still (longer before a sonorant: Klatt 1975):
   79 ms in "play", 86 ms in "tree", 10 ms in "splash". Italian ones
@@ -1351,7 +1357,7 @@ in brackets are the adult male targets described under Speech.
 | Breathiness | HF/LF ratio +10.1 dB with a 0.12 cm² chink and Rd 2.2 |
 | Aspiration | F0 envelope modulation depth: steady 0.080, pulsed 0.398 |
 | Glottal noise source | corner at 2.5 kHz, against 1 kHz: -2.9 dB at 2 kHz, -12.3 at 5 kHz, -22.6 at 10 kHz (the source of turbulence noise, Stevens 1989: -4, -14, -26; the jets of the mouth, with one pole: -1.4, -6.1, -11.3) |
-| Breath of an aspirated stop | "tattoo" as an English speaker says it, from 14 ms after the first /t/ is let go to the voice (19 ms): 20 % of it above 6 kHz, 8-16 kHz 13.8 dB below 1-3 kHz (65 % and 2.6 dB below with a source falling half as fast) |
+| Breath of an aspirated stop | "park" as an English speaker says it, from 14 ms after /p/ is let go to the voice (41 ms): 12 % of it above 6 kHz, 8-16 kHz 10.1 dB below 1-3 kHz (56 % and 0.5 dB above with a source falling half as fast) |
 | Period boundaries | jitter 1 % and shimmer 6 % change the 8-16 kHz energy by +0.1 dB (+32 dB when the pulse mean jumped at each period) |
 | Control rate | voice onset from rest: 3-8 kHz at -44.4 dB re 0-1 kHz (-6.5 dB with stepped control values) |
 | User pink noise | -2.99 dB/oct (theory -3.01) |
@@ -1363,12 +1369,12 @@ in brackets are the adult male targets described under Speech.
 | Asymmetric nose, waveguide vs reference | congested left side, right nostril 40 % open, lossless: worst difference 0.34 % over 6 resonances below 3 kHz |
 | No clicks in running speech | "la luna e le stelle", with the piriform junction moving twice: loudest transient inside a vowel or sonorant, above 6 kHz, against the 40 ms around it +14 dB (+41 when a move zeroed the branch). Millisecond by millisecond, "la luna è piena stanotte." has 4 ms that stand 15 dB out of the 20 ms around them and "where did you put the keys?" 6 (the closures of the folds, which come back a period before and a period after, are the voice and are not counted): all at the edges of the stops, none inside a vowel, none sharp inside a closure (before: +41 dB inside the closure of a /d/, +28 dB between /u/ and /n/, +21 dB inside the /ɪ/ of "did") |
 | Stops on time | the mouth shut against the plan, and for how long: "la luna è piena stanotte." p +16 ms (56 of 89 ms), t -3 (63 of 79), t +16 (127 of 157); "where did you put the keys?" d +4 (50 of 68), d +12 (43 of 65), p -6 (80 of 93), k +19 (47 of 140, the rest its aspiration); no breath before the closure of a voiceless stop (the tongue after an open vowel shut some 45 ms late before) |
-| Edges of a word | as the studio plays it, against the loudest of the word: "tonight" -49 dB before its first sound, the folds at 0.12 of their swing after its last, -38 dB 60 ms on; "this" -52 dB, 0.03, -24 dB; "stop" -43 dB, 0.14, -43 dB (before: 45 ms of full voice ahead of the first /t/ of "tonight", and a breathy vowel of 100 ms and more after its last) |
+| Edges of a word | as the studio plays it, against the loudest of the word: "tonight" -49 dB before its first sound, the folds at 0.12 of their swing after its last, -40 dB 60 ms on; "this" -52 dB, 0.03, -24 dB; "stop" -43 dB, 0.14, -43 dB (before: 45 ms of full voice ahead of the first /t/ of "tonight", and a breathy vowel of 100 ms and more after its last) |
 | Breath at a full stop | "la luna è piena. Stanotte la vedo.", a pause of 300 ms: the lungs pull down to -2.7 cmH2O and 1064 cm³/s go in, for 136 ms; its hiss 28 dB below the loudest vowel of the sentence before (59 dB below with no breath taken); the loudest millisecond of the pause 10 dB above its median one; no air goes in at a comma |
 | Airways below a wide glottis | the flow is the airways' (1.5 cmH2O per l/s) below 1.21 cmH2O with the glottis wide open (0.56 cm²), 0.35 cmH2O at 0.3 cm², 0.010 cmH2O for the glottis of a voice (0.05 cm²) |
 | Sibilant in a sentence | the /s/ of "stanotte": narrower than 0.2 cm² 5 ms into its sound, the teeth sounding through 75 % of it; the releases of the two /t/ 0.9 and 6.0 dB below its hiss |
 | Bursts | RMS of 10 ms at the burst less 30 ms at the start of the vowel, as Nicolaidis et al. (2019) measured Greek /p t k/ (theirs in brackets): "la pata" -15.2 dB (-11.2), "la pita" -11.6 (-11.0), "la tata" -13.9 (-10.7), "la tita" -13.5 (-13.0), "la cata" -19.0 (-5.9), "la chita" -17.0 (-11.1); the voice starts after 10, 5, 19, 16, 27 and 25 ms (16, 14, 12, 23, 30, 63); without the pop of the air let out the burst of /p/ loses 1.9 dB, that of /t/ nothing: it is a hiss |
-| Aspirated release | the burst against the start of the vowel as above, for how long the hiss stays within 10 dB of that start, and when the voice begins: "tattoo" in English -13.3 dB, 16 ms, 41 ms and -3.0 dB, 24 ms, 78 ms; in Italian -14.3 dB, 4 ms, 20 ms and -16.7 dB, 5 ms, 17 ms; "tea" -19.2 dB, 68 ms, 70 ms; Italian "ti" -13.2 dB, 19 ms, 23 ms (no measurement of English bursts at hand: a stated limit) |
+| Fricated release | every /t/ as the studio plays it, from the moment it is let go: when the voice begins, for how long the noise stays within 10 dB of the start of the vowel, how much of it lies below 3 kHz, and by how much its first 15 ms stand over the rest. "tattoo" in English 46 ms, 27 ms, 3 %, +5.3 dB and 82 ms, 66 ms, 2 %, +2.7 dB; "tea" 77 ms, 64 ms, 1 %, +3.9 dB; in Italian 20 ms, 4 ms, 33 % and 17 ms, 5 ms, 42 %; "ti" 23 ms, 19 ms, 32 % (let go at once with the folds apart, the English ones had 46 and 26 % below 3 kHz and a first stage 9.6 and 15.4 dB over the rest) |
 | Place of a velar | front edge of the contact when the stop is let go: 6.9 cm from the lips before /i/, 7.8 before /a/, 8.0 before /u/, 9.0 before /o/; /t/ 3.9 before /i/, 4.4 before /o/ |
 | Speaking rate | the whole lasts 1/rate of what it lasts at the usual rate, from 0.6 to 2.5 times (Italian within 1 %; English, whose aspiration follows the root of the rate, within 15 %); between a slow rate (0.9) and a fast one (1.15): Italian vowels 0.74 and stops 0.83 of their duration, English 0.72 and 0.83 (speakers 0.75 and 0.9, Gay 1978; 0.74 and 0.8, Port 1981); slower than usual (0.9): vowels +14 % and stops +9 %, English +15 % and +8 %; from 2 to 2.5 times vowels and stops both 0.80 |
 | Unstressed /a/ | /tatata/: F1 728 Hz stressed (156 ms, jaw 0.88); 583 Hz before the stress (77 ms, jaw 0.38), 20 % below; 544 Hz after it, 25 % below; 728 Hz at the end of the word (speakers 18 % and 28 % below, the last of the word open again: Farnetani & Vayra 1991); /i/ and /u/ the same stressed or not |
@@ -1381,10 +1387,10 @@ in brackets are the adult male targets described under Speech.
 | Dark l | F2 clear /l/ 1506 Hz, dark /ɫ/ 937 Hz |
 | Klatt durations | /i/ in bead 223 ms vs beat 153 ms; "heed heed heed": first 121 ms, last 223 ms |
 | Italian durations | stressed /a/ in fato 156 ms vs fatto 104 ms |
-| Voice onset time | /t/ English 76 ms, after /s/ 20 ms; Italian /p t k/ 12 / 17 / 25 ms (Lisker & Abramson: English /t/ about 70 ms, range 30-105; Italian voiceless stops short-lag, under about 30 ms, /k/ longest) |
+| Voice onset time | /t/ English 64 ms, after /s/ 20 ms; Italian /p t k/ 12 / 17 / 25 ms (Lisker & Abramson: English /t/ about 70 ms, range 30-105; Italian voiceless stops short-lag, under about 30 ms, /k/ longest) |
 | Trill and tap | tongue-tip closures: "carro" 3, "caro" 1 |
 | Consonant dips | nasals 6.1-13.4 dB, /v/ 10.9-18.7 dB below their vowels (natural speech: nasals 6-12 dB, voiced fricatives 12-20 dB) ("la mamma vuole la nonna e il vino", "Every voice you have ever heard is raining in."); no complete closure in /v w l/, the narrowest /v/ 0.08 cm² (0.03 before the lip could slide out from under the teeth); /ŋ/ in front of the nasal port in every vowel context |
-| Vowels in running speech | 15 English and Italian sentences, each vowel in its middle against the same vowel held: front vowels F2 99 % on average, 97 % at the 10th percentile; F3 of non-rhotic vowels 2359 Hz at the 10th percentile, 8.6 % of them 150 Hz below their own (after /ɹ/, before /l/); tip 0.26 at the 90th percentile; F1 98 %; tongue body 0.04 from its target; nasal port 0.008 cm² at most away from nasals, 0.05 cm² on average next to one |
+| Vowels in running speech | 15 English and Italian sentences, each vowel in its middle against the same vowel held: front vowels F2 99 % on average, 97 % at the 10th percentile; F3 of non-rhotic vowels 2353 Hz at the 10th percentile, 8.6 % of them 150 Hz below their own (after /ɹ/, before /l/); tip 0.26 at the 90th percentile; F1 98 %; tongue body 0.04 from its target; nasal port 0.008 cm² at most away from nasals, 0.05 cm² on average next to one |
 | Fujisaki intonation | final F0: statement 106 Hz, wh-question 101 Hz, yes/no question 180 Hz (base 120 Hz) |
 | Melody | "Every voice you have ever heard is made of just two ingredients.": planned F0 range 10.2 st; the voice follows the plan within 0.74 st (90 %), 1.9 st with the slider smoothing |
 | Log-mel | 80 bands; a 1 kHz tone lands in band 25-29 |
@@ -1520,17 +1526,18 @@ in brackets are the adult male targets described under Speech.
   before /a/ (25 ms, theirs 63). The bursts of the voiced stops, and the
   frication that follows a release into a close vowel (the /d/ of "did",
   the /k/ of "keys"), are not checked against measurements.
-- The release of an aspirated stop is loud and long. With the folds wide
-  apart the air keeps coming after the tongue has left, and hisses at the
-  teeth: in the English "tattoo" the hiss stays within 10 dB of the start
-  of the vowel for 16 and 24 ms, and the second burst is 3 dB below that
-  start, where the Italian /t/, let go with the folds nearly together,
-  hisses for 4 and 5 ms, 14 and 17 dB below; in "tea" the hiss lasts the
-  whole breath. Some of it is the way English is spoken, some is not: the
-  folds are held as wide through the whole breath as at the release, where
-  speakers have them widest near the release and closing from there (Hoole
-  & Bombien 2017), /u/ and /i/ are weak in this model, and no measurement
-  of an English burst was at hand to set the level against.
+- The hiss of an English /t/ is set by ear and against a synthetic voice,
+  not against measurements of speakers. No published level of an English
+  burst was at hand; the words were compared with the same words from a
+  neural text-to-speech voice trained on recordings (American English),
+  whose /t/ before a stressed vowel is 60-80 ms of hiss between 3 and
+  8 kHz, 6 to 14 dB below the loudest of the word, with a tenth of it or
+  less below 3 kHz. Ours lasts as long and lies as high (with more above 8 kHz), 6 to
+  18 dB below the loudest of the word: nearest to it before /u/ and /i/,
+  which are weak in this model. Only /t/ is let go this way: /p/ and /k/
+  open at once, and the folds are held as wide through their whole breath
+  as at the release, where speakers have them widest near the release and
+  closing from there (Hoole & Bombien 2017).
 - The velum has no uvula: the uvular closures (q, ɴ, χ) are made by the
   dorsum against the pharynx just below the velum, and the uvular trill ʀ
   is a trill of the dorsum, not of the uvula. The sublingual cavity of a
@@ -1644,6 +1651,7 @@ in brackets are the adult male targets described under Speech.
 - Fant, G. (1995). The LF-model revisited. Transformations and frequency domain analysis. STL-QPSR 2-3.
 - Flanagan, J. L. (1972). Speech Analysis, Synthesis and Perception, 2nd ed. Springer.
 - Flanagan, J. L. & Cherry, L. (1969). Excitation of vocal-tract synthesizers. JASA 45.
+- Buizza, E. & Plug, L. (2012). Lenition, fortition and the status of plosive affrication: the case of spontaneous RP English /t/. Phonology 29(1).
 - Hoole, P. & Bombien, L. (2017). A cross-language study of laryngeal-oral coordination across varying prosodic and syllable-structure conditions. J. Speech Lang. Hear. Res. 60.
 - Heinz, J. M. & Stevens, K. N. (1965). On the relations between lateral cineradiographs, area functions and acoustic spectra of speech. ICA 5.
 - Hillenbrand, J., Getty, L. A., Clark, M. J. & Wheeler, K. (1995). Acoustic characteristics of American English vowels. JASA 97.
