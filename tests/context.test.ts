@@ -13,7 +13,7 @@ beforeAll(() => {
   loadEnglishLexicon();
   tokens = CONTEXT_CORPUS.flatMap(([text, lang]) => measure(text, lang));
   s = summary(tokens);
-});
+}, 60000); // (fifteen sentences are rendered: longer than the usual 10 s when the whole suite runs at once)
 
 describe('vowels in running speech', () => {
   it('front vowels keep their F2', () => {

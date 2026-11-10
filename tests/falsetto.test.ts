@@ -19,9 +19,11 @@ const source = (model: SourceModel, thickness: number) => {
   const n = Math.round(0.6 * fs), flow = new Float64Array(n), one = new Float32Array(1);
   let level = 0;
   for (let i = 0; i < n; i++) { e.process(one, 1); flow[i] = tel.glottalFlow; if (i >= n / 2) level += one[0] * one[0]; }
-  const f0 = model === 'lf' ? 300 : tel.measuredF0;
+  // (the pitch the engine reports is good to half a percent: the harmonics are measured where the fundamental really is)
+  let f0 = model === 'lf' ? 300 : tel.measuredF0;
   const fl = flow.subarray(n / 2), d = new Float64Array(fl.length);
   for (let i = 1; i < fl.length; i++) d[i] = (fl[i] - fl[i - 1]) * fs;
+  if (model !== 'lf') { let top = -Infinity; for (let f = f0 - 8, g = f; g <= f + 16; g += 0.25) { const h = harmonic(d, g); if (h > top) { top = h; f0 = g; } } }
   const h1 = harmonic(d, f0);
   return { f0, h1h2: h1 - harmonic(d, 2 * f0), slope: h1 - harmonic(d, Math.round(3000 / f0) * f0), level: 10 * Math.log10(level / (n / 2)) };
 };

@@ -702,8 +702,8 @@ tube with the sum of their sections and of their walls. It ends after the
 third generation, 19.5 cm below the glottis, in an open end: where the
 measured resonances put the end of the tube, not where the airways end.
 With walls that yield as those of the tract do, the frequency-domain model
-gives it resonances at 520, 1324 and 2195 Hz (469 Hz for the first with
-rigid walls), and 598, 1522 and 2523 Hz for a speaker 0.87 times the size.
+gives it resonances at 523, 1324 and 2195 Hz (469 Hz for the first with
+rigid walls), and 601, 1522 and 2523 Hz for a speaker 0.87 times the size.
 
 The engine does not run this tube section by section. It keeps what the
 glottis sees of it: the pressure the tube answers with under the folds to
@@ -1113,9 +1113,9 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   articulators (tongue body, jaw, velum, in proportion to their time
   constants), so that all of them open together. In the tract model the
   tucked lower lip of /f v/ rises to the upper teeth whatever the jaw (motor
-  equivalence, as for bilabial closure). The result: nasals dip 7-15 dB below
+  equivalence, as for bilabial closure). The result: nasals dip 6-13 dB below
   their vowels (the /m/ of "mamma", beside an open /a/, the most) and /v/
-  13-20 dB, as in the relative intensities of speech sounds (Fletcher 1953;
+  11-19 dB, as in the relative intensities of speech sounds (Fletcher 1953;
   Fry 1979).
   The middle of a vowel belongs to the vowel: the tongue tip, the tongue
   body and the velum may head for the next consonant only from 0.75 of their
@@ -1308,18 +1308,18 @@ in brackets are the adult male targets described under Speech.
 | Check | Result |
 |---|---|
 | Uniform 17.5 cm tube, lossless, ideal open end | 500.0 / 1500.0 / 2500.0 Hz (theory 500 / 1500 / 2500) |
-| Same tube, lossy + piston radiation | 523 (B 37) / 1451 (B 34) / 2406 (B 63) / 3370 (B 100) Hz |
-| Real-time waveguide on the same tube | 529 / 1452 / 2406 / 3370 Hz |
-| Waveguide vs reference, /i/ | 274 / 2191 / 2994 vs 277 / 2192 / 2994 Hz |
-| Waveguide vs reference, /a/ | 726 / 1294 / 2593 vs 728 / 1297 / 2594 Hz |
-| Waveguide vs reference, /u/ | 305 / 872 / 2245 vs 300 / 873 / 2245 Hz |
-| Waveguide vs reference, /ɛ/ /o/ | 526 / 1825 / 2412 and 478 / 896 / 2456 Hz (ref 529 / 1826 / 2415 and 474 / 897 / 2456) |
+| Same tube, lossy + piston radiation | 525 (B 27) / 1451 (B 32) / 2406 (B 63) / 3370 (B 100) Hz |
+| Real-time waveguide on the same tube | 531 / 1453 / 2406 / 3370 Hz |
+| Waveguide vs reference, /i/ | 284 / 2191 / 2994 vs 287 / 2192 / 2994 Hz |
+| Waveguide vs reference, /a/ | 726 / 1294 / 2593 vs 729 / 1298 / 2594 Hz |
+| Waveguide vs reference, /u/ | 314 / 872 / 2245 vs 311 / 874 / 2245 Hz |
+| Waveguide vs reference, /ɛ/ /o/ | 529 / 1825 / 2412 and 480 / 896 / 2456 Hz (ref 532 / 1826 / 2415 and 478 / 898 / 2456) |
 | Waveguide vs reference, laterals | /l/ and /ɫ/: every peak and valley below 4.5 kHz that stands out by 3 dB or more, the supralingual cavity's and the fossae's included: worst difference 1.0 % |
-| Waveguide vs reference, MRI shapes | worst F1-F3 difference 1.3 % over the 11 measured vowels |
-| MRI areas, frequency model | mean difference from the formants Story (2008) computed from the same areas: F1 4.8 %, F2 2.2 %, F3 0.8 % |
+| Waveguide vs reference, MRI shapes | worst F1-F3 difference 0.9 % over the 11 measured vowels |
+| MRI areas, frequency model | mean difference from the formants Story (2008) computed from the same areas: F1 5.6 %, F2 2.3 %, F3 0.8 % |
 | Vowel shapes vs MRI | log-area distance mean 0.60, worst /ɔ/ 0.79 (the drawing's own vowels: 0.98); no vowel narrower than the measured one |
-| Vowels F1 / F2 (target) | i 277 / 2192 (270 / 2290), ɪ 389 / 1972 (390 / 1990), e 441 / 2028 (440 / 2050), ɛ 529 / 1826 (530 / 1840), æ 645 / 1661 (660 / 1720), a 728 / 1297 (740 / 1300), ɑ 703 / 1106 (730 / 1090), ɔ 549 / 868 (570 / 840), o 474 / 897 (470 / 900), ʊ 440 / 1007 (440 / 1020), u 300 / 873 (300 / 870), ʌ 635 / 1191 (640 / 1190), ə 498 / 1495 (500 / 1500) |
-| Flat passages | a 1 mm high oral section has 1.9 times the wall of a round duct of the same area; three times the wall widens B1 of a 17.5 cm tube from 37 to 50 Hz |
+| Vowels F1 / F2 (target) | i 287 / 2192 (270 / 2290), ɪ 395 / 1972 (390 / 1990), e 445 / 2028 (440 / 2050), ɛ 532 / 1826 (530 / 1840), æ 646 / 1661 (660 / 1720), a 729 / 1298 (740 / 1300), ɑ 704 / 1106 (730 / 1090), ɔ 551 / 869 (570 / 840), o 478 / 898 (470 / 900), ʊ 444 / 1007 (440 / 1020), u 311 / 874 (300 / 870), ʌ 636 / 1191 (640 / 1190), ə 501 / 1496 (500 / 1500) |
+| Flat passages | a 1 mm high oral section has 1.9 times the wall of a round duct of the same area; three times the wall widens B1 of a 17.5 cm tube from 27 to 40 Hz |
 | Yielding walls | /i/: 50 % of the wall under the hard palate yields (the tongue), 100 % in the pharynx, none at the incisal slit (8.1 cm of bone) |
 | Closed tract | a tube 17 cm long and 1 cm in radius, shut at both ends: frequency model 225 Hz, 103 Hz wide, 4.0 MPa s/m³; waveguide 232 Hz, 110 Hz wide, 3.7 MPa s/m³; measured through sealed lips on men 210 ± 55 Hz, 105 ± 30 Hz, 3.9 ± 1.0 MPa s/m³ (Hanna et al. 2016) |
 | Bandwidths, glottis closed | waveguide, radiation included (frequency model in brackets): uniform tube 54 (27), 58 (32), 85 (63) Hz at 525, 1451, 2406 Hz; /u/ 103 (73) Hz at 311 Hz, 81 (46) at 874 Hz; /i/ 88 (59) Hz at 287 Hz |
@@ -1331,75 +1331,75 @@ in brackets are the adult male targets described under Speech.
 | /a/ scaled to 0.75 | F2 ratio 1.329 (ideal 1.333) |
 | LF spectral slope, Rd 1, 1-5 kHz | -11.8 dB/oct (flow derivative), -17.9 dB/oct (flow) |
 | LF H1-H2 | Rd 0.5: -2.0 dB, Rd 1: 3.8 dB, Rd 2.5: 17.5 dB (pressed to breathy) |
-| Two-mass F0 vs tension | Q 0.7: 88 Hz, Q 1.2: 166 Hz, Q 1.8: 240 Hz; automatic tension within 4 % of the target |
-| /s/ | peak 4875 Hz, centroid 6258 Hz, -9.8 dB re /a/ (male /s/: peak 4-5 kHz, mean 5-6 kHz, Jongman et al. 2000) |
-| /ʃ/ | peak 3797 Hz, centroid 3844 Hz, 0.7-1.8 kHz band 6.9 dB below the 2-3.5 kHz band, -6.0 dB re /a/ (3.8 dB louder than /s/; Jongman et al. 2000: peak about 3-4 kHz, mean 4.2 kHz, lower for men) |
-| Fricative spectrum, waveguide vs reference | /ʃ/ obstacle source: worst difference 1.2 dB over 8 bands, 0.5-8 kHz |
-| Jet losses | the sharpest resonance below 4 kHz widens 4.6 times in /ʃ/ (600 cm³/s), 1.08 times in /i/ (150 cm³/s) |
-| /f/ | centroid 7509 Hz, flat (2-10 kHz spread 9.9 dB vs 11.6 dB for /s/), -17.3 dB re /a/, -7.5 dB re /s/ |
-| Teeth | opening the incisal slit by 6 mm lowers /s/ in 4-10 kHz by 15.7 dB |
-| Breathiness | HF/LF ratio +17.7 dB with a 0.12 cm² chink and Rd 2.2 |
-| Aspiration | F0 envelope modulation depth: steady 0.050, pulsed 0.595 |
+| Two-mass F0 vs tension | Q 0.7: 88 Hz, Q 1.2: 166 Hz, Q 1.8: 241 Hz; automatic tension within 4 % of the target |
+| /s/ | peak 4875 Hz, centroid 6276 Hz, -10.1 dB re /a/ (male /s/: peak 4-5 kHz, mean 5-6 kHz, Jongman et al. 2000) |
+| /ʃ/ | peak 3797 Hz, centroid 3843 Hz, 0.7-1.8 kHz band 6.9 dB below the 2-3.5 kHz band, -6.3 dB re /a/ (3.8 dB louder than /s/; Jongman et al. 2000: peak about 3-4 kHz, mean 4.2 kHz, lower for men) |
+| Fricative spectrum, waveguide vs reference | /ʃ/ obstacle source: worst difference 0.9 dB over 8 bands, 0.5-8 kHz |
+| Jet losses | the sharpest resonance below 4 kHz widens 4.4 times in /ʃ/ (600 cm³/s), 1.09 times in /i/ (150 cm³/s) |
+| /f/ | centroid 7506 Hz, flat (2-10 kHz spread 9.8 dB vs 11.6 dB for /s/), -17.6 dB re /a/, -7.5 dB re /s/ |
+| Teeth | opening the incisal slit by 6 mm lowers /s/ in 4-10 kHz by 15.8 dB |
+| Breathiness | HF/LF ratio +18.0 dB with a 0.12 cm² chink and Rd 2.2 |
+| Aspiration | F0 envelope modulation depth: steady 0.022, pulsed 0.495 |
 | Period boundaries | jitter 1 % and shimmer 6 % change the 8-16 kHz energy by +0.1 dB (+32 dB when the pulse mean jumped at each period) |
-| Control rate | voice onset from rest: 3-8 kHz at -43.1 dB re 0-1 kHz (-6.5 dB with stepped control values) |
+| Control rate | voice onset from rest: 3-8 kHz at -44.4 dB re 0-1 kHz (-6.5 dB with stepped control values) |
 | User pink noise | -2.99 dB/oct (theory -3.01) |
-| "sasso" | geminate /sː/ 187 ms vs single /s/ 107 ms; HF/LF +15.1 dB in /sː/ vs -41.9 dB in /a/ |
-| "mamma" | nasal murmur 800-3000 / 80-400 Hz balance -38.2 dB vs -10.8 dB in the vowel |
-| Nasal murmur, waveguide vs reference | lowest resonance with the same damping /m/ 306 vs 307, /n/ 319 vs 320, /ŋ/ 309 vs 308 Hz (308, 325, 316 Hz with the waveguide's tenfold nasal damping; 392-416 Hz in the reference while it gave the nose soft walls) |
+| "sasso" | geminate /sː/ 187 ms vs single /s/ 107 ms; HF/LF +15.1 dB in /sː/ vs -41.0 dB in /a/ |
+| "mamma" | nasal murmur 800-3000 / 80-400 Hz balance -38.5 dB vs -9.8 dB in the vowel |
+| Nasal murmur, waveguide vs reference | lowest resonance with the same damping /m/ 310 vs 311, /n/ 322 vs 324, /ŋ/ 312 vs 312 Hz (312, 329, 320 Hz with the waveguide's tenfold nasal damping; 392-416 Hz in the reference while it gave the nose soft walls) |
 | Nasal cycle | /m/ with one passage congested (cycle 0.6): a new resonance at 2170 Hz with its antiresonance; first resonance 280 -> 270 Hz |
-| Pinched nostril | /m/ with the left nostril pinched: first resonance 310 -> 230 Hz, new antiresonance at 550 Hz |
+| Pinched nostril | /m/ with the left nostril pinched: first resonance 310 -> 240 Hz, new antiresonance at 550 Hz |
 | Asymmetric nose, waveguide vs reference | congested left side, right nostril 40 % open, lossless: worst difference 0.34 % over 6 resonances below 3 kHz |
-| No clicks in running speech | "la luna e le stelle", with the piriform junction moving twice: loudest transient inside a vowel or sonorant, above 6 kHz, against the 40 ms around it +11 dB (+41 when a move zeroed the branch). Millisecond by millisecond, "la luna è piena stanotte." has 6 ms that stand 15 dB out of the 20 ms around them and "where did you put the keys?" 4: all at the edges of the stops, none inside a vowel, none sharp inside a closure (before: +41 dB inside the closure of a /d/, +28 dB between /u/ and /n/, +21 dB inside the /ɪ/ of "did") |
+| No clicks in running speech | "la luna e le stelle", with the piriform junction moving twice: loudest transient inside a vowel or sonorant, above 6 kHz, against the 40 ms around it +10 dB (+41 when a move zeroed the branch). Millisecond by millisecond, "la luna è piena stanotte." has 5 ms that stand 15 dB out of the 20 ms around them and "where did you put the keys?" 4: all at the edges of the stops, none inside a vowel, none sharp inside a closure (before: +41 dB inside the closure of a /d/, +28 dB between /u/ and /n/, +21 dB inside the /ɪ/ of "did") |
 | Stops on time | the mouth shut against the plan, and for how long: "la luna è piena stanotte." p +16 ms (56 of 89 ms), t -3 (63 of 79), t +16 (127 of 157); "where did you put the keys?" d +4 (50 of 68), d +12 (43 of 65), p -6 (80 of 93), k +19 (47 of 140, the rest its aspiration); no breath before the closure of a voiceless stop (the tongue after an open vowel shut some 45 ms late before) |
-| Edges of a word | as the studio plays it, against the loudest of the word: "tonight" -49 dB before its first sound, the folds at 0.12 of their swing after its last, -38 dB 60 ms on; "this" -55 dB, 0.03, -24 dB; "stop" -44 dB, 0.14, -42 dB (before: 45 ms of full voice ahead of the first /t/ of "tonight", and a breathy vowel of 100 ms and more after its last) |
+| Edges of a word | as the studio plays it, against the loudest of the word: "tonight" -49 dB before its first sound, the folds at 0.12 of their swing after its last, -38 dB 60 ms on; "this" -52 dB, 0.03, -24 dB; "stop" -43 dB, 0.14, -42 dB (before: 45 ms of full voice ahead of the first /t/ of "tonight", and a breathy vowel of 100 ms and more after its last) |
 | Breath at a full stop | "la luna è piena. Stanotte la vedo.", a pause of 300 ms: the lungs pull down to -2.7 cmH2O and 1064 cm³/s go in, for 136 ms; its hiss 26 dB below the loudest vowel of the sentence before (58 dB below with no breath taken); the loudest millisecond of the pause 8 dB above its median one; no air goes in at a comma |
 | Airways below a wide glottis | the flow is the airways' (1.5 cmH2O per l/s) below 1.21 cmH2O with the glottis wide open (0.56 cm²), 0.35 cmH2O at 0.3 cm², 0.010 cmH2O for the glottis of a voice (0.05 cm²) |
-| Sibilant in a sentence | the /s/ of "stanotte": narrower than 0.2 cm² 5 ms into its sound, the teeth sounding through 76 % of it; the releases of the two /t/ 0.9 and 4.6 dB below its hiss |
-| Bursts | RMS of 10 ms at the burst less 30 ms at the start of the vowel, as Nicolaidis et al. (2019) measured Greek /p t k/ (theirs in brackets): "la pata" -15.2 dB (-11.2), "la pita" -11.2 (-11.0), "la tata" -13.7 (-10.7), "la tita" -13.1 (-13.0), "la cata" -18.9 (-5.9), "la chita" -16.6 (-11.1); the voice starts after 10, 5, 19, 16, 27 and 25 ms (16, 14, 12, 23, 30, 63); without the pop of the air let out the burst of /p/ loses 1.6 dB, that of /t/ nothing: it is a hiss |
+| Sibilant in a sentence | the /s/ of "stanotte": narrower than 0.2 cm² 5 ms into its sound, the teeth sounding through 75 % of it; the releases of the two /t/ 0.9 and 6.0 dB below its hiss |
+| Bursts | RMS of 10 ms at the burst less 30 ms at the start of the vowel, as Nicolaidis et al. (2019) measured Greek /p t k/ (theirs in brackets): "la pata" -15.2 dB (-11.2), "la pita" -11.6 (-11.0), "la tata" -13.9 (-10.7), "la tita" -13.5 (-13.0), "la cata" -19.0 (-5.9), "la chita" -17.0 (-11.1); the voice starts after 10, 5, 19, 16, 27 and 25 ms (16, 14, 12, 23, 30, 63); without the pop of the air let out the burst of /p/ loses 1.9 dB, that of /t/ nothing: it is a hiss |
 | Place of a velar | front edge of the contact when the stop is let go: 6.9 cm from the lips before /i/, 7.8 before /a/, 8.0 before /u/, 9.0 before /o/; /t/ 3.9 before /i/, 4.4 before /o/ |
 | Speaking rate | the whole lasts 1/rate of what it lasts at the usual rate, from 0.6 to 2.5 times (Italian within 1 %; English, whose aspiration follows the root of the rate, within 15 %); between a slow rate (0.9) and a fast one (1.15): Italian vowels 0.74 and stops 0.83 of their duration, English 0.72 and 0.83 (speakers 0.75 and 0.9, Gay 1978; 0.74 and 0.8, Port 1981); slower than usual (0.9): vowels +14 % and stops +9 %, English +15 % and +8 %; from 2 to 2.5 times vowels and stops both 0.80 |
 | Unstressed /a/ | /tatata/: F1 728 Hz stressed (156 ms, jaw 0.88); 583 Hz before the stress (77 ms, jaw 0.38), 20 % below; 544 Hz after it, 25 % below; 728 Hz at the end of the word (speakers 18 % and 28 % below, the last of the word open again: Farnetani & Vayra 1991); /i/ and /u/ the same stressed or not |
-| Motion of the tube | a section follows the measures of its shape with a speed that changes, from one sample to the next, 450 times less than if it ran to each measure and stopped there; it lands on a closure with no speed left; a steady flow through a narrowing that comes and goes in 20 ms: the sharpest sample of the flow at the lips 71 dB below the swing the gesture makes |
+| Motion of the tube | a section follows the measures of its shape with a speed that changes, from one sample to the next, 450 times less than if it ran to each measure and stopped there; it lands on a closure with no speed left; a steady flow through a narrowing that comes and goes in 20 ms: the sharpest sample of the flow at the lips 74 dB below the swing the gesture makes |
 | Pinched nose | held /m/: nasal airflow 231 -> 0 cm³/s, mouth pressure 8.0 cmH2O (the lung pressure), the hum silent |
 | Italian G2P | sasso, mamma, voce, rosa (northern /z/), gnocchi, figlio (long ʎ), scena, chiesa, città; IPA parsing |
 | English G2P | 89 321-word lexicon; voice v ɔɪ s, water w ɔ ɾ ɚ, little l ɪ ɾ ə ɫ, 1984 "nineteen eighty four", blick (rules) b l ɪ k; weak forms; wh-questions marked |
-| American linking | it is ɪ ɾ ɪ z, get up g ɛ ɾ ʌ p, just two dʒ ʌ s t u; oral pressure behind the /t/ of "it rains" 0.7 cmH2O (glottal stop, no puff) vs 5.8 cmH2O in "it." |
-| American r | /ɹ/ 407 / 1103 / 1596 Hz, /ɝ/ 479 / 1315 / 1741 Hz (Peterson & Barney /ɝ/ 490 / 1350 / 1690), narrowest passage 0.3 cm² (no hiss) |
-| Dark l | F2 clear /l/ 1506 Hz, dark /ɫ/ 936 Hz |
+| American linking | it is ɪ ɾ ɪ z, get up g ɛ ɾ ʌ p, just two dʒ ʌ s t u; oral pressure behind the /t/ of "it rains" 0.7 cmH2O (glottal stop, no puff) vs 6.4 cmH2O in "it." |
+| American r | /ɹ/ 411 / 1103 / 1596 Hz, /ɝ/ 482 / 1315 / 1741 Hz (Peterson & Barney /ɝ/ 490 / 1350 / 1690), narrowest passage 0.3 cm² (no hiss) |
+| Dark l | F2 clear /l/ 1506 Hz, dark /ɫ/ 937 Hz |
 | Klatt durations | /i/ in bead 223 ms vs beat 153 ms; "heed heed heed": first 121 ms, last 223 ms |
 | Italian durations | stressed /a/ in fato 156 ms vs fatto 104 ms |
 | Voice onset time | /t/ English 76 ms, after /s/ 20 ms; Italian /p t k/ 12 / 17 / 25 ms (Lisker & Abramson: English /t/ about 70 ms, range 30-105; Italian voiceless stops short-lag, under about 30 ms, /k/ longest) |
 | Trill and tap | tongue-tip closures: "carro" 3, "caro" 1 |
-| Consonant dips | nasals 6.3-13.6 dB, /v/ 11.3-18.0 dB below their vowels (natural speech: nasals 6-12 dB, voiced fricatives 12-20 dB) ("la mamma vuole la nonna e il vino", "Every voice you have ever heard is raining in."); no complete closure in /v w l/, the narrowest /v/ 0.08 cm² (0.03 before the lip could slide out from under the teeth); /ŋ/ in front of the nasal port in every vowel context |
+| Consonant dips | nasals 6.1-13.4 dB, /v/ 10.9-18.7 dB below their vowels (natural speech: nasals 6-12 dB, voiced fricatives 12-20 dB) ("la mamma vuole la nonna e il vino", "Every voice you have ever heard is raining in."); no complete closure in /v w l/, the narrowest /v/ 0.08 cm² (0.03 before the lip could slide out from under the teeth); /ŋ/ in front of the nasal port in every vowel context |
 | Vowels in running speech | 15 English and Italian sentences, each vowel in its middle against the same vowel held: front vowels F2 99 % on average, 97 % at the 10th percentile; F3 of non-rhotic vowels 2359 Hz at the 10th percentile, 8.6 % of them 150 Hz below their own (after /ɹ/, before /l/); tip 0.26 at the 90th percentile; F1 98 %; tongue body 0.04 from its target; nasal port 0.008 cm² at most away from nasals, 0.05 cm² on average next to one |
 | Fujisaki intonation | final F0: statement 106 Hz, wh-question 101 Hz, yes/no question 180 Hz (base 120 Hz) |
-| Melody | "Every voice you have ever heard is made of just two ingredients.": planned F0 range 10.2 st; the voice follows the plan within 0.73 st (90 %), 1.9 st with the slider smoothing |
+| Melody | "Every voice you have ever heard is made of just two ingredients.": planned F0 range 10.2 st; the voice follows the plan within 0.74 st (90 %), 1.9 st with the slider smoothing |
 | Log-mel | 80 bands; a 1 kHz tone lands in band 25-29 |
 | IPA places | narrowest passage, cm from the lips: stops p 1.8, t 4.3, ʈ 4.8, c 6.8, k 9.6, q 12.3, ʡ 16.7; fricatives ɸ 0.4, ɕ 3.2, ʂ 4.7, ç 5.6, x 9.0, χ 11.5, ħ 12.3 |
 | IPA degrees | derived stops and nasals closed; fricatives 0.06-0.14 cm²; approximants 0.25-0.4 cm² |
-| Derived vowels | y 252/1869/2395, ø 397/1534/2191, œ 499/1626/2086, ɯ 336/1403/2237, ɨ 399/1679/2306 Hz: rounding lowers F2 and F3 of the front vowels, unrounding raises F2 of the back ones |
-| Czech ř | laminal, its narrowest passage in front of /r/'s; contacts in [ˈr̝eka] 3, in [ˈtr̝̊i] 2; open phases at most 0.19 cm², their hiss 24 dB above /r/'s |
+| Derived vowels | y 265/1869/2395, ø 402/1534/2191, œ 502/1626/2087, ɯ 344/1403/2237, ɨ 404/1679/2306 Hz: rounding lowers F2 and F3 of the front vowels, unrounding raises F2 of the back ones |
+| Czech ř | laminal, its narrowest passage in front of /r/'s; contacts in [ˈr̝eka] 3, in [ˈtr̝̊i] 2; open phases at most 0.16 cm², their hiss 27 dB above /r/'s |
 | Dentals | t̪ d̪ n̪ closed 2.4 cm in front of /t/, with no note |
 | Stops close | "papa tata kaka gaga": every closure builds its pressure (/g/ after /a/ did not close before) |
-| Head shapes | 120 sounds on 13 heads (vault 0.6 and 1.45, arch 0.8 and 1.25, pharynx 0.7 and 1.4, tongue 0.92 and 1.08, frenulum 0.6, mouth 0.8 and 1.2, lips 0.7 and 1.4): every stop, nasal and click closes, every other consonant keeps its passage within 0.8-1.15, no vowel narrows below 0.25 cm²; only the laterals closed by the dorsum (ʎ ʟ) under the lowest vault or the biggest tongue are approximate. On a vault of 0.6 "kaka gaga tata cece" builds 42-100 % of the lungs' pressure behind each closure |
+| Head shapes | 120 sounds on 13 heads (vault 0.6 and 1.45, arch 0.8 and 1.25, pharynx 0.7 and 1.4, tongue 0.92 and 1.08, frenulum 0.6, mouth 0.8 and 1.2, lips 0.7 and 1.4): every stop, nasal and click closes, every other consonant keeps its passage within 0.8-1.15, no vowel narrows below 0.25 cm²; only the laterals closed by the dorsum (ʎ ʟ) under the lowest vault or the biggest tongue are approximate. On a vault of 0.6 "kaka gaga tata cece" builds 56-100 % of the lungs' pressure behind each closure |
 | Palate and arch | F2 of /i/ 2192 Hz: 2036 with a vault of 1.3, 2258 with 0.7; 2140 with an arch of 1.2, 2237 with 0.85 |
 | Language prosody | unstressed against stressed vowels: German 0.46, Spanish 0.78, Japanese 1.00; a long vowel in Japanese 2.0 times a short one (Spanish 1.7); the same four words, Spanish accents the first 4.5 st above French, which accents only the last (3.7 st above the one before); a yes/no question: Spanish rises to the end (112 -> 163 Hz), Hungarian and Greek peak on the last stress and fall (152 -> 98 Hz) |
-| Falsetto | 300 Hz, fold thickness 1 -> 0.3: LF H1-H2 4.0 -> 13.7 dB, H1 over the harmonic near 3 kHz 35.3 -> 54.4 dB, 8.1 dB weaker; two-mass still at 300 Hz, H1-H2 9.9 -> 21.1 dB, slope 38.0 -> 55.5 dB |
+| Falsetto | 300 Hz, fold thickness 1 -> 0.3: LF H1-H2 4.0 -> 13.7 dB, H1 over the harmonic near 3 kHz 35.3 -> 54.4 dB, 8.3 dB weaker; two-mass still at 300 Hz, H1-H2 9.0 -> 19.5 dB, slope 25.4 -> 48.0 dB |
 | Fold length | folds 0.7 as long open a glottis 0.70 as wide at its peak; two-mass folds 0.6 as long still follow a 220 Hz target (220 Hz) |
-| Lips | F2 of /u/ 873 Hz: 817 with lips 1.4 times as thick (the tract 0.7 cm longer), 931 with 0.7; 898 with a mouth 1.2 times as wide, 851 with 0.8 |
-| Tongue | F2 of /a/ 1297 Hz: 1228 with a tongue of 1.08, 1412 with 0.92; with a frenulum of 0.6 /t d n/ close with the jaw raised and the tip of /r/ no longer reaches its contact |
+| Lips | F2 of /u/ 874 Hz: 817 with lips 1.4 times as thick (the tract 0.7 cm longer), 931 with 0.7; 899 with a mouth 1.2 times as wide, 852 with 0.8 |
+| Tongue | F2 of /a/ 1298 Hz: 1228 with a tongue of 1.08, 1412 with 0.92; with a frenulum of 0.6 /t d n/ close with the jaw raised and the tip of /r/ no longer reaches its contact |
 | Speaking habits | a setting with a low larynx and rounded lips keeps both through every sound; a nasal one never lowers the velum on an obstruent; a whispering voice speaks its vowels 24 dB above the near silence it had; with every habit at its extreme /p t k/ still close |
 | Trills | closures of the lips in [aʙa] 3, of the dorsum against the uvula in [aʀa] 3, of the tip in [ara] 1 |
 | Velar lateral | ʟ: midline closed by the dorsum, lateral channels over 10 grid lines, 7.0-9.6 cm from the lips; /l/ F3 still 2421 Hz |
-| Uvular nasal | murmur against the vowel: [ŋ] -5.7 dB, [ɴ] -5.7 dB (-19.3 dB with the nose joined at the velum, in front of the closure) |
+| Uvular nasal | murmur against the vowel: [ŋ] -5.7 dB, [ɴ] -5.9 dB (-19.3 dB with the nose joined at the velum, in front of the closure) |
 | Walls heard | quietest 10 ms of a closure against its vowel: /b/ -25, /d/ -25, /g/ -28 dB, a hum centred at 148 Hz (-102 dB with the walls unheard); /p/ -83 dB; held against /a/: /i/ -4.2 dB, /u/ -8.3 dB (-13.2 unheard), /m/ -7.4 dB |
-| Epilarynx | narrowest section of the tube above the folds 0.43 cm² at rest, 0.19 with the sphincter at 0.5, shut at 1; at 0.5 the band 2.4-3.6 kHz rises against the first formant's by 3.7 dB (/a/), 4.6 (/i/), 8.9 (/u/) in the transfer function and by 2.3 dB in a held /a/ |
-| Subglottal resonances | trachea (2.54 cm², 12 cm) and 2, 4, 8 bronchi (3.14, 3.42, 3.89 cm² over 4.4, 1.9, 1.2 cm), 19.5 cm in all: 520 (B 43), 1324 (B 39), 2195 (B 62) Hz, against 554 ± 42, 1327 ± 77, 2179 ± 126 Hz measured on men (Lulich et al. 2012); with rigid walls the first at 469 Hz; 0.87 times the size: 598, 1522, 2523 Hz (women 660 ± 47, 1513 ± 69, 2426 ± 101) |
-| Subglottal impedance | the tube at its closed end: 216, 210 and 151 dyn s/cm⁵ at the three peaks; the resonances the engine keeps are within 0.1 dB of it there, within 1.5 dB half a width to either side |
-| Subglottal resonances in the voice | held /a/, harmonics at 480, 1320, 2160 Hz, with the airways below against without: folds apart -3.6, -2.6, -2.6 dB (away from them -0.2, -0.1 dB); modal -0.6, -2.0, -0.9 dB; the level changes by 0.2 dB; two-mass folds -0.2 dB |
-| Epiglottals | ʡ shut 16.7 cm from the lips, its closure 64 dB below the vowel in [ˈaʡa]; ʜ 0.10 cm² at 16.5 cm (ħ at 12.3), 28 dB below the vowel; a voice with a twang keeps the sphincter at its setting through every other sound |
+| Epilarynx | narrowest section of the tube above the folds 0.43 cm² at rest, 0.19 with the sphincter at 0.5, shut at 1; at 0.5 the band 2.4-3.6 kHz rises against the first formant's by 3.9 dB (/a/), 4.6 (/i/), 8.9 (/u/) in the transfer function and by 2.8 dB in a held /a/ |
+| Subglottal resonances | trachea (2.54 cm², 12 cm) and 2, 4, 8 bronchi (3.14, 3.42, 3.89 cm² over 4.4, 1.9, 1.2 cm), 19.5 cm in all: 523 (B 31), 1324 (B 36), 2195 (B 61) Hz, against 554 ± 42, 1327 ± 77, 2179 ± 126 Hz measured on men (Lulich et al. 2012); with rigid walls the first at 469 Hz; 0.87 times the size: 601, 1522, 2523 Hz (women 660 ± 47, 1513 ± 69, 2426 ± 101) |
+| Subglottal impedance | the tube at its closed end: 291, 222 and 153 dyn s/cm⁵ at the three peaks; the resonances the engine keeps are within 0.1 dB of it there, within 1.5 dB half a width to either side |
+| Subglottal resonances in the voice | held /a/, harmonics at 480, 1320, 2160 Hz, with the airways below against without: folds apart -3.3, -2.5, -2.6 dB (away from them -0.2, -0.1 dB); modal -0.3, -2.1, -0.9 dB; the level changes by 0.2 dB; two-mass folds -0.2 dB |
+| Epiglottals | ʡ shut 16.7 cm from the lips, its closure 58 dB below the vowel in [ˈaʡa]; ʜ 0.10 cm² at 16.5 cm (ħ at 12.3), 28 dB below the vowel; a voice with a twang keeps the sphincter at its setting through every other sound |
 | ɧ | front passage 0.10 cm², back one 0.12 cm², 0.32 cm² at least between them; a second hiss through the whole middle of [ˈaɧa], 3.0 dB below the first; spectral peak 1.3 kHz against 3.8 for [ʃ]; no second hiss in four ordinary sentences |
-| Click jet | [ǀ]: the 8 ms after the front opens, above 3 kHz, -0.1 dB against the vowel with its jet, -18.1 dB without (the pop alone); the hiss of the jet alone peaks at 3.0 kHz |
+| Click jet | [ǀ]: the 8 ms after the front opens, above 3 kHz, -0.1 dB against the vowel with its jet, -18.0 dB without (the pop alone); the hiss of the jet alone peaks at 3.0 kHz |
 | Clicks | cavity between the closures: [ʘ] -17.1 cmH2O, [ǀ] -19.4, [ǃ] -19.6, [ǁ] -19.5, [ǂ] -19.5; inflow at the front release 296, 265, 294, 174, 254 cm³/s with the back closure still shut |
 | Aeroelastic trills | lungs at 8 cmH2O: [arːa] 3 closures every 38 ms, [aʙːa] 5 every 34 ms, [aʀːa] 5 every 33 ms; at 0.5 cmH2O 1, 1 and 2 |
 | Written aspiration | VOT [p] 10 ms, [pʰ] 66 ms, [kʰ] 73 ms |
@@ -1407,15 +1407,15 @@ in brackets are the adult male targets described under Speech.
 | Italian linking | "anche un banco in gamba" a ŋ k e u m b a ŋ k o i ŋ g a m b a; "in fondo, un vino" ɱ f, ɱ v; no change across a pause or in a long n; "la terra è rossa" has two stresses, and the verb left at the end of "chi ce la ha?" keeps its own |
 | Function words elsewhere | Spanish "la casa de Pedro": la and de without stress, a de at the end of a phrase with it; Polish "na stole": one stress, on stole |
 | Breath groups | lung pressure against the same sentence without the fall: "la luna. le stelle" 88.4 % at the end of the first sentence, 99.6 % at the start of the second; "la luna, le stelle" 95.4 % and 93.6 % |
-| Loudness and brightness | held /a/ at 4, 8, 16 cmH2O, LF source: -32.8, -22.4, -13.7 dB, 2-4 kHz against 0-1 kHz -37.9, -36.2, -33.4 dB; two-mass source, its tension held: -30.6, -21.7, -13.8 dB and -36.7, -30.6, -25.0 dB, pitch 118, 121, 121 Hz |
-| Pitch in voiced consonants | LF source, against the planned pitch: long /b/ -5.1 %, /z/ -3.4 %, /m/ -0.3 % |
-| Two-mass folds apart | held /a/: -21.9 dB together (LF source -22.4), -26.8 dB a little apart (-25.9); at 0.7 of the full opening -36.4 dB and no pitch; wide apart -35.2 dB (-38.2) |
+| Loudness and brightness | held /a/ at 4, 8, 16 cmH2O, LF source: -32.7, -22.2, -13.5 dB, 2-4 kHz against 0-1 kHz -37.9, -36.3, -33.6 dB; two-mass source, its tension held: -30.6, -21.7, -13.8 dB and -36.6, -30.8, -25.0 dB, pitch 118, 121, 121 Hz |
+| Pitch in voiced consonants | LF source, against the planned pitch: long /b/ -5.0 %, /z/ -2.4 %, /m/ -0.3 % |
+| Two-mass folds apart | held /a/: -21.9 dB together (LF source -22.2), -26.8 dB a little apart (-25.9); at 0.7 of the full opening -36.4 dB and no pitch; wide apart -35.1 dB (-38.1) |
 | Two-mass flow, glottis wide | 1354, 1508 and 1629 cm³/s at 0.7, 0.85 and 1 of the full opening, steady within 1 % (LF source 1210, 1366, 1493: the folds at rest add their own opening) |
-| Two-mass folds speaking | "he has a house": -26.0 dB, peak 0.26 (LF source -26.4 dB, 0.28); 20 cm³/s through the glottis 0.2 s after the end |
-| Ejective | [kʼ] 10.6 cmH2O behind the shut glottis (lungs 8), larynx up 0.88 cm, no flow from the lungs; mouth flow in the 30 ms after the burst 66 cm³/s against 463 for [k] |
-| Implosive | [ɓ] 2.7 cmH2O behind the lips against 4.5 for [b], voicing amplitude at the release 0.69 against 0.49, larynx down 1.25 cm |
+| Two-mass folds speaking | "he has a house": -26.0 dB, peak 0.26 (LF source -26.3 dB, 0.29); 2 cm³/s through the glottis 0.2 s after the end |
+| Ejective | [kʼ] 10.6 cmH2O behind the shut glottis (lungs 8), larynx up 0.88 cm, no flow from the lungs; mouth flow in the 30 ms after the burst 66 cm³/s against 462 for [k] |
+| Implosive | [ɓ] 2.7 cmH2O behind the lips against 4.4 for [b], voicing amplitude at the release 0.69 against 0.49, larynx down 1.25 cm |
 | Voiceless implosive | [ɓ̥] -8.7 cmH2O at the release, mouth flow -349 cm³/s (the air drawn in) |
-| Mandarin tones | [ma˥ ma˧˥ ma˨˩˦ ma˥˩], F0 at five points of each vowel, semitones from the base, heard (YIN): high level 5.6 5.6 5.4 5.4 5.4; rising 1.9 1.9 2.5 3.3 3.9; dipping -5.2 -5.8 -5.6 -4.3 -3.2; falling 1.6 -0.4 -2.2 -4.4 -5.6 |
+| Mandarin tones | [ma˥ ma˧˥ ma˨˩˦ ma˥˩], F0 at five points of each vowel, semitones from the base, heard (YIN): high level 5.5 5.6 5.4 5.4 5.4; rising 1.9 1.9 2.5 3.3 3.9; dipping -5.2 -5.8 -5.6 -4.3 -3.2; falling 1.6 -0.4 -2.2 -4.4 -5.6 |
 | Downstep | [á ꜜá á]: high tones at 2.2, 0.6, -0.2 st |
 | Phonemizer | French "Bonjour, comment ça va ? Je m'appelle Mireille." bɔ̃ʒˈuʁ kɔmˈɑ̃ sˈa vˈa? ʒˈə mapˈɛl miʁˈɛj (5 words from the dictionary, 2 from the model); Mandarin 你好，世界 ni˨˩˦ xɑʊ˨˩˦ ʂɚ˥˩ tɕjɛ˥˩ (dictionary, tones read); German "Guten Morgen, wie geht es dir?" gˈuːtən mˈɔʁgən viː get ˈɛs dˈiːʁ (model, 6 words in 0.5 s including loading it, Node, one thread); dictionary format, word splitting, the longest dictionary words, greedy decoding and fixed stress tested on a scripted network |
 
