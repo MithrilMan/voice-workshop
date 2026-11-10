@@ -7,7 +7,8 @@
  * the same through the analysis (a check), our copy with all three, and the
  * fine structure of each through the spectral envelope of the other.
  *   npx tsx scripts/copy-test.ts list.json [list2.json ...] [--voice=woman|file.voice.json]
- *       [--n=3] [--out=.ref/copy] [--cross]
+ *       [--n=3] [--out=.ref/copy] [--cross] [--set=habits.precision=1,phonation.rd=1] [--losses=0.8]
+ * --set changes fields of the voice, --losses the engine's waveguide losses (to try what moves the copy toward the recording)
  * list.json: [{ "file": "a.wav", "text": "What it says.", "lang": "en" }, ...]
  * Without --voice, a list's own fitted voice (fit_auto_<name>.voice.json
  * next to it) if there is one, else the man's or the woman's by its pitch.
@@ -20,7 +21,7 @@ import { setEnglishLexicon } from '../src/dsp/speech/english';
 import { decodeWav, encodeWav } from '../src/dsp/util/wav';
 import { builtinVoice } from '../src/dsp/voice/builtin';
 import { voiceFromJson } from '../src/dsp/voice/codec';
-import { VoiceDesign } from '../src/dsp/voice/design';
+import { VoiceDesign, withField } from '../src/dsp/voice/design';
 import { utterance } from '../src/dsp/voice/utterance';
 import { VoiceEngine } from '../src/dsp/engine/engine';
 import { EngineParams, Score } from '../src/dsp/engine/params';
@@ -78,8 +79,10 @@ for (const listPath of lists) {
       const f = recA.f0.filter((x) => x > 0).sort((a, b) => a - b);
       d = builtinVoice(f[f.length >> 1] < 165 ? 'man' : 'woman')!.design;
     }
+    for (const kv of (opt('set') ?? '').split(',').filter(Boolean)) { const [path, value] = kv.split('='); d = withField(d, path, Number(value)); }
     const phones = textToPhones(item.text, item.lang);
     const u = utterance(d, phones, item.lang);
+    if (opt('losses')) u.params.losses = Number(opt('losses'));
     const rules = render(u.params, u.score, fs);
     const living = render(u.params, utterance(d, phones, item.lang, { seed: 1 + rows.length }).score, fs);
     const map = align(recA, analyse({ samples: rules, fs }));

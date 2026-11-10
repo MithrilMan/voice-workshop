@@ -1918,6 +1918,7 @@ npx tsx scripts/say.ts out/            # render example sentences to WAV, print 
 npx tsx scripts/fit-voice.ts list.json --out=a.voice.json   # fit a voice to WAV recordings and their texts
 npx tsx scripts/copy-test.ts list.json --n=3 --out=.ref/copy    # a recording's timing, melody and loudness on our voice, to listen to
 npx tsx scripts/copy-test.ts list.json --n=3 --cross            # the fine structure of each through the envelope of the other
+npx tsx scripts/envelope-report.ts .ref/copy                    # how the envelope of the copies differs from the recordings'
 npx tsx scripts/say.ts out/ en "any sentence"   # one sentence; add --flat for the robot version
 npx tsx scripts/say.ts out/ it "la luna" --voice=deep   # with a starting voice, or --voice=my.voice.json from the studio
 npx tsx scripts/g2p.ts en "the water bottle"    # phones of a text and where each English word came from

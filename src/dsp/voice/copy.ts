@@ -106,7 +106,10 @@ function extent(level: number[]): [number, number] {
  * Where in our saying each moment of the recording is: a map from the
  * recording's time to ours, monotone. The two are aligned by dynamic time
  * warping of their cepstra between the first and the last frame of speech
- * (symmetric steps, within a band about the diagonal), the path is
+ * (symmetric steps, within a band about the diagonal), with the level of
+ * each frame below its loudest as one more coordinate (a third of its dB,
+ * down to 60 dB: with the mean of the speech removed from the cepstra, a
+ * silence would otherwise look like an average sound), the path is
  * smoothed over 70 ms, and outside the speech time runs on at the same
  * pace in both.
  */
@@ -114,9 +117,10 @@ export function align(rec: Analysis, ours: Analysis): (tRec: number) => number {
   const [r0, r1] = extent(rec.level), [o0, o1] = extent(ours.level);
   const R = r1 - r0 + 1, O = o1 - o0 + 1;
   const band = Math.max(20, Math.round(0.25 * Math.max(R, O)));
+  const rt = Math.max(...rec.level), ot = Math.max(...ours.level);
   const d = (i: number, j: number) => {
     const a = rec.cep[r0 + i], b = ours.cep[o0 + j];
-    let s = 0;
+    let s = ((Math.max(-60, rec.level[r0 + i] - rt) - Math.max(-60, ours.level[o0 + j] - ot)) / 3) ** 2;
     for (let k = 0; k < a.length; k++) s += (a[k] - b[k]) ** 2;
     return Math.sqrt(s);
   };
