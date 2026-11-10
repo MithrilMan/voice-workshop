@@ -13,7 +13,7 @@ import { Rng } from '../util/rng';
 import { Wander } from '../util/wander';
 import { smoothstep } from '../util/math';
 import { TamChannel, TAM_TAU } from '../speech/tam';
-import { Articulators, ARTICULATOR_KEYS } from '../tract/types';
+import { Articulators, ARTICULATOR_KEYS, ARTICULATOR_RANGES } from '../tract/types';
 import { EngineParams, Score, ScoreFrame, defaultParams } from './params';
 
 /** Output samples between control updates. */
@@ -25,9 +25,16 @@ const CTRL = 32;
  * band of Klatt's flutter (sines at 4.7, 7.1 and 12.7 Hz) and as much (rms);
  * the breath and the tension more slowly, over syllables and words. Chosen,
  * not measured: about half a decibel of loudness and a twentieth of the
- * range of Rd.
+ * range of Rd. The mouth is never still either: the tongue body and root,
+ * the jaw and the rounding and protrusion of the lips wander a little under
+ * every sound (rms, at variation 1: some 3 % of the way from /i/ to /a/ or
+ * from spread to round; chosen, not measured). The tip and the opening of
+ * the lips, which make the closures, do not. And no two pulses of the
+ * folds have quite the same shape: Rd varies from one to the next (sd 0.1
+ * at variation 1, chosen).
  */
-const WANDER = { f0: [2, 5, 12], slow: [0.7, 2, 5], ps: 0.04, rd: 0.06 };
+const WANDER = { f0: [2, 5, 12], slow: [0.7, 2, 5], ps: 0.04, rd: 0.06, mouth: [1, 3, 8], rdPeriod: 0.1 };
+const MOUTH_WANDER: [keyof Articulators, number][] = [['tongueX', 0.05], ['tongueY', 0.05], ['tongueRoot', 0.04], ['jaw', 0.03], ['lipRound', 0.03], ['lipProtrude', 0.03]];
 /** Minimum time between geometry recomputations (s). */
 const GEOM_INTERVAL = 0.0027;
 /** Radiated pressure at 1 m per unit dU/dt: rho / (4 pi r), in Pa. */
@@ -355,6 +362,8 @@ export class VoiceEngine {
   private psCur = 0; // dyn/cm^2
   /** Rd change and glottal gate from the score */
   private rdOffset = 0;
+  /** how alive the voice is now (the score's variation with a seed, else 0) */
+  private live = 0;
   private gate = 1;
   /** folds held stiff by the score (0..1), smoothed: they do not vibrate */
   private stiff = 0;
@@ -496,7 +505,7 @@ export class VoiceEngine {
   // score
   private score: Score | null = null;
   /** the wanders of a living voice, while a score with a seed plays */
-  private wander: { f0: Wander; ps: Wander; rd: Wander } | null = null;
+  private wander: { f0: Wander; ps: Wander; rd: Wander; mouth: Wander[] } | null = null;
   private scoreTime = 0;
   private scoreIdx = 0;
   private scoreHold = 0.25;
@@ -536,7 +545,10 @@ export class VoiceEngine {
     this.tam.f0.tau = score.f0Tau ?? TAM_TAU.f0;
     for (const k of ARTICULATOR_KEYS) this.tam[k].tau = TAM_TAU[k] * (score.tauScale?.[k] ?? 1);
     const s = score.seed;
-    this.wander = s === undefined ? null : { f0: new Wander(s + 101, WANDER.f0), ps: new Wander(s + 202, WANDER.slow), rd: new Wander(s + 303, WANDER.slow) };
+    this.wander = s === undefined ? null : {
+      f0: new Wander(s + 101, WANDER.f0), ps: new Wander(s + 202, WANDER.slow), rd: new Wander(s + 303, WANDER.slow),
+      mouth: MOUTH_WANDER.map((_, i) => new Wander(s + 404 + 101 * i, WANDER.mouth)),
+    };
   }
 
   stopScore(): void { this.score = null; this.restoreTau(); }
@@ -596,6 +608,14 @@ export class VoiceEngine {
     if (this.score) this.scoreTime += dt;
     const artT = fr?.art ?? p.articulators;
     for (const k of ARTICULATOR_KEYS) this.art[k] = this.tam[k].step(artT[k], dt);
+    // a living mouth wanders a little under every sound
+    if (this.score && this.wander) {
+      const live = this.score.variation ?? 1;
+      MOUTH_WANDER.forEach(([k, size], i) => {
+        const [lo, hi] = ARTICULATOR_RANGES[k];
+        this.art[k] = Math.max(lo, Math.min(hi, this.art[k] + live * size * this.wander!.mouth[i].step(dt)));
+      });
+    }
     // taps: the contacts of the tongue tip are ballistic, added on top of the
     // smoothed posture; the same for the lips (ⱱ) and the dorsum
     const tk = fr && fr.trill > 0 ? fr.trillKey : undefined;
@@ -609,6 +629,7 @@ export class VoiceEngine {
     // a living voice wanders: its pitch (the flutter), its breath, its tension
     const w = this.score ? this.wander : null;
     const live = w ? this.score!.variation ?? 1 : 0;
+    this.live = live;
     this.rdOffset = fr ? fr.rd + (w ? live * WANDER.rd * w.rd.step(dt) : 0) : 0;
     // a glottal stop closes within a few milliseconds
     this.gate += ((fr ? fr.gate : 1) - this.gate) * (1 - Math.exp(-dt / 0.006));
@@ -1059,7 +1080,8 @@ export class VoiceEngine {
     if (dip > 0 && (src.periodIndex & 1)) amp *= 1 - 0.8 * dip;
     this.periodAmp = Math.max(0, amp);
     const effort = Math.max(-PRESSURE.octaves, Math.min(PRESSURE.octaves, Math.log2(Math.max(this.psCur, 1) / (8 * CMH2O))));
-    const rd = Math.max(0.3, Math.min(2.7, s.rd + this.rdOffset + THIN.rd * thinness(s) - PRESSURE.rd * effort));
+    const shape = this.live > 0 ? this.live * WANDER.rdPeriod * this.rng.gauss() : 0;
+    const rd = Math.max(0.3, Math.min(2.7, s.rd + this.rdOffset + shape + THIN.rd * thinness(s) - PRESSURE.rd * effort));
     const timing: LFTiming = s.advanced ? timingFromQuotients(s.oq, s.alphaM, s.ra) : rdToTiming(rd);
     src.setShape(timing);
     // measured F0 (for display)

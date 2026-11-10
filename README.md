@@ -1134,7 +1134,12 @@ sibilants. The teeth panel draws the front and side views with the live jet.
     and the relaxing into each phrase end by 20 %. The flutter becomes a
     random wander of the same rms over about 2-12 Hz (three noises, each
     low-passed twice) instead of the three sines, and the lung pressure
-    (4 % rms) and Rd (0.06 rms) wander over 0.7-5 Hz. All of it is scaled
+    (4 % rms) and Rd (0.06 rms) wander over 0.7-5 Hz, Rd also from one
+    pulse to the next (sd 0.1); the mouth is never still either: the tongue
+    body (0.05 rms) and root (0.04), the jaw and the rounding and
+    protrusion of the lips (0.03) wander over 1-8 Hz under every sound,
+    while the tip and the opening of the lips, which make the closures, do
+    not. All of it is scaled
     by the voice's variation (1 by default, 0 the rules alone) and differs
     with the seed; the same seed says it the same way again. The figures
     are chosen, not measured.
@@ -1432,7 +1437,27 @@ score of a voice saying something: one turn of a dialogue.
   own residual (gliding over the 5 ms) and filtered by the second's. On
   our copy and the recording it tells whether what sounds mechanical in
   ours is in the source or in the mouth: the page plays the recording,
-  the same through the analysis (a check), our copy, and the two crossings.
+  the same through the analysis (a check), our copy, and the two crossings,
+  and our copy with their envelope only in the middle of the vowels, or
+  only in the consonants and the passages between sounds.
+- Envelope report (`scripts/envelope-report.ts`): on the voiced frames
+  where a copy and its recording are both loud, the formants and their
+  LPC bandwidths, the balance of five bands and how fast the envelope
+  moves (the distance of the cepstra from one 10 ms frame to the next),
+  also split into its tilt (c1-c2) and the shape of the formants
+  (c3-c12) and by where it is (the middle of a vowel, of a consonant,
+  25 ms about an edge), and how far F1 and F2 move between 20 and 80 % of
+  each vowel. On the 15 sentences of the five reference voices our
+  copies have the formants where the recordings have them (within 2 %),
+  their bandwidths 13-25 % wider, 1-3 dB less above 1 kHz, and an
+  envelope that moves a quarter less (a third less inside the vowels,
+  41 % less inside the voiced consonants, a fifth less about the edges);
+  their F1 moves 12 % inside a vowel where the recordings' moves 22 %.
+  Crossed, our fine structure through their envelope moves as theirs
+  does (9.9 against 10.4). Neither the living mouth, nor articulators
+  quicker or a jaw slower, nor tenser folds or smaller losses close the
+  gap in movement (the tenser folds and the smaller losses close those
+  of the bands and the bandwidths).
 
 ## Main parameters
 

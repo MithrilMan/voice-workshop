@@ -342,8 +342,10 @@ export function swell(rec: Analysis, ours: Analysis): number[] {
  * second's. A clip crossed with itself comes back as it was. With the two
  * sayings lined up in time and pitch (copy synthesis), it tells whether
  * what sounds mechanical in one of them is in its source or in its mouth.
+ * With `where`, the second's envelope only at the times it says (s), the
+ * first's own elsewhere: which stretches of a saying carry it.
  */
-export function crossSynth(source: Clip, mouth: Clip): Float32Array {
+export function crossSynth(source: Clip, mouth: Clip, where?: (t: number) => boolean): Float32Array {
   const fs = source.fs, n = Math.min(source.samples.length, mouth.samples.length);
   const order = Math.round(4 + fs / 1000), hop = Math.round(0.005 * fs), win = Math.round(0.025 * fs);
   const pre = (x: Float32Array) => { const y = new Float64Array(n); for (let i = 0; i < n; i++) y[i] = x[i] - 0.97 * (i ? x[i - 1] : 0); return y; };
@@ -363,7 +365,7 @@ export function crossSynth(source: Clip, mouth: Clip): Float32Array {
   let gWas = NaN;
   for (let b = 0; b * hop < n; b++) {
     const c = b * hop + (hop >> 1);
-    const s = fit(xs, c), m = fit(xm, c);
+    const s = fit(xs, c), m = !where || where(c / fs) ? fit(xm, c) : s;
     // the source's own residual, at the level of the mouth's
     // (gliding from the block before, so that it does not click)
     const g = Math.min(30, Math.sqrt(m.e / Math.max(s.e, 1e-20))), g0 = Number.isNaN(gWas) ? g : gWas;
