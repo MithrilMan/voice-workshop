@@ -25,10 +25,24 @@ const RAD_PA = RHO / (4 * Math.PI * 100) / 10;
 const FULL_SCALE_PA = 0.3;
 /**
  * Source-strength calibration of the turbulence models (dimensionless). The
- * wall and obstacle gains put held /s/ about 9 dB and /f/ about 17 dB below
- * /a/, with jets of the true hydraulic diameter of each passage.
+ * wall and obstacle gains put held /s/ about 14 dB and /f/ about 22 dB below
+ * /a/ over the whole band (9 and 17 before the losses above the plane waves
+ * took away the hiss over 12 kHz), with jets of the true hydraulic diameter
+ * of each passage.
  */
 export const NOISE_K = { aspiration: 0.15, wall: 0.07, obstacle: 1.35, user: 0.04, bypass: 0.004, burst: 0.5 };
+/**
+ * Above about 10 kHz a tube of plane waves, a few millimetres a section and
+ * with the same losses at every frequency, is no longer the mouth: the walls
+ * lose more as the frequency rises, the waves no longer fill the section as
+ * one, and the teeth and lips scatter them. What it radiates there is set by
+ * a low-pass (order 6, at this frequency for a head of the reference size,
+ * higher in a smaller one) that gives the long-term spectrum of speech and
+ * the top of /s/ as they were measured, up to 20 kHz (Monson, Lotto & Story
+ * 2012). Without it they lay 10 to 20 dB too high above 12 kHz: a hiss over
+ * every fricative and every release.
+ */
+const HF_LOSS = 12500;
 /**
  * What thin folds change in the LF source (Zhang 2016: the vertical thickness
  * of the medial surface sets the closed quotient and the slope of the
@@ -317,6 +331,9 @@ export class VoiceEngine {
   private userNoise = new ShapedNoise(1024);
   private userNoiseKey = '';
   private lpf = new ButterworthLowpass(8);
+  private hfLoss = new ButterworthLowpass(6);
+  private hfLossAt = 0;
+  private hfLossFs = 0;
   private rng = new Rng(99);
 
   // articulators and source controls (TAM-smoothed)
@@ -779,6 +796,8 @@ export class VoiceEngine {
     }
     this.sub.configure(this.fsT, p.anatomy.scale);
     const scale = p.anatomy.scale;
+    const hf = Math.min(HF_LOSS / scale, 0.4 * this.fsT);
+    if (Math.abs(hf - this.hfLossAt) > 0.01 * hf || this.hfLossFs !== this.fsT || force) { this.hfLoss.design(hf, this.fsT); this.hfLossAt = hf; this.hfLossFs = this.fsT; }
     const port = portArea(this.art.velum, p.anatomy.nasalLeak, scale);
     // the nose joins the pharynx where the velum begins. The model's velum has
     // no uvula, so the dorsum makes a uvular closure below it: with the port
@@ -1210,7 +1229,7 @@ export class VoiceEngine {
     la.aspiration += asp * asp; la.wall += wall * wall; la.obstacle += obs * obs; la.user += user * user;
     la.voice += this.voicingAmp; la.n++;
 
-    return this.lpf.process(rad * RAD_PA / FULL_SCALE_PA);
+    return this.lpf.process(this.hfLoss.process(rad * RAD_PA / FULL_SCALE_PA));
   }
 
   /** Renders n output samples into out (mono). */

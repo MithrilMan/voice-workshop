@@ -771,9 +771,23 @@ Flanagan & Cherry 1969; Shadle 1985):
   22.6 dB down). Falling at 6 dB per octave, as the jets of the mouth do,
   it was radiated flat up to 20 kHz: the breath after an aspirated stop
   had 56 % of its energy above 6 kHz, where its vowel has next to nothing,
-  a hiss as bright as a sibilant; it has 12 %. The jets of the mouth keep
+  a hiss as bright as a sibilant; it has 8 %. The jets of the mouth keep
   the gentler fall, with which the sibilants and the bursts were matched to
   measured ones.
+- **The top of the spectrum**: above about 10 kHz a tube of plane waves,
+  a few millimetres a section and losing the same at every frequency, is
+  no longer the mouth: its walls lose more as the frequency rises, the
+  waves no longer fill a section as one, and the teeth and lips scatter
+  them. There the long-term spectrum of speech lay 8 dB above the measured
+  one at 12.7 kHz and 18-20 dB at 16-20 kHz, and held /s/ 17-22 dB (Monson,
+  Lotto & Story 2012, on axis in an anechoic room): every fricative and
+  every release carried a sizzle that no speaker makes, most of the energy
+  of the hiss of an English /t/. What the tube radiates now goes through a
+  low-pass of order 6 at 12.5 kHz (higher in a smaller head, as the
+  section a plane wave fills scales with it), which brings both within
+  4.2 dB of the measured ones up to 16 kHz and 6.6 dB at 20 kHz, and
+  changes nothing below 8 kHz. It is a correction of the whole, set on measurements, not a
+  model of the losses.
 - **Release burst**: a monopole at the closure that opened, proportional to
   the quick part of the air it lets out. The pulses of the voice are already
   in the tube and do not count: a closure made on a voiced sound lets out no
@@ -1352,18 +1366,19 @@ in brackets are the adult male targets described under Speech.
 | LF spectral slope, Rd 1, 1-5 kHz | -11.8 dB/oct (flow derivative), -17.9 dB/oct (flow) |
 | LF H1-H2 | Rd 0.5: -2.0 dB, Rd 1: 3.8 dB, Rd 2.5: 17.5 dB (pressed to breathy) |
 | Two-mass F0 vs tension | Q 0.7: 88 Hz, Q 1.2: 166 Hz, Q 1.8: 241 Hz; automatic tension within 4 % of the target |
-| /s/ | peak 4875 Hz, centroid 6276 Hz, -10.1 dB re /a/ (male /s/: peak 4-5 kHz, mean 5-6 kHz, Jongman et al. 2000) |
-| /ʃ/ | peak 3797 Hz, centroid 3843 Hz, 0.7-1.8 kHz band 6.9 dB below the 2-3.5 kHz band, -6.3 dB re /a/ (3.8 dB louder than /s/; Jongman et al. 2000: peak about 3-4 kHz, mean 4.2 kHz, lower for men) |
+| /s/ | peak 4875 Hz, centroid 6250 Hz, -14.3 dB re /a/ (male /s/: peak 4-5 kHz, mean 5-6 kHz, Jongman et al. 2000) |
+| /ʃ/ | peak 3797 Hz, centroid 3832 Hz, 0.7-1.8 kHz band 6.9 dB below the 2-3.5 kHz band, -6.6 dB re /a/ (7.7 dB louder than /s/; Jongman et al. 2000: peak about 3-4 kHz, mean 4.2 kHz, lower for men) |
 | Fricative spectrum, waveguide vs reference | /ʃ/ obstacle source: worst difference 0.9 dB over 8 bands, 0.5-8 kHz |
 | Jet losses | the sharpest resonance below 4 kHz widens 4.4 times in /ʃ/ (600 cm³/s), 1.09 times in /i/ (150 cm³/s) |
-| /f/ | centroid 7506 Hz, flat (2-10 kHz spread 9.8 dB vs 11.6 dB for /s/), -17.6 dB re /a/, -7.5 dB re /s/ |
+| /f/ | centroid 7456 Hz, flat (2-10 kHz spread 9.7 dB vs 11.6 dB for /s/), -22.2 dB re /a/, -7.9 dB re /s/ |
 | Teeth | opening the incisal slit by 6 mm lowers /s/ in 4-10 kHz by 15.8 dB |
 | Breathiness | HF/LF ratio +10.1 dB with a 0.12 cm² chink and Rd 2.2 |
-| Aspiration | F0 envelope modulation depth: steady 0.080, pulsed 0.398 |
+| Aspiration | F0 envelope modulation depth: steady 0.109, pulsed 0.369 |
+| High frequencies | third-octave levels against those Monson, Lotto & Story (2012) measured on axis, in dB: the long-term spectrum of three sentences said by the man, re 1 kHz, against that of normal speech: -1.6 at 10 kHz, +4.2 at 12.7, +2.4 at 16, -6.6 at 20; held /s/, re 8 kHz: -2.7, -1.1, -0.2, -4.0 (before the losses above the plane waves: speech -1.6, +8.2, +17.5, +20.0; /s/ -2.4, +2.6, +17.1, +22.5) |
 | Glottal noise source | corner at 2.5 kHz, against 1 kHz: -2.9 dB at 2 kHz, -12.3 at 5 kHz, -22.6 at 10 kHz (the source of turbulence noise, Stevens 1989: -4, -14, -26; the jets of the mouth, with one pole: -1.4, -6.1, -11.3) |
-| Breath of an aspirated stop | "park" as an English speaker says it, from 14 ms after /p/ is let go to the voice (41 ms): 12 % of it above 6 kHz, 8-16 kHz 10.1 dB below 1-3 kHz (56 % and 0.5 dB above with a source falling half as fast) |
+| Breath of an aspirated stop | "park" as an English speaker says it, from 14 ms after /p/ is let go to the voice (41 ms): 8 % of it above 6 kHz, 8-16 kHz 12.6 dB below 1-3 kHz (56 % and 0.5 dB above with a source falling half as fast) |
 | Period boundaries | jitter 1 % and shimmer 6 % change the 8-16 kHz energy by +0.1 dB (+32 dB when the pulse mean jumped at each period) |
-| Control rate | voice onset from rest: 3-8 kHz at -44.4 dB re 0-1 kHz (-6.5 dB with stepped control values) |
+| Control rate | voice onset from rest: 3-8 kHz at -44.3 dB re 0-1 kHz (-6.5 dB with stepped control values) |
 | User pink noise | -2.99 dB/oct (theory -3.01) |
 | "sasso" | geminate /sː/ 187 ms vs single /s/ 107 ms; HF/LF +15.1 dB in /sː/ vs -42.9 dB in /a/ |
 | "mamma" | nasal murmur 800-3000 / 80-400 Hz balance -38.5 dB vs -9.8 dB in the vowel |
@@ -1371,14 +1386,14 @@ in brackets are the adult male targets described under Speech.
 | Nasal cycle | /m/ with one passage congested (cycle 0.6): a new resonance at 2170 Hz with its antiresonance; first resonance 280 -> 270 Hz |
 | Pinched nostril | /m/ with the left nostril pinched: first resonance 310 -> 240 Hz, new antiresonance at 550 Hz |
 | Asymmetric nose, waveguide vs reference | congested left side, right nostril 40 % open, lossless: worst difference 0.34 % over 6 resonances below 3 kHz |
-| No clicks in running speech | "la luna e le stelle", with the piriform junction moving twice: loudest transient inside a vowel or sonorant, above 6 kHz, against the 40 ms around it +14 dB (+41 when a move zeroed the branch). Millisecond by millisecond, "la luna è piena stanotte." has 4 ms that stand 15 dB out of the 20 ms around them and "where did you put the keys?" 6 (the closures of the folds, which come back a period before and a period after, are the voice and are not counted): all at the edges of the stops, none inside a vowel, none sharp inside a closure (before: +41 dB inside the closure of a /d/, +28 dB between /u/ and /n/, +21 dB inside the /ɪ/ of "did") |
+| No clicks in running speech | "la luna e le stelle", with the piriform junction moving twice: loudest transient inside a vowel or sonorant, above 6 kHz, against the 40 ms around it +16 dB (+41 when a move zeroed the branch). Millisecond by millisecond, "la luna è piena stanotte." has 8 ms that stand 15 dB out of the 20 ms around them and "where did you put the keys?" 5 (the closures of the folds, which come back a period before and a period after, are the voice and are not counted): all at the edges of the stops, none inside a vowel, none sharp inside a closure (before: +41 dB inside the closure of a /d/, +28 dB between /u/ and /n/, +21 dB inside the /ɪ/ of "did") |
 | Stops on time | the mouth shut against the plan, and for how long: "la luna è piena stanotte." p +16 ms (56 of 89 ms), t -3 (63 of 79), t +16 (127 of 157); "where did you put the keys?" d +4 (50 of 68), d +12 (43 of 65), p -6 (80 of 93), k +19 (47 of 140, the rest its aspiration); no breath before the closure of a voiceless stop (the tongue after an open vowel shut some 45 ms late before) |
-| Edges of a word | as the studio plays it, against the loudest of the word: "tonight" -49 dB before its first sound, the folds at 0.12 of their swing after its last, -40 dB 60 ms on; "this" -52 dB, 0.03, -24 dB; "stop" -43 dB, 0.14, -43 dB (before: 45 ms of full voice ahead of the first /t/ of "tonight", and a breathy vowel of 100 ms and more after its last) |
+| Edges of a word | as the studio plays it, against the loudest of the word: "tonight" -49 dB before its first sound, the folds at 0.12 of their swing after its last, -42 dB 60 ms on; "this" -52 dB, 0.03, -26 dB; "stop" -43 dB, 0.14, -43 dB (before: 45 ms of full voice ahead of the first /t/ of "tonight", and a breathy vowel of 100 ms and more after its last) |
 | Breath at a full stop | "la luna è piena. Stanotte la vedo.", a pause of 300 ms: the lungs pull down to -2.7 cmH2O and 1064 cm³/s go in, for 136 ms; its hiss 28 dB below the loudest vowel of the sentence before (59 dB below with no breath taken); the loudest millisecond of the pause 10 dB above its median one; no air goes in at a comma |
 | Airways below a wide glottis | the flow is the airways' (1.5 cmH2O per l/s) below 1.21 cmH2O with the glottis wide open (0.56 cm²), 0.35 cmH2O at 0.3 cm², 0.010 cmH2O for the glottis of a voice (0.05 cm²) |
-| Sibilant in a sentence | the /s/ of "stanotte": narrower than 0.2 cm² 5 ms into its sound, the teeth sounding through 75 % of it; the releases of the two /t/ 0.9 and 6.0 dB below its hiss |
-| Bursts | RMS of 10 ms at the burst less 30 ms at the start of the vowel, as Nicolaidis et al. (2019) measured Greek /p t k/ (theirs in brackets): "la pata" -15.2 dB (-11.2), "la pita" -11.6 (-11.0), "la tata" -13.9 (-10.7), "la tita" -13.5 (-13.0), "la cata" -19.0 (-5.9), "la chita" -17.0 (-11.1); the voice starts after 10, 5, 19, 16, 27 and 25 ms (16, 14, 12, 23, 30, 63); without the pop of the air let out the burst of /p/ loses 1.9 dB, that of /t/ nothing: it is a hiss |
-| Fricated release | every /t/ as the studio plays it, from the moment it is let go: when the voice begins, for how long the noise stays within 10 dB of the start of the vowel, how much of it lies below 3 kHz, and by how much its first 15 ms stand over the rest. "tattoo" in English 46 ms, 27 ms, 3 %, +5.3 dB and 82 ms, 66 ms, 2 %, +2.7 dB; "tea" 77 ms, 64 ms, 1 %, +3.9 dB; in Italian 20 ms, 4 ms, 33 % and 17 ms, 5 ms, 42 %; "ti" 23 ms, 19 ms, 32 % (let go at once with the folds apart, the English ones had 46 and 26 % below 3 kHz and a first stage 9.6 and 15.4 dB over the rest) |
+| Sibilant in a sentence | the /s/ of "stanotte": narrower than 0.2 cm² 5 ms into its sound, the teeth sounding through 75 % of it; the releases of the two /t/ 2.1 and 3.6 dB below its hiss |
+| Bursts | RMS of 10 ms at the burst less 30 ms at the start of the vowel, as Nicolaidis et al. (2019) measured Greek /p t k/ (theirs in brackets): "la pata" -15.3 dB (-11.2), "la pita" -11.7 (-11.0), "la tata" -15.3 (-10.7), "la tita" -14.1 (-13.0), "la cata" -19.1 (-5.9), "la chita" -17.2 (-11.1); the voice starts after 10, 5, 19, 16, 27 and 25 ms (16, 14, 12, 23, 30, 63); without the pop of the air let out the burst of /p/ loses 2.0 dB, that of /t/ 0.9 dB: it is mostly a hiss |
+| Fricated release | every /t/ as the studio plays it, from the moment it is let go: when the voice begins, for how long the noise stays within 10 dB of the start of the vowel, how much of it lies below 3 kHz, and by how much its first 15 ms stand over the rest. "tattoo" in English 46 ms, 18 ms, 9 %, +0.5 dB and 82 ms, 64 ms, 7 %, -2.3 dB; "tea" 77 ms, 62 ms, 5 %, +0.7 dB; in Italian 20 ms, 4 ms, 41 % and 17 ms, 4 ms, 45 %; "ti" 23 ms, 19 ms, 35 % (let go at once with the folds apart, the English ones had 46 and 26 % below 3 kHz and a first stage 9.6 and 15.4 dB over the rest) |
 | Place of a velar | front edge of the contact when the stop is let go: 6.9 cm from the lips before /i/, 7.8 before /a/, 8.0 before /u/, 9.0 before /o/; /t/ 3.9 before /i/, 4.4 before /o/ |
 | Speaking rate | the whole lasts 1/rate of what it lasts at the usual rate, from 0.6 to 2.5 times (Italian within 1 %; English, whose aspiration follows the root of the rate, within 15 %); between a slow rate (0.9) and a fast one (1.15): Italian vowels 0.74 and stops 0.83 of their duration, English 0.72 and 0.83 (speakers 0.75 and 0.9, Gay 1978; 0.74 and 0.8, Port 1981); slower than usual (0.9): vowels +14 % and stops +9 %, English +15 % and +8 %; from 2 to 2.5 times vowels and stops both 0.80 |
 | Unstressed /a/ | /tatata/: F1 728 Hz stressed (156 ms, jaw 0.88); 583 Hz before the stress (77 ms, jaw 0.38), 20 % below; 544 Hz after it, 25 % below; 728 Hz at the end of the word (speakers 18 % and 28 % below, the last of the word open again: Farnetani & Vayra 1991); /i/ and /u/ the same stressed or not |
@@ -1393,7 +1408,7 @@ in brackets are the adult male targets described under Speech.
 | Italian durations | stressed /a/ in fato 156 ms vs fatto 104 ms |
 | Voice onset time | /t/ English 64 ms, after /s/ 20 ms; Italian /p t k/ 12 / 17 / 25 ms (Lisker & Abramson: English /t/ about 70 ms, range 30-105; Italian voiceless stops short-lag, under about 30 ms, /k/ longest) |
 | Trill and tap | tongue-tip closures: "carro" 3, "caro" 1 |
-| Consonant dips | nasals 6.1-13.4 dB, /v/ 10.9-18.7 dB below their vowels (natural speech: nasals 6-12 dB, voiced fricatives 12-20 dB) ("la mamma vuole la nonna e il vino", "Every voice you have ever heard is raining in."); no complete closure in /v w l/, the narrowest /v/ 0.08 cm² (0.03 before the lip could slide out from under the teeth); /ŋ/ in front of the nasal port in every vowel context |
+| Consonant dips | nasals 6.2-13.4 dB, /v/ 10.9-18.8 dB below their vowels (natural speech: nasals 6-12 dB, voiced fricatives 12-20 dB) ("la mamma vuole la nonna e il vino", "Every voice you have ever heard is raining in."); no complete closure in /v w l/, the narrowest /v/ 0.08 cm² (0.03 before the lip could slide out from under the teeth); /ŋ/ in front of the nasal port in every vowel context |
 | Vowels in running speech | 15 English and Italian sentences, each vowel in its middle against the same vowel held: front vowels F2 99 % on average, 97 % at the 10th percentile; F3 of non-rhotic vowels 2353 Hz at the 10th percentile, 8.6 % of them 150 Hz below their own (after /ɹ/, before /l/); tip 0.26 at the 90th percentile; F1 98 %; tongue body 0.04 from its target; nasal port 0.008 cm² at most away from nasals, 0.05 cm² on average next to one |
 | Fujisaki intonation | final F0: statement 106 Hz, wh-question 101 Hz, yes/no question 180 Hz (base 120 Hz) |
 | Melody | "Every voice you have ever heard is made of just two ingredients.": planned F0 range 10.2 st; the voice follows the plan within 0.74 st (90 %), 1.9 st with the slider smoothing |
@@ -1420,9 +1435,9 @@ in brackets are the adult male targets described under Speech.
 | Subglottal resonances | trachea (2.54 cm², 12 cm) and 2, 4, 8 bronchi (3.14, 3.42, 3.89 cm² over 4.4, 1.9, 1.2 cm), 19.5 cm in all: 523 (B 31), 1324 (B 36), 2195 (B 61) Hz, against 554 ± 42, 1327 ± 77, 2179 ± 126 Hz measured on men (Lulich et al. 2012); with rigid walls the first at 469 Hz; 0.87 times the size: 601, 1522, 2523 Hz (women 660 ± 47, 1513 ± 69, 2426 ± 101) |
 | Subglottal impedance | the tube at its closed end: 291, 222 and 153 dyn s/cm⁵ at the three peaks; the resonances the engine keeps are within 0.1 dB of it there, within 1.5 dB half a width to either side |
 | Subglottal resonances in the voice | held /a/, harmonics at 480, 1320, 2160 Hz, with the airways below against without: folds apart -3.3, -2.6, -2.6 dB (away from them -0.2, -0.2 dB); modal -0.3, -2.1, -0.9 dB; the level changes by 0.2 dB; two-mass folds -0.2 dB |
-| Epiglottals | ʡ shut 16.7 cm from the lips, its closure 58 dB below the vowel in [ˈaʡa]; ʜ 0.10 cm² at 16.5 cm (ħ at 12.3), 28 dB below the vowel; a voice with a twang keeps the sphincter at its setting through every other sound |
+| Epiglottals | ʡ shut 16.7 cm from the lips, its closure 58 dB below the vowel in [ˈaʡa]; ʜ 0.10 cm² at 16.5 cm (ħ at 12.3), 29 dB below the vowel; a voice with a twang keeps the sphincter at its setting through every other sound |
 | ɧ | front passage 0.10 cm², back one 0.12 cm², 0.32 cm² at least between them; a second hiss through the whole middle of [ˈaɧa], 3.0 dB below the first; spectral peak 1.3 kHz against 3.8 for [ʃ]; no second hiss in four ordinary sentences |
-| Click jet | [ǀ]: the 8 ms after the front opens, above 3 kHz, 0.3 dB against the vowel with its jet, -17.6 dB without (the pop alone); the hiss of the jet alone peaks at 3.0 kHz |
+| Click jet | [ǀ]: the 8 ms after the front opens, above 3 kHz, 0.2 dB against the vowel with its jet, -17.9 dB without (the pop alone); the hiss of the jet alone peaks at 3.0 kHz |
 | Clicks | cavity between the closures: [ʘ] -17.1 cmH2O, [ǀ] -19.4, [ǃ] -19.6, [ǁ] -19.5, [ǂ] -19.5; inflow at the front release 296, 265, 294, 174, 254 cm³/s with the back closure still shut |
 | Aeroelastic trills | lungs at 8 cmH2O: [arːa] 3 closures every 38 ms, [aʙːa] 5 every 34 ms, [aʀːa] 5 every 33 ms; at 0.5 cmH2O 1, 1 and 2 |
 | Written aspiration | VOT [p] 10 ms, [pʰ] 66 ms, [kʰ] 73 ms |
@@ -1431,14 +1446,14 @@ in brackets are the adult male targets described under Speech.
 | Function words elsewhere | Spanish "la casa de Pedro": la and de without stress, a de at the end of a phrase with it; Polish "na stole": one stress, on stole |
 | Breath groups | lung pressure against the same sentence without the fall: "la luna. le stelle" 88.4 % at the end of the first sentence, 99.6 % at the start of the second; "la luna, le stelle" 95.4 % and 93.6 % |
 | Loudness and brightness | held /a/ at 4, 8, 16 cmH2O, LF source: -32.7, -22.2, -13.5 dB, 2-4 kHz against 0-1 kHz -37.9, -36.3, -34.0 dB; two-mass source, its tension held: -30.6, -21.7, -13.9 dB and -36.6, -30.8, -25.2 dB, pitch 118, 121, 121 Hz |
-| Pitch in voiced consonants | LF source, against the planned pitch: long /b/ -5.0 %, /z/ -2.4 %, /m/ -0.3 % |
-| Two-mass folds apart | held /a/: -21.9 dB together (LF source -22.2), -27.0 dB a little apart (-25.9); at 0.7 of the full opening -40.1 dB and no pitch; wide apart -36.3 dB (-39.7) |
+| Pitch in voiced consonants | LF source, against the planned pitch: long /b/ -5.0 %, /z/ -2.9 %, /m/ -0.3 % |
+| Two-mass folds apart | held /a/: -21.9 dB together (LF source -22.2), -27.0 dB a little apart (-25.9); at 0.7 of the full opening -40.6 dB and no pitch; wide apart -37.0 dB (-40.4) |
 | Two-mass flow, glottis wide | 1354, 1508 and 1629 cm³/s at 0.7, 0.85 and 1 of the full opening, steady within 1 % (LF source 1210, 1366, 1493: the folds at rest add their own opening) |
-| Two-mass folds speaking | "he has a house": -26.0 dB, peak 0.26 (LF source -26.3 dB, 0.29); 2 cm³/s through the glottis 0.2 s after the end |
+| Two-mass folds speaking | "he has a house": -26.1 dB, peak 0.26 (LF source -26.3 dB, 0.29); 2 cm³/s through the glottis 0.2 s after the end |
 | Ejective | [kʼ] 10.6 cmH2O behind the shut glottis (lungs 8), larynx up 0.88 cm, no flow from the lungs; mouth flow in the 30 ms after the burst 66 cm³/s against 462 for [k] |
 | Implosive | [ɓ] 2.7 cmH2O behind the lips against 4.4 for [b], voicing amplitude at the release 0.69 against 0.49, larynx down 1.25 cm |
 | Voiceless implosive | [ɓ̥] -8.7 cmH2O at the release, mouth flow -349 cm³/s (the air drawn in) |
-| Mandarin tones | [ma˥ ma˧˥ ma˨˩˦ ma˥˩], F0 at five points of each vowel, semitones from the base, heard (YIN): high level 5.5 5.6 5.4 5.4 5.4; rising 1.9 1.9 2.5 3.3 3.9; dipping -5.2 -5.8 -5.6 -4.3 -3.2; falling 1.6 -0.4 -2.2 -4.4 -5.6 |
+| Mandarin tones | [ma˥ ma˧˥ ma˨˩˦ ma˥˩], F0 at five points of each vowel, semitones from the base, heard (YIN): high level 5.5 5.6 5.4 5.4 5.4; rising 1.9 1.9 2.5 3.3 3.9; dipping -5.2 -5.8 -5.6 -4.3 -3.2; falling 1.6 -0.4 -2.2 -4.4 -5.5 |
 | Downstep | [á ꜜá á]: high tones at 2.2, 0.6, -0.2 st |
 | Phonemizer | French "Bonjour, comment ça va ? Je m'appelle Mireille." bɔ̃ʒˈuʁ kɔmˈɑ̃ sˈa vˈa? ʒˈə mapˈɛl miʁˈɛj (5 words from the dictionary, 2 from the model); Mandarin 你好，世界 ni˨˩˦ xɑʊ˨˩˦ ʂɚ˥˩ tɕjɛ˥˩ (dictionary, tones read); German "Guten Morgen, wie geht es dir?" gˈuːtən mˈɔʁgən viː get ˈɛs dˈiːʁ (model, 6 words in 0.5 s including loading it, Node, one thread); dictionary format, word splitting, the longest dictionary words, greedy decoding and fixed stress tested on a scripted network |
 
@@ -1480,7 +1495,14 @@ in brackets are the adult male targets described under Speech.
   hardly that narrow. The walls are no longer part of it (see Yielding
   walls).
 - The waveguide loses the same at every frequency: its decay is set for
-  the middle of the spectrum, with more of it in narrow sections. With the
+  the middle of the spectrum, with more of it in narrow sections. Above
+  about 10 kHz it stands for a mouth no more, and what it radiates there
+  is shaped by a low-pass set on measured spectra (see The top of the
+  spectrum): a correction of the whole, not a model of the losses. It
+  leaves /ʃ/ 11-12 dB too strong at 10-13 kHz against its own peak at
+  6.3 kHz (Monson et al. 2012: 10.5 and 13.3 dB below it): the jet that
+  strikes its teeth has a corner near 11 kHz, where that of /s/ is near
+  5 kHz. With the
   glottis closed, a uniform tube has resonances 54, 58 and 85 Hz wide at
   525, 1451 and 2406 Hz, radiation included, where the frequency model,
   with the viscous and thermal losses of a smooth duct, has 27, 32 and
@@ -1536,9 +1558,11 @@ in brackets are the adult male targets described under Speech.
   neural text-to-speech voice trained on recordings (American English),
   whose /t/ before a stressed vowel is 60-80 ms of hiss between 3 and
   8 kHz, 6 to 14 dB below the loudest of the word, with a tenth of it or
-  less below 3 kHz. Ours lasts as long and lies as high (with more above 8 kHz), 6 to
-  18 dB below the loudest of the word: nearest to it before /u/ and /i/,
-  which are weak in this model. Only /t/ is let go this way: /p/ and /k/
+  less below 3 kHz. Ours lasts as long, lies as high and is 8 to 12 dB
+  below the loudest of the word ("tattoo", "too", "tea"). Above 12 kHz,
+  where the reference has nothing to compare (it is sampled at 24 kHz),
+  ours had most of its energy before the losses above the plane waves,
+  and stood 4 to 8 dB below the loudest of the word. Only /t/ is let go this way: /p/ and /k/
   open at once, and the folds are held as wide through their whole breath
   as at the release, where speakers have them widest near the release and
   closing from there (Hoole & Bombien 2017).
@@ -1682,6 +1706,7 @@ in brackets are the adult male targets described under Speech.
 - Lulich, S. M. (2025). Subglottal resonances in older adults. Beszédtudomány - Speech Science 2025/1.
 - Florens, M., Sapoval, B. & Filoche, M. (2011). An anatomical and functional model of the human tracheobronchial tree. J. Appl. Physiol. 110.
 - Hanson, H. M. & Stevens, K. N. (2000). Modeling stop-consonant releases for synthesis. Poster, 139th Meeting of the Acoustical Society of America, Atlanta.
+- Monson, B. B., Lotto, A. J. & Story, B. H. (2012). Analysis of high-frequency energy in long-term average spectra of singing, speech, and voiceless fricatives. J. Acoust. Soc. Am. 132(3).
 - Nicolaidis, K., Sfakianaki, A., Vlahavas, G. & Kafentzis, G. (2019). An acoustic study of Greek voiceless stops. Proceedings of the 19th ICPhS, Melbourne.
 - Titze, I. R., Palaparthi, A. & Smith, S. L. (2014). Benchmarks for time-domain simulation of sound propagation in soft-walled airways: steady configurations. JASA 136(6).
 - Recasens, D. (1991). On the production characteristics of apicoalveolar taps and trills. J. Phonetics 19.
