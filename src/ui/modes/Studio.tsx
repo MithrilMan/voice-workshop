@@ -8,6 +8,7 @@ import { Pills } from '../ds';
 import { Toggle } from '../components/controls';
 import { VoiceField, sameValue } from '../components/VoiceField';
 import { HeadView } from '../components/HeadView';
+import { FromRecording } from '../components/FromRecording';
 import { ViewFrame } from './views';
 import { PhonemeButtons } from './quick';
 import { VOICE_FIELDS, Tab, VoiceDesign, cloneVoice, fieldValue, newVoiceId, speechOptions, withField } from '../../dsp/voice/design';
@@ -229,6 +230,9 @@ export function Studio() {
             <button key={b.id} className={b.design.id === draft.id ? 'chip on' : 'chip'} title={L(b.hint)} onClick={() => open({ ...cloneVoice(b.design), name: L(b.name) })}>{L(b.name)}</button>
           ))}
         </div>
+        <h3>{L({ it: 'Da una registrazione', en: 'From a recording' })}</h3>
+        <p className="muted small">{L({ it: 'Una voce misurata su una registrazione (altezza, melodia, formanti, corde, fruscii, ritmo) e cercata tra le voci del simulatore: una voce dello stesso tipo, non una copia. Resta tutto in questo browser.', en: 'A voice measured on a recording (pitch, melody, formants, folds, hiss, pace) and searched for among the simulator’s voices: a voice of the same kind, not a copy. Everything stays in this browser.' })}</p>
+        <FromRecording lang={lang} onVoice={(d) => { open(d); info({ it: `«${d.name}» è aperta: ascoltala e salvala se ti piace.`, en: `“${d.name}” is open: listen to it and save it if you like it.` }); }} />
       </aside>
 
       <section className="studio-main">

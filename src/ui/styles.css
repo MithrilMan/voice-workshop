@@ -555,3 +555,10 @@ input[type='range'] { accent-color: var(--amber); width: 100%; }
 }
 .speaks-as { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 8px 0 0; color: var(--muted); }
 .speaks-as b { color: var(--text); }
+.fit-panel { display: flex; flex-direction: column; gap: 6px; }
+.fit-status { display: flex; flex-direction: column; gap: 2px; }
+.fit-status progress { width: 100%; }
+.fit-table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.fit-table th, .fit-table td { padding: 2px 4px; border-bottom: 1px solid var(--line2); text-align: right; }
+.fit-table th:first-child, .fit-table td:first-child { text-align: left; }
+.fit-panel .warn { color: var(--warn, #c77b00); }

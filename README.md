@@ -141,6 +141,27 @@ Four modes, switchable in the header and remembered in the browser:
   sentence; the head and a view sit beside the editor. The Speak activity
   of Play and the Lab's Speak panel say their text with the active voice
   and lead to the studio.
+  **From a recording** (in the library column): an audio file, or the
+  microphone, with what it says if you have it. The recording is measured
+  (its pitch and how far it moves below and above its median, the first
+  two harmonics and the cepstral peak, its formants, the balance of its
+  voice in five bands, the hiss of its unvoiced sounds against its voiced
+  ones, its pace and its pauses), then a voice of the simulator says the
+  same text in the language of the recording, or a passage of its own
+  when the text is not given (in Italian and English; in other languages
+  the text is needed, since a passage in another language would bring
+  other vowels and another rhythm), and is
+  measured the same way, again and again, while its fields are moved a
+  few at a time toward the recording: the usual pitch, then the melody,
+  the size of the head, the palate and the tongue for the formants, the
+  folds, the two hisses of the mouth, the pace, and a last pass over the
+  body and the folds (analysis by synthesis). It runs in a worker, a
+  minute or a few, and can be stopped keeping the best voice found; the
+  voice opens in the editor beside a table of the measures, not saved.
+  What comes out is a voice of the same kind, not a copy: what a recording
+  has beyond these measures and beyond the fields of a voice is not carried
+  over. The same fit runs from the command line on a list of WAV files and
+  their texts (`scripts/fit-voice.ts`).
 
 Who drives the voice is always shown under the header. Your hands (the
 handles, the sliders, the phoneme buttons) drive it unless something else
@@ -1305,7 +1326,8 @@ were. A voice is saved as readable JSON (`.voice.json`, with its format
 and version, so later versions can add fields) and travels as a link:
 `#voice=v1.` followed by the fields that differ from a reference voice
 frozen for that version, deflated and in base64url (80-181 characters for
-the starting voices). The fragment never leaves the browser, so a shared
+the starting voices made by hand, 340 for the one fitted by measurement).
+The fragment never leaves the browser, so a shared
 voice needs no server. `utterance()` gives the engine parameters and the
 score of a voice saying something: one turn of a dialogue.
 
@@ -1317,6 +1339,46 @@ score of a voice saying something: one turn of a dialogue.
   (HTK mel scale, mel = 2595 log10(1 + f/700)), 0-8 kHz, natural log.
 - Microphone: LPC formants (autocorrelation, after decimation) and YIN pitch
   (de Cheveigné & Kawahara 2002), shown on the vowel map and spectrum.
+- Voice print (`voicePrint`, what a voice is fitted to): every clip at
+  24 kHz or below, 40 ms Hann frames every 10 ms; a frame more than 35 dB
+  below the loudest (98th percentile) is silence. Pitch by YIN (60-500 Hz,
+  confidence above 0.6, octave slips taken back to their stretch): median,
+  5th and 95th percentiles in semitones from it, spread. On voiced frames
+  the medians of H1-H2 (the peaks near f0 and 2 f0), of the cepstral peak
+  (cepstrum of the dB spectrum, peak at 2-17 ms over its regression line
+  at 1-20 ms) and of LPC formants (order 12 on a copy at about 11 kHz,
+  bandwidths under 500 Hz, frames within 12 dB of the loudest), and the
+  voiced power in five bands from 50 Hz to 8 kHz against all of it; on
+  unvoiced frames the hiss in 2-4, 4-8 and 8-10.5 kHz against the mean
+  voiced frame. Pace: time speaking, syllable nuclei per second (peaks of
+  the voiced energy at 0.3-2.5 kHz), mean pause (silences of 120 ms or
+  more inside the speech).
+- Fit (`fitVoice`): coordinate descent over a voice's fields, in stages
+  (pitch, melody, body, folds, hiss, pace, a last pass): each field is
+  tried a step up, then down, and kept where the distance falls, and the
+  steps are halved after every round. The distance is the root mean
+  square of the gaps between the two prints, each divided by about what
+  the ear tells apart (0.3 semitone of pitch, 3-5 % of a formant, 1.5 dB
+  of a band); a stage is judged on its own measures (the melody on the
+  range of the pitch, the body on the formants and the bands), the last
+  pass on all of them. The usual pitch is set by the ratio of the medians
+  at the start and after the melody and the last pass. With the
+  recording's text the voice says the same words, else a passage of two
+  or three sentences. The rendering is at 24 kHz or the recording's rate,
+  whichever is lower. Tried on five voices of a neural text-to-speech
+  system trained on recordings (two American women, an American man, an
+  Italian woman and an Italian man, each saying sentences of its language
+  for 10-12 s, with their texts): the distance from the nearest starting
+  voice, 2.3-2.8, fell to 1.15-1.65 in 96-108 renderings, 3-5 minutes in
+  the container; the Sky-like voice, fitted by hand to one of them, stands
+  at 2.14 from it, the fit at 1.46. The range of the pitch below and
+  above its median comes within 1.2 semitones (but for the widest melody,
+  2.4 short below its median), the formants within 5 %
+  but for two (the first of the American man and the fourth of the
+  Italian man, 6-9 % low), the time speaking within 8 %. What stays: the
+  folds of the simulator are more regular (cepstral peak 0.2-0.5 dB
+  higher) with a smaller H1-H2 (0.3-3.7 dB), and the band at 0.5-1 kHz
+  is 2-3.5 dB off in four of the five.
 
 ## Main parameters
 
@@ -1458,6 +1520,8 @@ in brackets are the adult male targets described under Speech.
 | Mandarin tones | [ma˥ ma˧˥ ma˨˩˦ ma˥˩], F0 at five points of each vowel, semitones from the base, heard (YIN): high level 5.5 5.6 5.4 5.4 5.4; rising 1.9 1.9 2.5 3.3 3.9; dipping -5.2 -5.8 -5.6 -4.3 -3.2; falling 1.6 -0.4 -2.2 -4.4 -5.5 |
 | Downstep | [á ꜜá á]: high tones at 2.2, 0.6, -0.2 st |
 | Phonemizer | French "Bonjour, comment ça va ? Je m'appelle Mireille." bɔ̃ʒˈuʁ kɔmˈɑ̃ sˈa vˈa? ʒˈə mapˈɛl miʁˈɛj (5 words from the dictionary, 2 from the model); Mandarin 你好，世界 ni˨˩˦ xɑʊ˨˩˦ ʂɚ˥˩ tɕjɛ˥˩ (dictionary, tones read); German "Guten Morgen, wie geht es dir?" gˈuːtən mˈɔʁgən viː get ˈɛs dˈiːʁ (model, 6 words in 0.5 s including loading it, Node, one thread); dictionary format, word splitting, the longest dictionary words, greedy decoding and fixed stress tested on a scripted network |
+| Voice print | held /a/: formants 730 / 1286 / 2590 Hz (the waveguide's own 729 / 1298 / 2594); with the woman's head 844 / 1632 / 3056 Hz |
+| Voice fit | the Sky-like voice saying "Is it raining in the city today? Not at all.", found again from the woman's (effort 0.3): distance 2.97 → 0.44 in 49 renderings, median pitch 192 Hz against 192 |
 
 ## Simplifications and limits
 
@@ -1665,6 +1729,17 @@ in brackets are the adult male targets described under Speech.
   stays with the jaw and the neck, so a tongue root pushed far back or
   forward leaves a visible step below the tongue; the soft parts the model
   adds where the painting had air are plain mucosa.
+- A voice fitted to a recording matches its measures, not the recording:
+  what is not in the voice print (the shape of each vowel and consonant,
+  the timing of each syllable, the melody word by word, a regional
+  accent) is not carried over, nor what the fields of a voice cannot do.
+  The fit has been tried on the simulator's own voices and on voices of a
+  neural text-to-speech system trained on recordings, not on recordings
+  of people, and the microphone has not been tried from here. A short
+  pause of the simulator does not reach silence: a comma of 0.15 s stays
+  25-33 dB below the loudest frames, where silence is counted from 35 dB
+  below (one of 0.3 s goes down to 65 dB below), so the fit has to make
+  the pauses longer than the recording's before they are measured at all.
 
 ## References
 
@@ -1773,6 +1848,7 @@ in brackets are the adult male targets described under Speech.
 
 ```bash
 npx tsx scripts/say.ts out/            # render example sentences to WAV, print phones, durations and pitch range
+npx tsx scripts/fit-voice.ts list.json --out=a.voice.json   # fit a voice to WAV recordings and their texts
 npx tsx scripts/say.ts out/ en "any sentence"   # one sentence; add --flat for the robot version
 npx tsx scripts/say.ts out/ it "la luna" --voice=deep   # with a starting voice, or --voice=my.voice.json from the studio
 npx tsx scripts/g2p.ts en "the water bottle"    # phones of a text and where each English word came from
