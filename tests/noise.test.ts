@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { renderOffline, VoiceEngine } from '../src/dsp/engine/engine';
 import { defaultParams, EngineParams } from '../src/dsp/engine/params';
 import { PHONEMES } from '../src/dsp/speech/phonemes';
-import { ShapedNoise, colourCurve } from '../src/dsp/noise/noise';
+import { ShapedNoise, TurbulenceSource, colourCurve } from '../src/dsp/noise/noise';
+import { textToPhones } from '../src/dsp/speech/g2p';
+import { builtinVoice } from '../src/dsp/voice/builtin';
+import { utterance } from '../src/dsp/voice/utterance';
 import { welch } from '../src/dsp/util/fft';
 import { linearFit } from '../src/dsp/util/math';
 import { JetInfo, kineticResistances } from '../src/dsp/aero/aero';
@@ -11,7 +14,7 @@ import { sectionsFromGeometry } from '../src/dsp/tract/areaFunction';
 import { computeGeometry } from '../src/dsp/tract/geometry';
 import { DEFAULT_ANATOMY, DEFAULT_TEETH } from '../src/dsp/tract/types';
 import { RHO, C_SOUND } from '../src/dsp/constants';
-import { note, spectralPeak, spectralCentroid, rmsDb, bandPower } from './helpers';
+import { note, spectralPeak, spectralCentroid, rmsDb, bandPower, loadEnglishLexicon } from './helpers';
 
 function phonemeParams(ph: string): EngineParams {
   const p = defaultParams();
@@ -214,6 +217,51 @@ describe('breathy voice and pulsed aspiration', () => {
     const steady = env(0), pulsed = env(1);
     note('aspiration modulation', `F0 envelope depth steady ${steady.toFixed(3)}, pulsed ${pulsed.toFixed(3)}`);
     expect(pulsed).toBeGreaterThan(steady);
+  });
+
+  it('the source of the glottal jet falls above its corner as turbulence was measured to', () => {
+    // Stevens (1989, "On the quantal nature of speech", J. Phonetics 17), the
+    // spectrum of the source of turbulence noise, read from his curve: against
+    // 1 kHz, 4 dB down at 2 kHz, 14 at 5 kHz and 26 at 10 kHz
+    const fsT = 88000, STEVENS: [number, number][] = [[2000, -4], [5000, -14], [10000, -26]];
+    const levels = (poles: 1 | 2) => {
+      const src = new TurbulenceSource(5, poles);
+      src.configure(fsT, 2500);
+      const x = new Float32Array(1 << 19);
+      for (let i = 0; i < x.length; i++) x[i] = src.next();
+      const at = (f: number) => 10 * Math.log10(bandPower(x, fsT, 0.85 * f, 1.15 * f, 4096));
+      return STEVENS.map(([f]) => at(f) - at(1000));
+    };
+    const two = levels(2), one = levels(1);
+    note('glottal noise source', `against 1 kHz, with a corner at 2.5 kHz: ${STEVENS.map(([f, d], i) => `${f / 1000} kHz ${two[i].toFixed(1)} dB (measured ${d}; the jets of the mouth ${one[i].toFixed(1)})`).join(', ')}`);
+    STEVENS.forEach(([, d], i) => expect(Math.abs(two[i] - d)).toBeLessThan(i < 2 ? 2 : 4));
+    expect(one[2]).toBeGreaterThan(-15);
+  });
+
+  it('the breath after an aspirated stop is not a hiss', () => {
+    // "tattoo", as an English speaker says it: the breath between the burst of
+    // the first /t/ and the voice. With a source falling at 6 dB/octave, 65 %
+    // of it lay above 6 kHz, where its vowel has next to nothing
+    loadEnglishLexicon();
+    const u = utterance(builtinVoice('man')!.design, textToPhones('tattoo', 'en'), 'en');
+    const e = new VoiceEngine(fs, u.params);
+    e.snapArticulators(); e.playScore(u.score);
+    const n = Math.round((u.score.duration + 0.1) * fs), out = new Float32Array(n);
+    let closed = false, release = -1, onset = -1;
+    for (let i = 0; i + 48 <= n; i += 48) {
+      e.process(out.subarray(i, i + 48), 48);
+      const tel = e.telemetry();
+      if (tel.constrictionArea < 0.005) closed = true;
+      if (closed && release < 0 && tel.constrictionArea > 0.005) release = i;
+      if (release > 0 && onset < 0 && tel.voicingAmp > 0.2) onset = i;
+    }
+    // (the first 14 ms are the burst, made at the teeth)
+    const breath = out.subarray(release + 14 * 48, onset);
+    const high = bandPower(breath, fs, 6000, 20000, 512) * 14000, all = bandPower(breath, fs, 200, 20000, 512) * 19800;
+    const mid = 10 * Math.log10(bandPower(breath, fs, 8000, 16000, 512) / bandPower(breath, fs, 1000, 3000, 512));
+    note('breath of an aspirated stop', `"tattoo", from 14 ms after the first /t/ is let go to the voice (${((onset - release) / 48 - 14).toFixed(0)} ms): ${(100 * high / all).toFixed(0)} % of it above 6 kHz, 8-16 kHz ${mid.toFixed(1)} dB against 1-3 kHz (65 % and -2.6 dB with a source falling half as fast)`);
+    expect(high / all).toBeLessThan(0.3);
+    expect(mid).toBeLessThan(-6);
   });
 });
 

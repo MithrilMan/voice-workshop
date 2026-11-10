@@ -5,7 +5,7 @@ import { passageIn, constrictionOf } from '../src/dsp/speech/derive';
 import type { Articulators } from '../src/dsp/tract/types';
 import { builtinVoice } from '../src/dsp/voice/builtin';
 import { utterance } from '../src/dsp/voice/utterance';
-import { note } from './helpers';
+import { note, loadEnglishLexicon } from './helpers';
 
 /**
  * How loud the burst of a stop is against the vowel that follows.
@@ -74,7 +74,59 @@ function shutAt(text: string, ipa: string): number {
   return -1;
 }
 
+/**
+ * every /t/ of a word as the studio plays it: its burst against the start of its vowel (as above),
+ * for how many milliseconds its hiss stays within 10 dB of that start, and when the voice begins
+ */
+function hisses(text: string, lang: string): { rel: number; loud: number; vot: number }[] {
+  const u = utterance(builtinVoice('man')!.design, textToPhones(text, lang), lang);
+  const e = new VoiceEngine(fs, u.params);
+  e.snapArticulators(); e.playScore(u.score);
+  const n = Math.round((u.score.duration + 0.2) * fs), out = new Float32Array(n);
+  const tel: { area: number; voice: number }[] = [];
+  for (let i = 0; i + 48 <= n; i += 48) { e.process(out.subarray(i, i + 48), 48); const x = e.telemetry(); tel.push({ area: x.constrictionArea, voice: x.voicingAmp }); }
+  const win = (at: number, len: number) => {
+    const m = Math.round(len * fs), a = Math.round(at * fs);
+    let s = 0, w2 = 0;
+    for (let i = 0; i < m; i++) { const w = 0.54 - 0.46 * Math.cos((2 * Math.PI * i) / (m - 1)); s += (w * (out[a + i] ?? 0)) ** 2; w2 += w * w; }
+    return 10 * Math.log10(s / w2 + 1e-14);
+  };
+  const ms = (i: number) => { let q = 0; for (let k = i * 48; k < (i + 1) * 48; k++) q += out[k] * out[k]; return 10 * Math.log10(q / 48 + 1e-14); };
+  const rows = [];
+  for (const p of u.score.phones) {
+    if (p.ipa !== 't') continue;
+    let closed = false, release = -1, onset = -1;
+    for (let i = Math.max(0, Math.round(p.t0 * 1000) - 20); i < tel.length && onset < 0; i++) {
+      if (tel[i].area < 0.005) closed = true;
+      if (closed && release < 0 && tel[i].area > 0.005) release = i;
+      if (release > 0 && tel[i].voice > 0.5) onset = i;
+    }
+    if (release < 0 || onset < 0) continue;
+    const vowel = win(onset / 1000, 0.03);
+    let loud = 0;
+    for (let i = release - 1; i < onset; i++) if (ms(i) > vowel - 10) loud++;
+    rows.push({ rel: win(release / 1000 - 0.005, 0.01) - vowel, loud, vot: onset - release });
+  }
+  return rows;
+}
+
 describe('bursts of the voiceless stops', () => {
+  it('an aspirated stop hisses longer than one let go with the folds together', () => {
+    // With the folds wide apart the air keeps coming after the tongue has left,
+    // and hisses at the teeth. How loud and how long is a stated limit: no
+    // measurement of an English burst was at hand to set it against
+    loadEnglishLexicon();
+    const en = hisses('tattoo', 'en'), it = hisses('tattoo', 'it'), tea = hisses('tea', 'en')[0], ti = hisses('ti', 'it')[0];
+    const say = (r: { rel: number; loud: number; vot: number }) => `${r.rel.toFixed(1)} dB, ${r.loud} ms within 10 dB of the vowel, voice after ${r.vot} ms`;
+    note('aspirated release', `"tattoo" in English: ${en.map(say).join('; ')}; in Italian: ${it.map(say).join('; ')}; "tea" ${say(tea)}; Italian "ti" ${say(ti)}`);
+    expect(en.length).toBe(2);
+    expect(it.length).toBe(2);
+    for (let i = 0; i < 2; i++) {
+      expect(en[i].vot).toBeGreaterThan(it[i].vot + 15);
+      expect(en[i].loud).toBeGreaterThan(it[i].loud);
+    }
+  });
+
   it('the burst of the tip of the tongue is a hiss, not a pop', () => {
     // the same bursts without the pop of the air let out
     const p = burst('la pata', 'p').rel - burst('la pata', 'p', false).rel;

@@ -22,7 +22,7 @@ import { loadEnglishLexicon, note } from './helpers';
 const fs = 48000, MS = 48;
 const STOPS = new Set(['p', 't', 'k', 'b', 'd', 'g']);
 
-interface Frame { area: number; voice: number; mouth: number; teeth: number }
+interface Frame { area: number; voice: number; mouth: number; teeth: number; f0: number }
 interface Take { phones: ScorePhone[]; out: Float32Array; tel: Frame[]; hf: Float64Array; top: number }
 
 const takes = new Map<string, Take>();
@@ -38,7 +38,7 @@ function take(text: string, lang: string): Take {
   for (let i = 0; i + MS <= n; i += MS) {
     e.process(out.subarray(i, i + MS), MS);
     const x = e.telemetry();
-    tel.push({ area: x.constrictionArea, voice: x.voicingAmp, mouth: x.uMouth, teeth: x.levels.obstacle });
+    tel.push({ area: x.constrictionArea, voice: x.voicingAmp, mouth: x.uMouth, teeth: x.levels.obstacle, f0: x.f0 });
   }
   // how sharp each millisecond is: the power of the second difference of the wave
   const m = tel.length, hf = new Float64Array(m);
@@ -52,13 +52,21 @@ function take(text: string, lang: string): Take {
   return t;
 }
 
-/** the milliseconds that stand 15 dB out of the 20 around them, within 30 dB of the sharpest of the sentence */
+/**
+ * the milliseconds that stand 15 dB out of the 20 around them, within 30 dB of the sharpest of the sentence.
+ * The closures of the folds are sharp too, and in the loudest vowel they come within 30 dB of the sharpest
+ * breath of the sentence: they are the voice, and are told from a tick by coming back, as sharp to 6 dB,
+ * one period before and one period after
+ */
 function standouts(t: Take): { ms: number; rise: number; hf: number; phone?: ScorePhone }[] {
   const found = [];
+  const near = (i: number) => Math.max(t.hf[i - 1] ?? -200, t.hf[i] ?? -200, t.hf[i + 1] ?? -200);
   for (let i = 20; i < t.hf.length - 20; i++) {
     if (t.hf[i] < t.top - 30) continue;
     const around = [...t.hf.slice(i - 20, i - 2), ...t.hf.slice(i + 3, i + 21)].sort((x, y) => x - y);
     const rise = t.hf[i] - around[around.length >> 1];
+    const period = t.tel[i].f0 > 0 ? Math.round(1000 / t.tel[i].f0) : 0;
+    if (period > 3 && near(i - period) > t.hf[i] - 6 && near(i + period) > t.hf[i] - 6) continue;
     if (rise > 15 && t.hf[i] >= Math.max(t.hf[i - 1], t.hf[i + 1])) {
       found.push({ ms: i, rise, hf: t.hf[i] - t.top, phone: t.phones.find((p) => i / 1000 >= p.t0 && i / 1000 < p.t1) });
     }

@@ -4,11 +4,19 @@ import { FFT } from '../util/fft';
 /**
  * Turbulence noise source: Gaussian white noise shaped by a first-order
  * high-pass (dipole sources radiate little at very low frequency) and a
- * first-order low-pass whose corner follows the jet, f_c = St * v / D
- * (Strouhal scaling: faster or narrower jets make higher-pitched noise).
- * Above f_c the source falls at -6 dB/octave, which the +6 dB/octave of lip
- * radiation turns into a roughly flat radiated spectrum, as observed for
- * fricatives without a front-cavity resonance such as /f/ (Stevens 1998).
+ * low-pass whose corner follows the jet, f_c = St * v / D (Strouhal
+ * scaling: faster or narrower jets make higher-pitched noise).
+ * With one pole the source falls at -6 dB/octave above f_c, which the
+ * +6 dB/octave of lip radiation turns into a roughly flat radiated spectrum,
+ * as observed for fricatives without a front-cavity resonance such as /f/
+ * (Stevens 1998); the jets of the mouth, whose corner is high, were matched
+ * to measured sibilants and bursts that way.
+ * With two poles it falls at -12 dB/octave, as the spectrum Stevens (1989)
+ * gives for the source of turbulence noise does: flat to 1 kHz, 4 dB down at
+ * 2 kHz, 14 at 5 and 26 at 10, which two poles at 2.5 kHz follow within
+ * 2 dB up to 5 kHz and 3.5 dB at 10. That is for the slow, wide jet of the
+ * glottis, whose corner is near 2 kHz: with one pole its breath was radiated
+ * flat up to 20 kHz, a hiss as bright as a sibilant.
  */
 export class TurbulenceSource {
   private rng: Rng;
@@ -17,13 +25,15 @@ export class TurbulenceSource {
   private hpX = 0;
   private hpY = 0;
   private lpY = 0;
+  private lpY2 = 0;
   private fs = 0;
   private fc = 0;
   private hpF = 200;
   /** last output sample */
   value = 0;
 
-  constructor(seed: number) { this.rng = new Rng(seed); }
+  /** poles: how fast the source falls above its corner, 1 (-6 dB/octave) or 2 (-12) */
+  constructor(seed: number, private poles: 1 | 2 = 1) { this.rng = new Rng(seed); }
 
   configure(fs: number, fc: number, hp = 200): void {
     const f = Math.min(Math.max(fc, 300), fs * 0.2);
@@ -45,7 +55,11 @@ export class TurbulenceSource {
     // one-pole low-pass, normalised so that the passband gain is about 1
     this.lpY = this.lpA * this.lpY + (1 - this.lpA) * this.hpY;
     // compensate the low-pass loss of power for white input (keeps level ~ independent of fc)
-    this.value = this.lpY * Math.sqrt((1 + this.lpA) / (1 - this.lpA + 1e-9)) * 0.25;
+    const gain = Math.sqrt((1 + this.lpA) / (1 - this.lpA + 1e-9)) * 0.25;
+    if (this.poles === 1) return (this.value = this.lpY * gain);
+    // a second pole at the corner takes away what lies above it, and leaves the level below
+    this.lpY2 = this.lpA * this.lpY2 + (1 - this.lpA) * this.lpY;
+    this.value = this.lpY2 * gain;
     return this.value;
   }
 
@@ -53,7 +67,7 @@ export class TurbulenceSource {
   shape(f: number): number {
     const hp = f / Math.hypot(f, this.hpF);
     const lp = 1 / Math.hypot(1, f / Math.max(this.fc, 1));
-    return hp * lp;
+    return hp * (this.poles === 1 ? lp : lp * lp);
   }
 }
 

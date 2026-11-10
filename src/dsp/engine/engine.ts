@@ -298,7 +298,8 @@ export class VoiceEngine {
   private sub = new SubglottalTract();
   private aero = new Aero();
   private jet = newJetInfo();
-  private aspNoise = new TurbulenceSource(11);
+  // the glottal jet is wide and slow: its noise falls twice as fast above its corner (see TurbulenceSource)
+  private aspNoise = new TurbulenceSource(11, 2);
   private wallNoise = new TurbulenceSource(23);
   /** the jet of a second narrow passage */
   private wallNoise2 = new TurbulenceSource(29);
