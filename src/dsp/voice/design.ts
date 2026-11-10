@@ -36,6 +36,10 @@ export interface Phonation {
   voicing: boolean;
   /** the hiss of the air through the glottis, dB */
   aspiration: number;
+  /** the hiss of the air against the walls where the mouth is narrow, dB */
+  frication: number;
+  /** the hiss of the jet against the incisors (most of s, ʃ and of the release of an English t), dB */
+  obstacle: number;
 }
 
 /** the posture kept beneath every sound, and how carefully the voice articulates */
@@ -89,6 +93,7 @@ export const VOICE_V1_BASE: Readonly<VoiceDesign> = deepFreeze({
     jitter: DEFAULT_SOURCE.jitter, shimmer: DEFAULT_SOURCE.shimmer, diplophonia: DEFAULT_SOURCE.diplophonia,
     interaction: DEFAULT_SOURCE.interaction, vibratoRate: DEFAULT_SOURCE.vibratoRate, vibratoDepth: DEFAULT_SOURCE.vibratoDepth,
     asym: DEFAULT_SOURCE.asym, restArea: DEFAULT_SOURCE.restArea, voicing: true, aspiration: DEFAULT_NOISE.aspiration,
+    frication: DEFAULT_NOISE.frication, obstacle: DEFAULT_NOISE.obstacle,
   },
   habits: { ...NO_SETTING, precision: 0 },
   speaking: { f0: DEFAULT_SOURCE.f0, ps: DEFAULT_SOURCE.ps, accent: 5, rate: 1, style: { ...DEFAULT_STYLE } },
@@ -222,6 +227,10 @@ export const VOICE_FIELDS: Field[] = [
     { it: 'Le corde non chiudono del tutto dietro: fruscio tra le armoniche, tipico di molte voci femminili (Södersten & Lindestad 1990).', en: 'The folds do not close fully at the back: hiss between the harmonics, common in women’s voices (Södersten & Lindestad 1990).' }, 0, 0.2, 0.002, 'cm²'),
   n('phonation.aspiration', 'phonation', G.breath, { it: 'Fruscio della glottide', en: 'Glottal hiss' },
     { it: 'Il livello del soffio d’aria tra le corde.', en: 'The level of the air hissing between the folds.' }, -30, 20, 0.5, 'dB'),
+  n('phonation.frication', 'phonation', G.breath, { it: 'Fruscio alla strettoia', en: 'Hiss at the constriction' },
+    { it: 'Il livello del fruscio dell’aria contro le pareti dove la bocca si stringe: f, v, x, h e il resto delle fricative.', en: 'The level of the air hissing against the walls where the mouth is narrow: f, v, x, h and the rest of the fricatives.' }, -30, 20, 0.5, 'dB'),
+  n('phonation.obstacle', 'phonation', G.breath, { it: 'Fruscio sui denti', en: 'Hiss on the teeth' },
+    { it: 'Il livello del getto d’aria che batte sugli incisivi: quasi tutto il suono di s e ʃ e del rilascio della t inglese. Più basso, sibilanti più morbide; più alto, più taglienti.', en: 'The level of the jet of air striking the incisors: most of the sound of s and ʃ and of the release of an English t. Lower, softer sibilants; higher, sharper ones.' }, -30, 20, 0.5, 'dB'),
   n('phonation.interaction', 'phonation', G.folds, { it: 'Interazione con il tratto', en: 'Interaction with the tract' },
     { it: 'Quanto la gola e la bocca reagiscono sulla glottide aperta: smorza e arrotonda le formanti.', en: 'How much the throat and mouth act back on the open glottis: it damps and rounds the formants.' }, 0, 1, 0.01),
   n('phonation.jitter', 'phonation', G.irregular, { it: 'Jitter', en: 'Jitter' },
@@ -377,7 +386,7 @@ export function applyDesign(p: EngineParams, d: Readonly<VoiceDesign>): void {
   p.teeth = { ...d.body.teeth };
   p.source = { ...DEFAULT_SOURCE, f0: d.speaking.f0, ps: d.speaking.ps };
   for (const k of PHONATION_KEYS) (p.source as unknown as Record<string, unknown>)[k] = ph[k];
-  p.noise = { ...DEFAULT_NOISE, aspiration: ph.aspiration, user: p.noise.user };
+  p.noise = { ...DEFAULT_NOISE, aspiration: ph.aspiration, frication: ph.frication, obstacle: ph.obstacle, user: p.noise.user };
   p.voicing = ph.voicing;
   p.abduction = d.habits.abduction;
   p.articulators = { ...p.articulators, larynx: d.habits.larynx, epilarynx: d.habits.epilarynx };

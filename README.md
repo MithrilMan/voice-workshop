@@ -130,7 +130,9 @@ Four modes, switchable in the header and remembered in the browser:
   differs from the voice as it was opened or saved shows a dot, a tick on
   the slider where it was and a way back to it; each tab counts its changed
   fields, and Undo takes them all back. The tabs: the body (size, pharynx, palate and arch, tongue, lips, nose, teeth), the voice (the fold
-  model, its quality, irregularity, breath and vibrato), the habits (the
+  model, its quality, irregularity, breath and vibrato; with the breath the
+  levels of the hiss at a constriction and of the hiss on the teeth, the
+  most of s and ʃ, as in the Noise panel of the Lab), the habits (the
   posture kept beneath every sound, a twang among it, and the precision), the melody (usual
   pitch, accents, downstep, the ends of statements and questions, with the
   pitch the voice will give the sentence drawn above them) and the rhythm
