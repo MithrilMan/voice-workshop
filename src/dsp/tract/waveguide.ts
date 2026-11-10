@@ -48,7 +48,7 @@ const FADE = 0.03;
  * model (see tests).
  *
  * Yielding walls: at every other oral junction a lumped mass-spring-damper
- * wall (Ishizaka, French & Flanagan 1975 constants) is driven by the local
+ * wall (the constants of src/dsp/constants.ts) is driven by the local
  * pressure, m y'' + r y' + k y = p, and the air it displaces,
  * u_w = S dx y' (S = soft-tissue perimeter), is removed from the junction as a
  * flow sink. This reproduces the closed-tract wall resonance that raises F1

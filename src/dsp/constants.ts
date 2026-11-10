@@ -26,10 +26,15 @@ export const LAMBDA_HEAT = 5.5e-5;
 /** Specific heat at constant pressure (cal / (g degC)). */
 export const CP_AIR = 0.24;
 
-/** Yielding-wall parameters per unit area (Ishizaka, French & Flanagan 1975):
- *  mass (g/cm^2), resistance (dyn s/cm^3), stiffness (dyn/cm^3). */
+/** Yielding-wall parameters per unit area: mass (g/cm^2), resistance
+ *  (dyn s/cm^3), stiffness (dyn/cm^3). The mass and the stiffness are those
+ *  Ishizaka, French & Flanagan (1975) found by shaking the cheek and the
+ *  neck. The resistance is the one that gives a tract shut at both ends the
+ *  resonance measured through sealed lips with the glottis closed, 210 Hz
+ *  and 105 Hz wide in men (Hanna, Smith & Wolfe 2016): about 950, where
+ *  1600 made it half as wide again. */
 export const WALL_MASS = 1.5;
-export const WALL_RES = 1600;
+export const WALL_RES = 1000;
 export const WALL_STIFF = 3.0e5;
 
 /** 1 cm of water column in dyn/cm^2. */

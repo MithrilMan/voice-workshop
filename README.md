@@ -547,16 +547,30 @@ where X = P / (2 sqrt(pi A)) is the perimeter of the section relative to a
 round one of the same area (1 for a circle, at most 8): narrow and flat
 sections lose more. Calibrated against the frequency-domain model, which
 takes the same perimeters for its viscous and thermal losses.
-Yielding walls: a mass-spring-damper per section pair (Ishizaka, French &
-Flanagan 1975: m = 1.5 g/cm², r = 1600 dyn s/cm³, k = 3e5 dyn/cm³) removes
+Yielding walls: a mass-spring-damper per section pair (m = 1.5 g/cm²,
+r = 1000 dyn s/cm³, k = 3e5 dyn/cm³) removes
 air as a flow sink over the soft part of the wall only (in /i/ half of the
 wall under the hard palate, the tongue; all of it in the pharynx; none at the
 incisal slit), which raises F1 in closed tracts and sets the low-frequency
-bandwidths. The walls are also heard: the air they take in and give back
+bandwidths. The mass and the stiffness are those Ishizaka, French &
+Flanagan (1975) found by shaking the cheek and the neck. The resistance is
+set by what the walls do to the air: measured through sealed lips with the
+glottis closed, the tract has a resonance of its air on the mass of its
+walls at 210 ± 55 Hz in men, 105 ± 30 Hz wide and 3.9 ± 1.0 MPa s/m³ high
+(Hanna, Smith & Wolfe 2016), which gives walls of 1.5 g/cm² and about
+950 dyn s/cm³ (near the 1050 they work out for Ishizaka's tensed cheek;
+his neck, at 2300, is the most damped of the places he shook). A tube like
+theirs, 17 cm long and 1 cm in radius, shut at both ends, resonates here
+at 225 Hz, 103 Hz wide and 4.0 MPa s/m³ high in the frequency model, and
+at 232 Hz, 110 Hz and 3.7 MPa s/m³ in the waveguide. With 1600 dyn s/cm³,
+as before, it was 161 Hz wide and 2.9 MPa s/m³ high, and the first
+resonance of /u/ 111 Hz wide; it is now 73 Hz (/i/ 59), where about 70 Hz
+was measured on close vowels with the glottis closed (Fujimura & Lindqvist
+1971). The walls are also heard: the air they take in and give back
 moves the tissue out to the skin of the neck and the cheeks, which radiates
 it like a small mouth. Half of their summed volume velocity joins the sound
 (the back of the pharynx rests on the spine, and the neck is farther from
-the listener than the lips), so a voiced closure hums low, 27-31 dB below its
+the listener than the lips), so a voiced closure hums low, 25-28 dB below its
 vowel: the voice bar of a spectrogram, through which /b d g/ sound voiced;
 a voiceless closure stays silent. The surfaces glide with the areas, and a
 wall where a branch joins comes to rest instead of stopping, still taking
@@ -1253,6 +1267,8 @@ in brackets are the adult male targets described under Speech.
 | Vowels F1 / F2 (target) | i 277 / 2192 (270 / 2290), ɪ 389 / 1972 (390 / 1990), e 441 / 2028 (440 / 2050), ɛ 529 / 1826 (530 / 1840), æ 645 / 1661 (660 / 1720), a 728 / 1297 (740 / 1300), ɑ 703 / 1106 (730 / 1090), ɔ 549 / 868 (570 / 840), o 474 / 897 (470 / 900), ʊ 440 / 1007 (440 / 1020), u 300 / 873 (300 / 870), ʌ 635 / 1191 (640 / 1190), ə 498 / 1495 (500 / 1500) |
 | Flat passages | a 1 mm high oral section has 1.9 times the wall of a round duct of the same area; three times the wall widens B1 of a 17.5 cm tube from 37 to 50 Hz |
 | Yielding walls | /i/: 50 % of the wall under the hard palate yields (the tongue), 100 % in the pharynx, none at the incisal slit (8.1 cm of bone) |
+| Closed tract | a tube 17 cm long and 1 cm in radius, shut at both ends: frequency model 225 Hz, 103 Hz wide, 4.0 MPa s/m³; waveguide 232 Hz, 110 Hz wide, 3.7 MPa s/m³; measured through sealed lips on men 210 ± 55 Hz, 105 ± 30 Hz, 3.9 ± 1.0 MPa s/m³ (Hanna et al. 2016) |
+| Bandwidths, glottis closed | waveguide, radiation included (frequency model in brackets): uniform tube 54 (27), 58 (32), 85 (63) Hz at 525, 1451, 2406 Hz; /u/ 103 (73) Hz at 311 Hz, 81 (46) at 874 Hz; /i/ 88 (59) Hz at 287 Hz |
 | Piriform fossae | antiresonance /a/ 4490 Hz (-27 dB), /i/ 4470 Hz (-23 dB), /u/ 4470 Hz (-26 dB), /ə/ 4480 Hz (-26 dB) (4-5 kHz, Dang & Honda 1997); half filled with water, /a/ 7970 Hz |
 | Laterals | /l/: channels 0.52 cm² beside the contact, supralingual cavity 2.5 cm, antiresonance 3490 Hz (-22 dB); /ɫ/: 0.52 cm², 3.4 cm, 3960 Hz (-42 dB) (Zhang & Espy-Wilson 2004: cavity 3.1 cm, antiresonance between F3 and F4) |
 | Geometry cost | geometry, 3D sections and area function 0.08-0.12 ms per update, at most one every 2.7 ms |
@@ -1317,7 +1333,7 @@ in brackets are the adult male targets described under Speech.
 | Trills | closures of the lips in [aʙa] 3, of the dorsum against the uvula in [aʀa] 3, of the tip in [ara] 1 |
 | Velar lateral | ʟ: midline closed by the dorsum, lateral channels over 10 grid lines, 7.0-9.6 cm from the lips; /l/ F3 still 2421 Hz |
 | Uvular nasal | murmur against the vowel: [ŋ] -5.7 dB, [ɴ] -5.7 dB (-19.3 dB with the nose joined at the velum, in front of the closure) |
-| Walls heard | quietest 10 ms of a closure against its vowel: /b/ -28, /d/ -27, /g/ -31 dB, a hum centred at 141 Hz (-104 dB with the walls unheard); /p/ -86 dB; held against /a/: /i/ -4.0 dB, /u/ -8.4 dB (-12.5 unheard), /m/ -7.2 dB |
+| Walls heard | quietest 10 ms of a closure against its vowel: /b/ -25, /d/ -25, /g/ -28 dB, a hum centred at 148 Hz (-102 dB with the walls unheard); /p/ -83 dB; held against /a/: /i/ -4.2 dB, /u/ -8.3 dB (-13.2 unheard), /m/ -7.4 dB |
 | Epilarynx | narrowest section of the tube above the folds 0.43 cm² at rest, 0.19 with the sphincter at 0.5, shut at 1; at 0.5 the band 2.4-3.6 kHz rises against the first formant's by 3.7 dB (/a/), 4.6 (/i/), 8.9 (/u/) in the transfer function and by 2.3 dB in a held /a/ |
 | Subglottal resonances | trachea (2.54 cm², 12 cm) and 2, 4, 8 bronchi (3.14, 3.42, 3.89 cm² over 4.4, 1.9, 1.2 cm), 19.5 cm in all: 520 (B 43), 1324 (B 39), 2195 (B 62) Hz, against 554 ± 42, 1327 ± 77, 2179 ± 126 Hz measured on men (Lulich et al. 2012); with rigid walls the first at 469 Hz; 0.87 times the size: 598, 1522, 2523 Hz (women 660 ± 47, 1513 ± 69, 2426 ± 101) |
 | Subglottal impedance | the tube at its closed end: 216, 210 and 151 dyn s/cm⁵ at the three peaks; the resonances the engine keeps are within 0.1 dB of it there, within 1.5 dB half a width to either side |
@@ -1371,16 +1387,28 @@ in brackets are the adult male targets described under Speech.
   narrowing adds only 2.3 dB of ring to a held /a/ at 0.5; the twang of a
   singer also raises the larynx, narrows the pharynx and spreads the lips,
   which the habits set apart.
-- A held /u/ is still on the weak side: 8.3 dB below /a/, against 3.9 dB
-  for /i/ (12.4 and 5.7 before the walls were heard), where natural speech
-  has close vowels only a few dB below open ones. Its
-  first resonance is damped by the soft walls, which also lift it from
-  208 Hz (rigid walls) to 304 Hz: the bandwidth is 108 Hz in both acoustic
-  models, against about 70 Hz measured for close vowels with the glottis
-  closed (Fujimura & Lindqvist 1971; /i/ here 79 Hz). The jet losses at the
-  velar passage and the lips (0.15 and 0.19 cm², as in the MRI shape) take
-  about 2 dB more. The wall constants (Ishizaka, French & Flanagan 1975)
-  are the same for every vowel.
+- A held /u/ is on the weak side: 8.3 dB below /a/, against 4.2 dB for
+  /i/, where speakers have the two about as loud as each other (in the
+  three studies Rossi 1971 compares, /u/ is within 2 dB of /i/ and /ɑ/ 4 to
+  5.5 dB above it). The /u/ here is as narrow as the one a speaker held for
+  the MRI, 0.14 cm² at the velum and 0.16 at the lips, and what it loses it
+  loses to the air that has to pass there: 1.1 of the lungs' 8 cmH2O are
+  spent before the lips, so the folds are driven by less, and the two jets
+  take about 2 dB from its two lowest resonances. A /u/ said in a word is
+  hardly that narrow. The walls are no longer part of it (see Yielding
+  walls).
+- The waveguide loses the same at every frequency: its decay is set for
+  the middle of the spectrum, with more of it in narrow sections. With the
+  glottis closed, a uniform tube has resonances 54, 58 and 85 Hz wide at
+  525, 1451 and 2406 Hz, radiation included, where the frequency model,
+  with the viscous and thermal losses of a smooth duct, has 27, 32 and
+  63 Hz; measured through sealed lips, so without any radiation, they are
+  45 ± 5, 60 ± 15 and 65 ± 20 Hz at 585, 1415 and 2465 Hz in men (Hanna et
+  al. 2016), growing by about 1 Hz per 100 Hz. So the waveguide is close
+  below 1 kHz and too sharp above 2 kHz, by the 20 Hz or more that the
+  radiation would add to the measured ones. At 300 Hz it is too dull in a
+  narrow passage: the first resonance of /u/ is 103 Hz wide and that of /i/
+  88 Hz, against 73 and 59 Hz in the frequency model.
 - One-dimensional plane-wave acoustics: no cross modes (fine below about
   5 kHz for an adult tract), no 3D flow. The noise sources are lumped dipoles
   with laws and constants calibrated to match measured fricative levels and
@@ -1564,6 +1592,8 @@ in brackets are the adult male targets described under Speech.
 - Fry, D. B. (1979). The Physics of Speech. Cambridge University Press.
 - Fujimura, O. (1962). Analysis of nasal consonants. JASA 34.
 - Fujimura, O. & Lindqvist, J. (1971). Sweep-tone measurements of vocal-tract characteristics. JASA 49.
+- Hanna, N., Smith, J. & Wolfe, J. (2016). Frequencies, bandwidths and magnitudes of vocal tract and surrounding tissue resonances, measured through the lips during phonation. JASA 139(5).
+- Rossi, M. (1971). L'intensité spécifique des voyelles. Proc. 7th Int. Congress of Phonetic Sciences, Montreal.
 - Gick, B., Allen, B., Roewer-Després, F. & Stavness, I. (2017). Speaking tongues are actively braced. JSLHR 60.
 - Jongman, A., Wayland, R. & Wong, S. (2000). Acoustic characteristics of English fricatives. JASA 108.
 - Jongman, A. (2024). Phonetics of fricatives. Oxford Research Encyclopedia of Linguistics.
