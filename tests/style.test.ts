@@ -29,6 +29,13 @@ describe('a way of speaking', () => {
     expect(meanF0(say(text, { floor: 8 }))).toBeLessThan(meanF0(base) * 0.85);
     // no final lengthening: a shorter last vowel
     expect(lastVowel(say(text, { finalLengthening: 0 })).dur).toBeLessThan(lastVowel(base).dur * 0.85);
+    // the end of the phrase reaches back to the stress of its last word: a longer first «e» of «stelle», a longer «ll», the rest as it was
+    const len = (sc: Score, ipa: string, n: number) => { const v = sc.phones.filter((p) => p.ipa === ipa)[n]; return v.t1 - v.t0; };
+    const slow = say(text, { lastStressLengthening: 0.5 });
+    expect(len(slow, 'e', 2) / len(base, 'e', 2)).toBeGreaterThan(1.4);
+    expect(len(slow, 'l', 3) / len(base, 'l', 3)).toBeGreaterThan(1.2);
+    expect(len(slow, 'u', 0)).toBeCloseTo(len(base, 'u', 0), 9);
+    expect(len(slow, 'e', 3)).toBeCloseTo(len(base, 'e', 3), 9);
     // longer pauses: a longer utterance
     expect(say('ciao, come stai?', { pauseShort: 0.4 }).duration).toBeGreaterThan(say('ciao, come stai?').duration + 0.2);
     // no declination: more pressure at the end

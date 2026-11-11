@@ -1145,6 +1145,17 @@ sibilants. The teeth panel draws the front and side views with the live jet.
     Italian uses rules of the same form: stressed vowels long in open
     syllables (x1.55) and short before a geminate or a coda, unstressed and
     function-word vowels short, geminates x1.85, phrase-final lengthening.
+    A style can make the end of a phrase start slowing down at the stress
+    of its last word, where that is not on its last syllable
+    (`lastStressLengthening`, off by default): that stressed vowel is so
+    much longer, and the sounds between it and the last vowel half as much
+    (the two shares are chosen, not measured). In American English the
+    rhyme of the main-stress syllable of a phrase-final word is 7-18 %
+    longer, besides its last rhyme, and what lies between the two less or
+    not at all (Turk & Shattuck-Hufnagel 2007); in Italian the stressed
+    vowel lengthens before a phrase boundary when it is in the last
+    syllable but one, not in the one before it (Petrone et al. 2014), a
+    difference the rule does not make.
     The speaking rate acts on the same compressible part, so a faster voice
     does not shorten every sound alike: the minimum is a larger share of a
     consonant than of a vowel, and of an unstressed vowel than of a stressed
@@ -1680,7 +1691,8 @@ score of a voice saying something: one turn of a dialogue.
   where the last vowel of a phrase ends before a full stop, before the
   question mark of a question to answer yes or no, and before a comma;
   the sounds a second; how much longer a stressed vowel and a last one
-  are; the pauses at a comma and between sentences; and, from a
+  are, and the stressed vowel of the last word of a phrase against the
+  other stressed ones; the pauses at a comma and between sentences; and, from a
   recording only, how much louder a stressed vowel is and how far the
   last one drops. The same figures are taken from a voice of the
   simulator saying the same sentences by its rules, off the plan (no
@@ -1689,7 +1701,8 @@ score of a voice saying something: one turn of a dialogue.
   pitch and the pace outright, then the accent, the arc of the phrase,
   the stretch after which the melody starts again, the final fall, the
   rise of the questions, the continuation, the bottom of the voice, the
-  downstep, the final lengthening and the two pauses, each tried a step
+  downstep, the final lengthening, the lengthening of the last stress
+  and the two pauses, each tried a step
   up and a step down and followed while it helps, the step halved over
   four rounds (about a hundred plans, 8-24 s). A melody that starts
   again is a habit that is on or off, and the other fields have to
@@ -2212,6 +2225,8 @@ in brackets are the adult male targets described under Speech.
 - Ramus, F., Nespor, M. & Mehler, J. (1999). Correlates of linguistic rhythm in the speech signal. Cognition 73.
 - Ladd, D. R. (2008). Intonational Phonology (2nd ed.). Cambridge University Press.
 - Liberman, M. Y. & Church, K. W. (1992). Text analysis and word pronunciation in text-to-speech synthesis. In S. Furui & M. M. Sondhi (eds.), Advances in Speech Signal Processing. Marcel Dekker.
+- Turk, A. E. & Shattuck-Hufnagel, S. (2007). Multiple targets of phrase-final lengthening in American English words. Journal of Phonetics 35(4).
+- Petrone, C., D’Imperio, M., Fuchs, S. & Lancia, L. (2014). The interplay between prosodic phrasing and accentual prominence on articulatory lengthening in Italian. Proc. Speech Prosody 2014.
 - Pike, K. L. (1945). The Intonation of American English. University of Michigan Press.
 - Perkell, J. S., Matthies, M. L., Svirsky, M. A. & Jordan, M. I. (1993). Trading relations between tongue-body raising and lip rounding in production of the vowel /u/: a pilot "motor equivalence" study. JASA 93.
 - Laver, J. (1980). The Phonetic Description of Voice Quality. Cambridge University Press.

@@ -33,6 +33,12 @@ export interface ProsodyStyle {
   pauseShort: number;
   /** lengthening of the last syllable of a phrase (1 = usual, 0 = none) */
   finalLengthening: number;
+  /**
+   * the slowing down at the end of a phrase reaches back to the stress of its last word, where that is not on
+   * its last syllable («mare», «stelle»): the stressed vowel this much longer (0.5: half as long again), the
+   * sounds between it and the last vowel half as much (0 = only the last syllable lengthens)
+   */
+  lastStressLengthening: number;
   /** fall of the lung pressure over the utterance, share */
   declination: number;
   /** extra lung pressure, and a tenser voice (less Rd), on accented syllables */
@@ -73,6 +79,7 @@ export const DEFAULT_STYLE: Readonly<ProsodyStyle> = Object.freeze({
   pauseLong: 0.3,
   pauseShort: 0.16,
   finalLengthening: 1,
+  lastStressLengthening: 0,
   declination: 0.12,
   stressPs: 0.14,
   stressRd: 0.12,

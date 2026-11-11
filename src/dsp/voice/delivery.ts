@@ -33,6 +33,8 @@ export interface Sound {
   stress: boolean;
   /** in a content word (the planner puts its accents on the stressed vowels of these) */
   content: boolean;
+  /** which word of the sentence it is in */
+  word: number;
   /** which phrase of the sentence it is in, and how that phrase ends */
   phrase: number;
   edge: Edge;
@@ -103,7 +105,7 @@ export function sayingOf(phones: Phone[], times: { ipa: string; t0: number; t1: 
   const at = times.filter((p) => p.ipa !== '_');
   if (at.length !== kept.length) throw new Error(`sayingOf: ${kept.length} sounds, ${at.length} times`);
   const out: Saying = [];
-  let phrase = 0, from = 0;
+  let phrase = 0, from = 0, word = -1;
   const close = (to: number, p: Phone | undefined) => {
     const edge: Edge = p?.question ? (p.whQuestion ? 'wh' : 'question') : p?.pause === 'short' ? 'comma' : 'stop';
     let lastV = -1;
@@ -115,8 +117,9 @@ export function sayingOf(phones: Phone[], times: { ipa: string; t0: number; t1: 
     const ph = phonemeFor(p.ipa)!, t = at[k];
     const vowel = (ph.manner === 'vowel' && !ph.nonSyllabic) || !!ph.syllabic;
     const gap = k + 1 < at.length ? at[k + 1].t0 - t.t1 : 0;
+    if (p.wordStart || k === 0) word++;
     out.push({
-      ipa: p.ipa, vowel, stress: !!p.stress, content: !p.func, phrase, edge: 'stop', last: false,
+      ipa: p.ipa, vowel, stress: !!p.stress, content: !p.func, word, phrase, edge: 'stop', last: false,
       t0: t.t0, t1: t.t1, pitch: vowel ? track.pitch(t.t0, t.t1) : NaN, level: vowel ? track.level(t.t0, t.t1) : NaN,
       pause: gap > 1e-3 ? gap : 0,
     });
@@ -156,6 +159,8 @@ export interface Delivery {
   stressLength: number;
   /** the last vowel of a phrase against the others with the same stress, in length */
   lastLength: number;
+  /** the stressed vowel of the last word of a phrase, where it is not its last vowel, against the other stressed vowels, in length */
+  lastStressLength: number;
   /** the pause at a comma, s (0 where the speaker makes none) */
   pauseComma: number;
   /** the pause between sentences, s */
@@ -217,6 +222,13 @@ export function deliveryOf(sayings: Saying[]): Delivery {
   const inner = vowels.filter((s) => !s.last);
   const lenOf = (stress: boolean) => mean(inner.filter((s) => s.stress === stress).map(ln));
   const lastLn = vowels.filter((s) => s.last).map((s) => ln(s) - lenOf(s.stress)).filter(Number.isFinite);
+  // the stress of the last word of each phrase, and the stressed vowels that are neither that nor the last of their phrase
+  const tail = new Set<Sound>();
+  for (const say of sayings) for (const l of say.filter((s) => s.last)) {
+    const w = say.filter((s) => s.vowel && s.phrase === l.phrase && s.word === l.word && s.stress && !s.last).pop();
+    if (w) tail.add(w);
+  }
+  const plainStress = mean(inner.filter((s) => s.stress && !tail.has(s)).map(ln));
   const lev = vowels.filter((s) => Number.isFinite(s.level));
   return {
     pitch: Number.isFinite(mid) ? 2 ** (mid / 12) : NaN,
@@ -233,6 +245,7 @@ export function deliveryOf(sayings: Saying[]): Delivery {
     rate: seconds > 0 ? sounds.length / seconds : NaN,
     stressLength: Math.exp(lenOf(true) - lenOf(false)),
     lastLength: Math.exp(mean(lastLn)),
+    lastStressLength: Math.exp(mean([...tail].map(ln)) - plainStress),
     pauseComma: mean(pauseComma),
     pauseStop: mean(pauseStop),
     stressLevel: mean(lev.filter((s) => s.stress).map((s) => s.level)) - mean(lev.filter((s) => !s.stress).map((s) => s.level)),
@@ -288,6 +301,7 @@ const TERMS: { key: keyof Delivery; scale: number; log?: boolean }[] = [
   { key: 'endComma', scale: 1 },
   { key: 'stressLength', scale: 0.1, log: true },
   { key: 'lastLength', scale: 0.1, log: true },
+  { key: 'lastStressLength', scale: 0.1, log: true },
   { key: 'pauseComma', scale: 0.04 },
   { key: 'pauseStop', scale: 0.06 },
 ];
@@ -320,6 +334,7 @@ const KNOBS: [string, number, (keyof Delivery)?, boolean?][] = [
   ['speaking.style.floor', 1.5],
   ['speaking.style.downstep', 0.05],
   ['speaking.style.finalLengthening', 0.3, 'lastLength'],
+  ['speaking.style.lastStressLengthening', 0.2, 'lastStressLength'],
   ['speaking.style.pauseShort', 0.06, 'pauseComma'],
   ['speaking.style.pauseLong', 0.1, 'pauseStop'],
 ];

@@ -151,6 +151,8 @@ interface Unit {
   coda: boolean;
   /** the syllable is the last one before a pause or the end */
   phraseFinal: boolean;
+  /** in the last word of a phrase, from its stressed vowel (1) through the sounds before its last vowel (0.5): the share of the lengthening of the last stress it takes */
+  tail: number;
   /** kind of boundary that ends the phrase of this phone */
   boundary: 'comma' | 'stop' | 'question' | 'wh';
   wordFinalSyl: boolean;
@@ -299,7 +301,7 @@ function analyse(phones: Phone[], literal = false, shape?: Head): Unit[] {
     if (p.wordStart && prevU && !prevU.p.wordEnd && !prevU.p.pause) word++;
     units.push({
       p, ph, vowel: isNucleus(ph), word, syl: -1, w0: 0, w1: 0, stressed: false, coda: false,
-      phraseFinal: false, boundary: 'stop', wordFinalSyl: false, polysyllabic: false, dur: 0, floor: 0,
+      phraseFinal: false, tail: 0, boundary: 'stop', wordFinalSyl: false, polysyllabic: false, dur: 0, floor: 0,
     });
     if (p.wordEnd || p.pause) word++;
   }
@@ -364,6 +366,15 @@ function analyse(phones: Phone[], literal = false, shape?: Head): Unit[] {
     for (let j = start; j <= end; j++) {
       units[j].boundary = boundary;
       if (units[j].syl === lastSyl) units[j].phraseFinal = true;
+    }
+    // the stress of the last word, where it is not on its last syllable: the end of the phrase starts there
+    let lastVowel = -1;
+    for (let j = end; j >= start; j--) if (units[j].vowel) { lastVowel = j; break; }
+    for (let j = lastVowel - 1; j >= start && units[j].word === units[lastVowel].word; j--) {
+      if (!units[j].vowel || !units[j].p.stress) continue;
+      units[j].tail = 1;
+      for (let k = j + 1; k < lastVowel; k++) units[k].tail = 0.5;
+      break;
     }
     start = i + 1;
   }
@@ -566,6 +577,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     u.floor = 0;
     if (nat.timing) u.dur = (literal ? neutralDuration : en ? englishDuration : italianDuration)(u, units[i + 1], units[i - 1], st, lp);
     else u.dur = u.ph.dur * (u.p.long && !u.vowel ? 1.9 : 1);
+    if (nat.timing && u.tail > 0 && st.lastStressLengthening > 0) u.dur *= 1 + st.lastStressLengthening * u.tail;
     const hard = u.dur > 0 ? Math.min(1, u.floor / u.dur) : 0;
     if (u.p.halfLong) u.dur *= 1.3;
     if (u.p.extraShort) u.dur *= 0.55;

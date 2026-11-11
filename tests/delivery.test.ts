@@ -49,6 +49,10 @@ describe('the delivery of a voice', () => {
     expect(fall.endStop).toBeLessThan(base.endStop - 0.5);
     expect(rise.endQuestion).toBeLessThan(base.endQuestion - 2);
     expect(comma.endComma).toBeGreaterThan(base.endComma + 0.2);
+    // the stress of the last word of a phrase («mare», «guarda», «domani»): half as long again, and only that figure moves
+    const tail = of({ 'speaking.style.lastStressLengthening': 0.5 });
+    expect(tail.lastStressLength / base.lastStressLength).toBeGreaterThan(1.4);
+    expect(tail.lastLength).toBeCloseTo(base.lastLength, 6);
     expect(pause.pauseComma).toBeGreaterThan(base.pauseComma + 0.1);
     expect(fast.rate / base.rate).toBeGreaterThan(1.12);
     expect(high.pitch / base.pitch).toBeGreaterThan(1.2);

@@ -74,6 +74,7 @@ const FIGURES: [keyof Delivery, string, string, number][] = [
   ['rate', 'suoni al secondo', '/s', 1],
   ['stressLength', 'vocale accentata / non accentata, durata', '×', 2],
   ['lastLength', 'ultima vocale / le altre, durata', '×', 2],
+  ['lastStressLength', 'accentata dell’ultima parola / le altre accentate, durata', '×', 2],
   ['pauseComma', 'pausa alla virgola', 's', 2],
   ['pauseStop', 'pausa tra frasi', 's', 2],
   ['stressLevel', 'vocale accentata sopra le altre, volume', 'dB', 1],
