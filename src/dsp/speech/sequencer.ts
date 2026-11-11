@@ -1259,6 +1259,8 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   const firstSeg = sounding[0], lastSeg = sounding[sounding.length - 1];
   const mute = (s?: Seg) => !!s && !s.ph.voiced && s.ph.manner !== 'glottalStop' && !held(units[s.unit]);
   const startsMute = mute(firstSeg), endsMute = mute(lastSeg);
+  /** a pause long enough for the lungs to hold back in it */
+  const quietAt = (s?: Seg | null) => !!s && s.ph.manner === 'silence' && s.t1 - s.t0 > 0.1;
   // (they push once the mouth of a first stop without voice is shut, and a little before any other first
   // sound: the pressure takes some 30 ms to rise)
   const lungsFrom = !firstSeg ? 0 : startsMute && firstSeg.ph.manner === 'stop' ? (shutAt.get(firstSeg) ?? firstSeg.t0) - 0.005 : firstSeg.t0 - 0.03;
@@ -1318,7 +1320,10 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     else {
       const m = sg.ph.manner;
       const unit = units[sg.unit];
-      if (m === 'silence') abd = 0.6 + 0.4 * inhaling(sg, time + 0.01);
+      // in a pause the folds part; before a voiced sound after it they come
+      // together again while the lungs are still holding back, as before the
+      // first sound of all, so that it does not start with a breathy [h]
+      if (m === 'silence') abd = quietAt(sg) && !mute(segs[segs.indexOf(sg) + 1]) && time + 0.01 > sg.t1 - 0.06 ? 0.08 : 0.6 + 0.4 * inhaling(sg, time + 0.01);
       else if (m === 'glottalStop') { abd = 0; gate = 0; }
       else if (m === 'stop' && held(unit)) {
         // [ʔt̚]: the folds close with the tongue, so no pressure builds up
@@ -1384,8 +1389,14 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
           }
         });
       }
-      // a pause is quiet: the lungs hold back instead of blowing through the open glottis
-      if (sg?.ph.manner === 'silence' && sg.t1 - sg.t0 > 0.1 && time > sg.t0 + 0.04 && time < sg.t1 - 0.06) ps *= 0.08;
+      // a pause is quiet: the lungs hold back instead of blowing through the
+      // open glottis. They take some 60 ms to let go, so they begin 30 ms
+      // before it (begun 40 ms into it, the air blew a breathy [h] through the
+      // parted folds for some 100 ms, 11 dB below the vowels), and push
+      // again 30 ms before the sound after it, as before the first sound of
+      // all (60 ms before one without voice, whose folds are apart)
+      const pz = segs.find((s) => quietAt(s) && time > s.t0 - 0.03 && time < s.t1 - (mute(segs[segs.indexOf(s) + 1]) ? 0.06 : 0.03));
+      if (pz) ps *= 0.08;
       // ... or pull, where a breath is taken
       const pull = inhaling(segAt(time), time);
       if (pull > 0) ps = ps * (1 - pull) - st.breath * pull;

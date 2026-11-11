@@ -75,21 +75,42 @@ export function analyse(c: Clip, pitch = false): Analysis {
   let count = 0;
   level.forEach((l, k) => { if (l > top - GATE) { count++; for (let j = 0; j < mean.length; j++) mean[j] += cep[k][j]; } });
   for (const c of cep) for (let j = 0; j < mean.length; j++) c[j] -= mean[j] / Math.max(1, count);
-  if (pitch) octaves(f0);
+  if (pitch) cleanPitch(f0, level);
   return { cep, level, f0 };
 }
 
-/** a voiced frame an octave or more off the median of its voiced neighbours is taken back to it */
-function octaves(f0: number[]): void {
-  const was = f0.slice();
+const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); return s[s.length >> 1]; };
+
+/**
+ * The pitch of a saying made fit to copy. YIN finds a period in breath, in
+ * creak and in near-silence too, and a copy that follows it jumps an octave
+ * or more for a few frames. So a voiced frame more than 30 dB below the
+ * loudest is taken as unvoiced; a frame an octave or more off the median
+ * of the voiced frames within 100 ms is taken back to it; one still more
+ * than half an octave off that median, or more than an octave off the
+ * median of the whole saying, is unvoiced; and so is a run of fewer than
+ * three voiced frames (20 ms between two unvoiced ones). The copy glides
+ * over what is dropped.
+ */
+function cleanPitch(f0: number[], level: number[]): void {
+  const top = Math.max(...level);
+  for (let i = 0; i < f0.length; i++) if (level[i] < top - 30) f0[i] = 0;
+  const was = f0.slice(), voiced = was.filter((x) => x > 0);
+  if (!voiced.length) return;
+  const whole = median(voiced);
   for (let i = 0; i < was.length; i++) {
     if (!was[i]) continue;
     const near: number[] = [];
-    for (let j = Math.max(0, i - 4); j <= Math.min(was.length - 1, i + 4); j++) if (was[j]) near.push(was[j]);
-    near.sort((a, b) => a - b);
-    const m = near[near.length >> 1];
-    const oct = Math.round(Math.log2(m / was[i]));
-    if (oct) f0[i] = was[i] * 2 ** oct;
+    for (let j = Math.max(0, i - 10); j <= Math.min(was.length - 1, i + 10); j++) if (was[j]) near.push(was[j]);
+    const m = median(near), v = was[i] * 2 ** Math.round(Math.log2(m / was[i]));
+    f0[i] = Math.abs(Math.log2(v / m)) > 0.5 || Math.abs(Math.log2(v / whole)) > 1 ? 0 : v;
+  }
+  for (let i = 0; i < f0.length; ) {
+    if (!f0[i]) { i++; continue; }
+    let j = i;
+    while (j < f0.length && f0[j]) j++;
+    if (j - i < 3) f0.fill(0, i, j);
+    i = j;
   }
 }
 

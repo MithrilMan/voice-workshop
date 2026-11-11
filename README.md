@@ -1151,7 +1151,15 @@ sibilants. The teeth panel draws the front and side views with the live jet.
     falling); quiet pauses (the lungs hold back
     instead of blowing through the open glottis). The utterance starts with
     the folds already together, so there is no breathy onset, and ends when
-    the last sound ends, without a trailing breath.
+    the last sound ends, without a trailing breath. A pause does the same:
+    the lungs, which take some 60 ms to let go, hold back from 30 ms before
+    it, and before a voiced sound after it the folds come together again
+    while the pressure is still low. Held back only from 40 ms into it,
+    the air blew a breathy [h] through the parted folds, its first 100 ms
+    11 dB below the vowels (17 dB now, its hiss above 3 kHz 20 dB lower),
+    and the next word began with another (its last 60 ms 28 dB below the
+    vowels, 43 now; the eight pauses of five sentences, said by the woman
+    and by the man).
   - *Coarticulation*: consonants only set the articulators they need; the
     others are interpolated from the neighbouring vowels (Öhman 1966), so lips
     round ahead of /u/ and the tongue glides through /p/. After a consonant,
@@ -1265,10 +1273,10 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   At a full stop a breath is taken. The lungs, which hold back in any
   pause, pull instead (3 cmH2O unless the voice says otherwise), the folds
   part wide, and the air is heard going in: the hiss of the glottis with
-  the flow the other way, 28 dB below the loudest vowel of the sentence. It
+  the flow the other way, 27 dB below the loudest vowel of the sentence. It
   starts once the last sound has died away and is over in time for the
   folds to come together again, so in the 0.3 s of the usual pause it is a
-  quick one, about 140 ms of air going in at up to 1 l/s; a longer pause
+  quick one, about 160 ms of air going in at up to 1.1 l/s; a longer pause
   gives a longer breath, a comma none. A tap is a ballistic
   raised-cosine flick of the tongue tip added on top of the smoothed posture
   (Recasens 1991); its height is computed from the tip's smoothed position,
@@ -1415,8 +1423,15 @@ score of a voice saying something: one turn of a dialogue.
   lengths (the score option `timing`, three rounds), so that every
   gesture is made whole, and the score starts where the recording does.
   Its pitch is replaced by the recording's (gliding in log across the
-  voiceless stretches) and its lung pressure multiplied by the slow swell
-  of the gap between the two loudnesses (voiced frames, about 100 ms,
+  voiceless stretches). YIN finds a period in breath, creak and
+  near-silence too, and the copy followed it an octave or two up for a
+  few frames (a creaky /e/ in "e il mare", a whisper before "ever"): so
+  a frame more than 30 dB below the loudest counts as voiceless, an
+  octave slip is taken back to the median of the voiced frames within
+  100 ms, a frame still more than half an octave off it or an octave off
+  the median of the whole saying counts as voiceless, and so does a run
+  of fewer than three voiced frames. Its lung pressure is multiplied by
+  the slow swell of the gap between the two loudnesses (voiced frames, about 100 ms,
   within 8 dB, 9.6 dB for each doubling of the pressure, as a held vowel;
   twice). Pitch and pressure are given three time constants early, the
   lag of the engine's smoothing (18 and 60 ms). The script writes, for
@@ -1445,11 +1460,16 @@ score of a voice saying something: one turn of a dialogue.
   only in the passages (25 ms either side of each edge between two sounds,
   56 % of the speech) came closest to their envelope everywhere; only in
   the middle of the vowels, of the consonants, or in the consonants and the
-  passages, less. The page now plays the passages all together, next to a
-  stop or an affricate (20 % of the speech) and the others (36 %), and our
-  copy in a small room (a tail of dark noise dying by 60 dB in 0.3 s, 25 dB
-  below the voice: chosen, not measured, so that the quietest 20 ms of a
-  closure fall to the recordings', 38 dB below the vowels against 40).
+  passages, less; of the passages, those of the nasals, liquids and
+  fricatives (36 % of the speech) more than those next to a stop or an
+  affricate (20 %), and our copy in a small room (a tail of dark noise
+  dying by 60 dB in 0.3 s, 25 dB below the voice: chosen, not measured, so
+  that the quietest 20 ms of a closure fall to the recordings', 38 dB below
+  the vowels against 40) next. The page now plays those two and our copy
+  with the jet on the teeth heard only in the sibilants (s z ʃ ʒ and the
+  affricates; elsewhere the same score rendered without that source,
+  crossfaded over 10 ms), to hear whether the hiss between them is the
+  teeth's.
 - Envelope report (`scripts/envelope-report.ts`): on the voiced frames
   where a copy and its recording are both loud, the formants and their
   LPC bandwidths, the balance of five bands and how fast the envelope
@@ -1483,7 +1503,15 @@ score of a voice saying something: one turn of a dialogue.
   between 1.6 and 5 kHz
   (a broad hiss where theirs rises sharply above 5 kHz); the passages
   take about as long on the whole (23-29 ms against 21-28), but ours leave
-  a nasal or a stop for the vowel slower (32-35 ms against 16-27).
+  a nasal or a stop for the vowel slower (32-35 ms against 16-27). The
+  hiss, the band from 3 to 12 kHz every 5 ms, is more than 6 dB louder in
+  ours in a fifth of the vowel frames and in a third of those at the edges
+  of a consonant: most often in /ɝ/ (half of its frames), at an /h/ before
+  a vowel (20 dB louder, median), about /t d/ and in the pauses. Rendered
+  with the noise sources one at a time switched off, it is the jet on the
+  teeth: heard only in the sibilants, the share falls to 14 % of the vowel
+  frames and 23 % of the edges, and /ɝ/ to the recordings' level (0 dB,
+  median), /h/ to 12 dB louder.
 
 ## Main parameters
 
@@ -1543,7 +1571,7 @@ in brackets are the adult male targets described under Speech.
 | Teeth | opening the incisal slit by 6 mm lowers /s/ in 4-10 kHz by 15.8 dB |
 | Breathiness | HF/LF ratio +10.1 dB with a 0.12 cm² chink and Rd 2.2 |
 | Aspiration | F0 envelope modulation depth: steady 0.109, pulsed 0.369 |
-| High frequencies | third-octave levels against those Monson, Lotto & Story (2012) measured on axis, in dB: the long-term spectrum of three sentences said by the man, re 1 kHz, against that of normal speech: -1.6 at 10 kHz, +4.2 at 12.7, +2.4 at 16, -6.6 at 20; held /s/, re 8 kHz: -2.7, -1.1, -0.2, -4.0 (before the losses above the plane waves: speech -1.6, +8.2, +17.5, +20.0; /s/ -2.4, +2.6, +17.1, +22.5) |
+| High frequencies | third-octave levels against those Monson, Lotto & Story (2012) measured on axis, in dB: the long-term spectrum of three sentences said by the man, re 1 kHz, against that of normal speech: -1.9 at 10 kHz, +4.1 at 12.7, +2.6 at 16, -6.7 at 20; held /s/, re 8 kHz: -2.7, -1.1, -0.2, -4.0 (before the losses above the plane waves: speech -1.6, +8.2, +17.5, +20.0; /s/ -2.4, +2.6, +17.1, +22.5) |
 | Glottal noise source | corner at 2.5 kHz, against 1 kHz: -2.9 dB at 2 kHz, -12.3 at 5 kHz, -22.6 at 10 kHz (the source of turbulence noise, Stevens 1989: -4, -14, -26; the jets of the mouth, with one pole: -1.4, -6.1, -11.3) |
 | Breath of an aspirated stop | "park" as an English speaker says it, from 14 ms after /p/ is let go to the voice (41 ms): 8 % of it above 6 kHz, 8-16 kHz 12.6 dB below 1-3 kHz (56 % and 0.5 dB above with a source falling half as fast) |
 | Period boundaries | jitter 1 % and shimmer 6 % change the 8-16 kHz energy by +0.1 dB (+32 dB when the pulse mean jumped at each period) |
@@ -1558,7 +1586,7 @@ in brackets are the adult male targets described under Speech.
 | No clicks in running speech | "la luna e le stelle", with the piriform junction moving twice: loudest transient inside a vowel or sonorant, above 6 kHz, against the 40 ms around it +16 dB (+41 when a move zeroed the branch). Millisecond by millisecond, "la luna è piena stanotte." has 8 ms that stand 15 dB out of the 20 ms around them and "where did you put the keys?" 5 (the closures of the folds, which come back a period before and a period after, are the voice and are not counted): all at the edges of the stops, none inside a vowel, none sharp inside a closure (before: +41 dB inside the closure of a /d/, +28 dB between /u/ and /n/, +21 dB inside the /ɪ/ of "did") |
 | Stops on time | the mouth shut against the plan, and for how long: "la luna è piena stanotte." p +16 ms (56 of 89 ms), t -3 (63 of 79), t +16 (127 of 157); "where did you put the keys?" d +4 (50 of 68), d +12 (43 of 65), p -6 (80 of 93), k +19 (47 of 140, the rest its aspiration); no breath before the closure of a voiceless stop (the tongue after an open vowel shut some 45 ms late before) |
 | Edges of a word | as the studio plays it, against the loudest of the word: "tonight" -49 dB before its first sound, the folds at 0.12 of their swing after its last, -42 dB 60 ms on; "this" -52 dB, 0.03, -26 dB; "stop" -43 dB, 0.14, -43 dB (before: 45 ms of full voice ahead of the first /t/ of "tonight", and a breathy vowel of 100 ms and more after its last) |
-| Breath at a full stop | "la luna è piena. Stanotte la vedo.", a pause of 300 ms: the lungs pull down to -2.7 cmH2O and 1064 cm³/s go in, for 136 ms; its hiss 28 dB below the loudest vowel of the sentence before (59 dB below with no breath taken); the loudest millisecond of the pause 10 dB above its median one; no air goes in at a comma |
+| Breath at a full stop | "la luna è piena. Stanotte la vedo.", a pause of 300 ms: the lungs pull down to -2.8 cmH2O and 1098 cm³/s go in, for 161 ms; its hiss 27 dB below the loudest vowel of the sentence before (68 dB below with no breath taken); the loudest millisecond of the pause 10 dB above its median one; no air goes in at a comma |
 | Airways below a wide glottis | the flow is the airways' (1.5 cmH2O per l/s) below 1.21 cmH2O with the glottis wide open (0.56 cm²), 0.35 cmH2O at 0.3 cm², 0.010 cmH2O for the glottis of a voice (0.05 cm²) |
 | Sibilant in a sentence | the /s/ of "stanotte": narrower than 0.2 cm² 5 ms into its sound, the teeth sounding through 75 % of it; the releases of the two /t/ 2.1 and 3.6 dB below its hiss |
 | Bursts | RMS of 10 ms at the burst less 30 ms at the start of the vowel, as Nicolaidis et al. (2019) measured Greek /p t k/ (theirs in brackets): "la pata" -15.3 dB (-11.2), "la pita" -11.7 (-11.0), "la tata" -15.3 (-10.7), "la tita" -14.1 (-13.0), "la cata" -19.1 (-5.9), "la chita" -17.2 (-11.1); the voice starts after 10, 5, 19, 16, 27 and 25 ms (16, 14, 12, 23, 30, 63); without the pop of the air let out the burst of /p/ loses 2.0 dB, that of /t/ 0.9 dB: it is mostly a hiss |
@@ -1626,10 +1654,10 @@ in brackets are the adult male targets described under Speech.
 | Downstep | [á ꜜá á]: high tones at 2.2, 0.6, -0.2 st |
 | Phonemizer | French "Bonjour, comment ça va ? Je m'appelle Mireille." bɔ̃ʒˈuʁ kɔmˈɑ̃ sˈa vˈa? ʒˈə mapˈɛl miʁˈɛj (5 words from the dictionary, 2 from the model); Mandarin 你好，世界 ni˨˩˦ xɑʊ˨˩˦ ʂɚ˥˩ tɕjɛ˥˩ (dictionary, tones read); German "Guten Morgen, wie geht es dir?" gˈuːtən mˈɔʁgən viː get ˈɛs dˈiːʁ (model, 6 words in 0.5 s including loading it, Node, one thread); dictionary format, word splitting, the longest dictionary words, greedy decoding and fixed stress tested on a scripted network |
 | Voice print | held /a/: formants 730 / 1286 / 2590 Hz (the waveguide's own 729 / 1298 / 2594); with the woman's head 844 / 1632 / 3056 Hz |
-| Voice fit | the Sky-like voice saying "Is it raining in the city today? Not at all.", found again from the woman's (effort 0.3): distance 2.97 → 0.44 in 49 renderings, median pitch 192 Hz against 192 |
+| Voice fit | the Sky-like voice saying "Is it raining in the city today? Not at all.", found again from the woman's (effort 0.3): distance 2.93 → 0.46 in 50 renderings, median pitch 191 Hz against 191 |
 | Living variation | "ieri sera, sulla spiaggia, abbiamo guardato la luna piena salire sopra il mare." over 30 seeds: its sounds 8.6 % longer or shorter (sd), its accent peaks moved by 0.89 st (sd), the whole 95-106 % of the saying by the rules; at variation 2, 17.2 % and 1.93 st |
-| Copy synthesis | "la luna piena sale sopra il mare" copied onto the same said slower (rate 0.8), higher (140 Hz) and with wider phrases: middles of the sounds 308 → 4 ms apart (median), pitch 4.96 → 0.15 st off, swell of the loudness 1.1 → 0.4 dB rms off |
-| Cross-synthesis | "la luna piena" crossed with itself: the same samples; the man's folds through the woman's mouth: pitch 112 Hz (the man's 112), centroid of 200-1000 Hz in the /u/ 332 Hz (the woman's 321, the man's 301); her mouth every other 60 ms: no 5 ms frame louder than both the whole crossing and the man as he is (0.0 dB) |
+| Copy synthesis | "la luna piena sale sopra il mare" copied onto the same said slower (rate 0.8), higher (140 Hz) and with wider phrases: middles of the sounds 308 → 4 ms apart (median), pitch 4.96 → 0.16 st off, swell of the loudness 1.1 → 0.4 dB rms off |
+| Cross-synthesis | "la luna piena" crossed with itself: the same samples; the man's folds through the woman's mouth: pitch 110 Hz (the man's 110), centroid of 200-1000 Hz in the /u/ 332 Hz (the woman's 321, the man's 301); her mouth every other 60 ms: no 5 ms frame louder than both the whole crossing and the man as he is (0.0 dB) |
 
 ## Simplifications and limits
 
@@ -1970,7 +1998,7 @@ npx tsx scripts/fit-voice.ts list.json --out=a.voice.json   # fit a voice to WAV
 npx tsx scripts/copy-test.ts list.json --n=3 --out=.ref/copy    # a recording's timing, melody and loudness on our voice, to listen to
 npx tsx scripts/copy-test.ts list.json --n=3 --cross            # the fine structure of each through the envelope of the other
 npx tsx scripts/envelope-report.ts .ref/copy                    # how the envelope of the copies differs from the recordings'
-npx tsx scripts/consonant-report.ts .ref/copy                   # the consonants of the copies: level, bands, /s/, passages
+npx tsx scripts/consonant-report.ts .ref/copy                   # the consonants of the copies: level, bands, /s/, passages, hiss
 npx tsx scripts/say.ts out/ en "any sentence"   # one sentence; add --flat for the robot version
 npx tsx scripts/say.ts out/ it "la luna" --voice=deep   # with a starting voice, or --voice=my.voice.json from the studio
 npx tsx scripts/g2p.ts en "the water bottle"    # phones of a text and where each English word came from

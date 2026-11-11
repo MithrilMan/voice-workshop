@@ -14,7 +14,10 @@
  * - the passages between a consonant and a vowel: with the cepstra
  *   (c1-c12, every 10 ms), how far along from the middle of the consonant
  *   to the middle of the vowel each frame is, the time it takes from 20 to
- *   80 % of the way and when it is half-way (ms after the edge).
+ *   80 % of the way and when it is half-way (ms after the edge);
+ * - the hiss: the band from 3 to 12 kHz, ours less theirs, every 5 ms, by
+ *   where it is (the middle or the edge of a vowel or a consonant, a pause)
+ *   and the sounds and passages where ours is most often 6 dB louder.
  *   npx tsx scripts/consonant-report.ts .ref/copy [--version=all]
  */
 import { readFileSync, readdirSync } from 'node:fs';
@@ -98,6 +101,29 @@ for (const name of rows) {
     }
   }
 
+  // the hiss: the band from 3 to 12 kHz, ours less theirs (both files are at the same loudness),
+  // every 5 ms where either is within 45 dB of its loudest, by where it is
+  {
+    const nh = 512, wh = hann(nh), step = Math.round(0.005 * fs);
+    const high = (x: Float32Array, s: number) => { const S = powerSpectrum(x.subarray(s, s + nh), nh, wh); let e = 0, t = 0; for (let q = 1; q < S.length; q++) { const f = (q * fs) / nh; if (f >= 3000 && f < 12000) e += S[q]; if (f >= 50 && f < 12000) t += S[q]; } return [10 * Math.log10(e + 1e-20), 10 * Math.log10(t + 1e-20)]; };
+    const fr: { t: number; d: number; to: number; ta: number }[] = [];
+    let topO = -Infinity, topA = -Infinity;
+    for (let s = 0; s + nh <= Math.min(o.samples.length, a.samples.length); s += step) {
+      const [ho, to] = high(o.samples, s), [ha, ta] = high(a.samples, s);
+      fr.push({ t: (s + nh / 2) / fs, d: ha - ho, to, ta }); topO = Math.max(topO, to); topA = Math.max(topA, ta);
+    }
+    const lang = name.startsWith('i') ? 'it' : 'en';
+    for (const f of fr) {
+      if (f.to < topO - 45 && f.ta < topA - 45) continue;
+      const i = phones.findIndex((p) => f.t >= p.t0 && f.t < p.t1);
+      if (i < 0) continue;
+      const p = phones[i], edge = Math.min(f.t - p.t0, p.t1 - f.t) < 0.025;
+      add(`hiss ${p.ipa === '_' ? 'pause' : `${VOWEL.test(p.ipa) ? 'vowel' : 'consonant'} ${edge ? 'edge' : 'middle'}`}`, f.d);
+      const where = !edge ? (VOWEL.test(p.ipa) ? `V ${p.ipa}` : p.ipa) : (f.t - p.t0 < p.t1 - f.t ? `${phones[i - 1]?.ipa ?? '#'}>${p.ipa}` : `${p.ipa}>${phones[i + 1]?.ipa ?? '#'}`).replace(/[aeiouyɪʊɛɔæʌɑɒəɚɝ]+/g, 'V');
+      add(`hiss at ${lang} ${where}`, f.d);
+    }
+  }
+
   // the passages between a consonant and a vowel
   const cep = { theirs: analyse(o).cep, ours: analyse(a).cep };
   const frame = (t: number) => Math.round((t - 0.0125) / 0.01);
@@ -143,3 +169,10 @@ console.log('Passages, ms from 20 to 80 % of the way / ms after the edge at half
 for (const k of [...new Set(Object.keys(acc).filter((x) => / (theirs|ours) takes$/.test(x)).map((x) => x.replace(/ (theirs|ours) takes$/, '')))].sort()) {
   console.log(`  ${k} (${acc[`${k} theirs takes`]?.length ?? 0}): ${med(acc[`${k} theirs takes`]).toFixed(0)} / ${med(acc[`${k} ours takes`]).toFixed(0)} ms; half-way ${med(acc[`${k} theirs half`]).toFixed(0)} / ${med(acc[`${k} ours half`]).toFixed(0)} ms`);
 }
+console.log('The hiss, 3-12 kHz, ours less theirs (dB, median; share of the 5 ms frames more than 6 dB louder)');
+for (const k of ['vowel middle', 'vowel edge', 'consonant middle', 'consonant edge', 'pause']) {
+  const v = acc[`hiss ${k}`];
+  if (v) console.log(`  ${k} (${v.length}): ${med(v).toFixed(1)}; ${((100 * v.filter((x) => x > 6).length) / v.length).toFixed(0)} %`);
+}
+const loudest = Object.entries(acc).filter(([k]) => k.startsWith('hiss at ')).map(([k, v]) => ({ k: k.slice(8), n: v.filter((x) => x > 6).length, all: v.length, m: med(v) })).sort((x, y) => y.n - x.n).slice(0, 12);
+console.log(`  most often louder: ${loudest.map((x) => `${x.k} ${x.n}/${x.all} (${x.m.toFixed(0)})`).join(', ')}`);
