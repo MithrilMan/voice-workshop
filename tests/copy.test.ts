@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { textToPhones } from '../src/dsp/speech/g2p';
+import { textToPhones, Phone } from '../src/dsp/speech/g2p';
 import { builtinVoice } from '../src/dsp/voice/builtin';
 import { utterance } from '../src/dsp/voice/utterance';
 import { VoiceEngine } from '../src/dsp/engine/engine';
 import { EngineParams, Score } from '../src/dsp/engine/params';
-import { analyse, align, copyTiming, imposePitch, imposeLoudness, swell, crossSynth } from '../src/dsp/voice/copy';
-import { note, spectralCentroid } from './helpers';
+import { analyse, align, copyTiming, copyTimingSaid, clock, imposePitch, imposeLoudness, swell, crossSynth } from '../src/dsp/voice/copy';
+import { loadEnglishLexicon, note, spectralCentroid } from './helpers';
 
 const FS = 16000;
 function render(params: EngineParams, score: Score): Float32Array {
@@ -38,6 +38,70 @@ describe('copy synthesis', () => {
     expect(median(gaps)).toBeLessThan(0.03);
     expect(median(gaps)).toBeLessThan(0.25 * median(before));
     expect(Math.abs(timed.duration / rec.score.duration - 1)).toBeLessThan(0.06);
+  });
+
+  it('times it by the sounds of a recording that comes with their times', () => {
+    // the labels as a synthesizer gives them: late, and the last one running on through the silence after it
+    const late = 0.04, last = rec.score.phones.length - 1;
+    const said = rec.score.phones.map((p, i) => ({ ipa: p.ipa, t0: p.t0 + late, t1: p.t1 + late + (i === last ? 0.3 : 0) }));
+    const shift = clock(said, recA);
+    // our own sounds come after their plan too, by the same measure
+    const trail = clock(ours.score.phones, analyse({ samples: render(ours.params, ours.score), fs: FS }, true));
+    const timed = copyTimingSaid(phones, (ph, timing) => utterance(man, ph, 'it', timing ? { timing } : {}).score, recA, said, trail).score;
+    const starts = timed.phones.map((p, i) => Math.abs(p.t0 - rec.score.phones[i].t0));
+    const end = timed.phones[last].t1 - rec.score.phones[last].t1;
+    note('copy timing by labels', `labels given ${(1000 * late).toFixed(0)} ms late are found ${(-1000 * shift).toFixed(0)} ms after the sounds, which come ${(1000 * trail).toFixed(0)} ms after their plan; the starts of the sounds ${(1000 * median(starts)).toFixed(0)} ms off the recording's (median), ${(1000 * Math.max(...starts)).toFixed(0)} at most; the last sound, labelled 300 ms too long, ends ${(1000 * end).toFixed(0)} ms after the recording's`);
+    expect(Math.abs(shift - trail + late)).toBeLessThanOrEqual(0.0051);
+    expect(median(starts)).toBeLessThan(0.01);
+    expect(Math.max(...starts)).toBeLessThan(0.03);
+    expect(Math.abs(end)).toBeLessThan(0.08);
+  });
+
+  it('takes a held stop from the recording where our rules tap it', () => {
+    const tap = 'ɾ';
+    const en = textToPhones('a little water', 'en');
+    // a "recording" that holds both stops, and slower
+    const held: Phone[] = en.map((p) => (p.ipa === tap ? { ...p, ipa: 't' } : p));
+    const their = utterance(man, held, 'en', { rate: 0.8 });
+    const a = analyse({ samples: render(their.params, their.score), fs: FS }, true);
+    const said = their.score.phones.map((p) => ({ ipa: p.ipa, t0: p.t0, t1: p.t1 }));
+    const got = copyTimingSaid(en, (ph, timing) => utterance(man, ph, 'en', timing ? { timing } : {}).score, a, said);
+    expect(en.filter((p) => p.ipa === tap).length).toBe(2);
+    expect(got.phones.filter((p) => p.ipa === tap).length).toBe(0);
+    expect(got.phones.filter((p) => p.ipa === 't').length).toBe(2);
+    // and each sound lasts as theirs does (but the last, which ends with the speech)
+    const lens = got.score.phones.slice(0, -1).map((p, i) => Math.abs(p.t1 - p.t0 - (their.score.phones[i].t1 - their.score.phones[i].t0)));
+    expect(median(lens)).toBeLessThan(0.015);
+    expect(Math.max(...lens)).toBeLessThan(0.04);
+  });
+
+  it("hears a pause in the time of a word's last sound, but not in a stop held long", () => {
+    loadEnglishLexicon();
+    const copy = (lang: 'it' | 'en', theirs: string, mine: string, rate: number) => {
+      const their = utterance(man, textToPhones(theirs, lang), lang, { rate });
+      const a = analyse({ samples: render(their.params, their.score), fs: FS }, true);
+      // labels that leave no gaps, as a synthesizer gives them: each sound runs on to the next, through any silence
+      const sounds = their.score.phones.filter((p) => p.ipa !== '_');
+      const said = sounds.map((p, i) => ({ ipa: p.ipa, t0: p.t0, t1: i + 1 < sounds.length ? sounds[i + 1].t0 : p.t1 }));
+      const mineP = textToPhones(mine, lang);
+      const got = copyTimingSaid(mineP, (ph, timing) => utterance(man, ph, lang, timing ? { timing } : {}).score, a, said);
+      const paused = (ps: Phone[]) => ps.map((p, i) => (p.pause ? i : -1)).filter((i) => i >= 0);
+      return { their: their.score, got, before: paused(mineP), after: paused(got.phones) };
+    };
+    // the recording stops at a comma our text does not have: the silence is in the time of the /a/ before it
+    const it = copy('it', 'la luna, piena sale sopra il mare', 'la luna piena sale sopra il mare', 0.8);
+    expect(it.after.filter((i) => !it.before.includes(i))).toEqual([5]);
+    const first = (s: Score, ipa: string) => s.phones.find((p) => p.ipa === ipa)!;
+    const second = (s: Score, ipa: string) => s.phones.filter((p) => p.ipa === ipa)[1];
+    const len = (s: Score) => second(s, 'a').t1 - second(s, 'a').t0;
+    note('copy pause', `a silence in the time of the last sound of "luna" becomes a pause: the /p/ after it starts ${(1000 * (first(it.got.score, 'p').t0 - first(it.their, 'p').t0)).toFixed(0)} ms off the recording's, the /a/ before it lasts ${(1000 * len(it.got.score)).toFixed(0)} ms (theirs ${(1000 * len(it.their)).toFixed(0)})`);
+    expect(Math.abs(first(it.got.score, 'p').t0 - first(it.their, 'p').t0)).toBeLessThan(0.03);
+    expect(Math.abs(len(it.got.score) - len(it.their))).toBeLessThan(0.04);
+    // the long closure of a stop that ends a word is that stop's own silence
+    for (const text of ['it today', 'a cat today']) {
+      const en = copy('en', text, text, 0.4);
+      expect(en.after).toEqual(en.before);
+    }
   });
 
   it('gives it the recording\'s melody and swell', () => {

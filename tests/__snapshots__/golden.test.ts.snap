@@ -166,7 +166,7 @@ exports[`golden fingerprints of the speech planner > scores of sentences across 
     "duration": 0.87945,
     "frames": 227,
     "phones": "a bʱ a a m b a",
-    "score": "e3f3c6697e1c19a4",
+    "score": "5788185a001fa5dc",
   },
   "it [ˈapʼa ˈɓa]": {
     "duration": 0.889,
@@ -202,7 +202,7 @@ exports[`golden fingerprints of the speech planner > scores of sentences across 
     "duration": 1.524336,
     "frames": 356,
     "phones": "p j o v e i n tʃ i t a o dʒ i",
-    "score": "faf859fb67e92a8d",
+    "score": "563948ab8cb062a2",
   },
 }
 `;

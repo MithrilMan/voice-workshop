@@ -13,7 +13,7 @@ import { Rng } from '../util/rng';
 import { Wander } from '../util/wander';
 import { smoothstep } from '../util/math';
 import { TamChannel, TAM_TAU } from '../speech/tam';
-import { Articulators, ARTICULATOR_KEYS, ARTICULATOR_RANGES } from '../tract/types';
+import { Articulators, ARTICULATOR_KEYS, within } from '../tract/types';
 import { EngineParams, Score, ScoreFrame, defaultParams } from './params';
 
 /** Output samples between control updates. */
@@ -189,6 +189,26 @@ class Outlet {
  * yield and come back in 12 ms, critically damped near 34 Hz.
  */
 const CAVITY_WALL = { compliance: 1.0e-3, mass: 1.5, res: 800, stiff: 66667 };
+/**
+ * The room a speaker makes behind a voiced stop that lasts, so that the air
+ * of the voice has somewhere to go (Westbury 1983: the larynx is let down,
+ * the root of the tongue drawn forward, the pharynx widened). Speakers have
+ * learned how much their own voice needs, a breathy one more; here it is
+ * read off the pressure. Once the pressure behind the closure passes
+ * `above` of the lungs' the cavity grows, `rate` cm^3/s (on the drawing's
+ * head) when it is `by` of the lungs' pressure further up and no faster,
+ * for as long as the score allows room and up to the room it allows: a short
+ * closure gets none and builds its pressure, a long one what it needs to
+ * stay voiced. Nothing in it is sudden, or the walls, which have mass, would
+ * turn each jump of the flow into a jump of the pressure, and that into a
+ * knock at the release: the leave to make room comes and goes within
+ * `ease` s, and the making slows down over the `last` part of the room
+ * there is. Once the pressure has fallen below `above` again the room is
+ * given back, within about `back` s and the faster the lower the pressure:
+ * slowly, unlike the air that walls pushed out by the pressure give back at
+ * once. Chosen, not measured.
+ */
+const ROOM = { above: 0.5, by: 0.1, rate: 300, back: 0.1, ease: 0.01, last: 0.25 };
 
 /**
  * A few measures followed the way the sections of the tract follow theirs:
@@ -428,6 +448,12 @@ export class VoiceEngine {
   private lowerPharynx = 0;
   /** walls of the cavity tensed (1: the pharynx of an ejective does not yield) or let go (-1: that of an implosive gives way) */
   private tense = 0;
+  /** room the score allows behind a closure (cm^3 on the drawing's head), and the room made so far (cm^3) */
+  private room = 0;
+  private roomMade = 0;
+  /** the most room the last closure was allowed (cm^3), and how far the leave to make it has come (0..1) */
+  private roomMost = 0;
+  private roomLeave = 0;
   /** creak of the score (0..1), smoothed */
   private creak = 0;
   /** the articulator trilling, its offset from the smoothed posture and its speed */
@@ -588,7 +614,7 @@ export class VoiceEngine {
     return atLips;
   }
 
-  private targetFrame(): { art: Articulators | null; abduction: number; f0: number; ps: number; tip: number; lips: number; dorsum: number; rd: number; gate: number; tense: number; creak: number; trill: number; trillKey?: TrillKey; trillAt: number; trillOpen: number; click: number; stiff: number } | null {
+  private targetFrame(): { art: Articulators | null; abduction: number; f0: number; ps: number; tip: number; lips: number; dorsum: number; rd: number; gate: number; tense: number; room: number; creak: number; trill: number; trillKey?: TrillKey; trillAt: number; trillOpen: number; click: number; stiff: number } | null {
     const sc = this.score;
     if (!sc) return null;
     if (this.scoreTime > sc.duration + this.scoreHold) { this.score = null; this.restoreTau(); return null; }
@@ -605,7 +631,7 @@ export class VoiceEngine {
     return {
       art, abduction: mix(a.abduction, b.abduction), f0: mix(a.f0, b.f0), ps: mix(a.ps, b.ps),
       tip: mix(a.tip ?? 0, b.tip ?? 0), lips: mix(a.lips ?? 0, b.lips ?? 0), dorsum: mix(a.dorsum ?? 0, b.dorsum ?? 0),
-      rd: mix(a.rd ?? 0, b.rd ?? 0), gate: mix(a.gate ?? 1, b.gate ?? 1), tense: mix(a.tense ?? 0, b.tense ?? 0), creak: mix(a.creak ?? 0, b.creak ?? 0), stiff: mix(a.stiff ?? 0, b.stiff ?? 0),
+      rd: mix(a.rd ?? 0, b.rd ?? 0), gate: mix(a.gate ?? 1, b.gate ?? 1), tense: mix(a.tense ?? 0, b.tense ?? 0), room: Math.max(a.room ?? 0, b.room ?? 0), creak: mix(a.creak ?? 0, b.creak ?? 0), stiff: mix(a.stiff ?? 0, b.stiff ?? 0),
       trill: mix(a.trill ?? 0, b.trill ?? 0), trillKey: a.trillKey ?? b.trillKey, trillAt: a.trillAt ?? b.trillAt ?? 0, trillOpen: a.trillOpen ?? b.trillOpen ?? 0,
       click: mix(a.click ?? 0, b.click ?? 0),
     };
@@ -622,8 +648,7 @@ export class VoiceEngine {
     if (this.score && this.wander) {
       const live = this.score.variation ?? 1;
       MOUTH_WANDER.forEach(([k, size], i) => {
-        const [lo, hi] = ARTICULATOR_RANGES[k];
-        this.art[k] = Math.max(lo, Math.min(hi, this.art[k] + live * size * this.wander!.mouth[i].step(dt)));
+        this.art[k] = within(k, this.art[k], this.art[k] + live * size * this.wander!.mouth[i].step(dt));
       });
     }
     // taps: the contacts of the tongue tip are ballistic, added on top of the
@@ -645,6 +670,7 @@ export class VoiceEngine {
     this.gate += ((fr ? fr.gate : 1) - this.gate) * (1 - Math.exp(-dt / 0.006));
     this.stiff += ((fr ? fr.stiff : 0) - this.stiff) * (1 - Math.exp(-dt / STIFF_TAU));
     this.tense += ((fr ? fr.tense : 0) - this.tense) * (1 - Math.exp(-dt / 0.02));
+    this.room = fr ? fr.room : 0;
     this.creak += ((fr ? fr.creak : 0) - this.creak) * (1 - Math.exp(-dt / 0.02));
     this.abduction = this.tam.abduction.step(fr ? fr.abduction : p.abduction, dt);
     const vib = p.source.vibratoDepth > 0 ? Math.pow(2, (p.source.vibratoDepth / 1200) * Math.sin(2 * Math.PI * p.source.vibratoRate * this.time)) : 1;
@@ -1014,14 +1040,21 @@ export class VoiceEngine {
     const compliance = wallCompliance + air;
     // the area of wall that yields: tensed, the same wall is stiffer
     const wallArea = CAVITY_WALL.compliance * s3 * CAVITY_WALL.stiff;
+    // the room behind a voiced closure: made while the score allows it and there is some left, given back as the pressure falls
+    if (this.room > 0) this.roomMost = this.room * s3;
+    this.roomLeave += ((this.room > 0 ? 1 : 0) - this.roomLeave) * (1 - Math.exp(-dt / ROOM.ease));
+    const lungs = Math.max(this.psCur, 1);
+    const making = this.roomMost > 0 ? this.roomLeave * Math.min(1, Math.max(0, (this.roomMost - this.roomMade) / (ROOM.last * this.roomMost))) : 0;
     // sub-steps for the stiff closure/release dynamics
     const sub = 4;
     for (let i = 0; i < sub; i++) {
       this.aero.step(dt / sub, {
         ps: this.psCur, glottalArea: ag, oralArea: both, nasalArea: nasalArea > 2e-3 ? nasalArea : 0,
         compliance, dVdt: take / dt,
+        roomAbove: ROOM.above * lungs, roomConductance: (making * ROOM.rate * s3) / (ROOM.by * lungs), roomMost: making * ROOM.rate * s3, roomBack: this.roomMade / ROOM.back,
         wallCompliance, wallResistance: CAVITY_WALL.res / wallArea / Math.max(1, walls), wallMass: CAVITY_WALL.mass / wallArea,
       });
+      this.roomMade = Math.max(0, this.roomMade + (this.aero.uRoom * dt) / sub);
     }
     // the cavity of a click, shut off from the lungs by its back closure: the
     // tongue enlarges it, and the air rushes in when the front opens
@@ -1050,7 +1083,7 @@ export class VoiceEngine {
     // the tip leaves the channel it was opening anyway)
     let jetP = ps.perimeter, jetW = ps.width;
     if (oral > ps.area && this.seal.flat) { jetW = Math.max(ps.width, this.seal.width * scale); jetP = 2 * (jetW + oral / jetW); }
-    this.aero.jet(oral, ps.toTeeth, ps.slitH, this.jet, jetP, jetW, share1);
+    this.aero.jet(oral, ps.toTeeth, ps.slitH, this.jet, jetP, jetW, share1, p.anatomy.scale);
     // the jets lose their kinetic pressure where they expand: flow resistances
     kineticResistances(this.af.areas, this.aero.uMouth, this.wg.resTarget, this.constrictionIndex, oral);
     const n = this.params.noise;

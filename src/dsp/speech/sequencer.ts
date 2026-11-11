@@ -1,9 +1,9 @@
-import { Articulators, ARTICULATOR_KEYS, ARTICULATOR_RANGES, DEFAULT_ARTICULATORS } from '../tract/types';
+import { Articulators, ARTICULATOR_KEYS, ARTICULATOR_RANGES, DEFAULT_ARTICULATORS, within } from '../tract/types';
 import { PHONEMES, Phoneme, FlickKey } from './phonemes';
 import { Phone, Lang } from './g2p';
 import { Score, ScoreFrame, ScorePhone } from '../engine/params';
 import { TamChannel, TAM_TAU } from './tam';
-import { phonemeFor, constrictionOf, contactPoint, passageIn, closingKey, CLOSED_AREA, Head, shapeOf, shapeKey } from './derive';
+import { phonemeFor, constrictionOf, contactPoint, passageIn, closingKey, CLOSED_AREA, Head, shapeOf, shapeKey, vented } from './derive';
 import { IPA_CONSONANTS, IPA_VOWELS, Place } from './ipa';
 import { normalizeIpa } from './ipaReader';
 import { ProsodyStyle, styleOf, lengthen, ST } from './style';
@@ -223,8 +223,25 @@ const SHORT_LAG: Partial<Record<Place, number>> = {
 };
 /** the folds of such a stop: how long before the release they come together again (s), and how far apart they stay */
 const STIFF_LEAD = 0.045;
-/** how far the walls are let go behind a voiced stop (1: as an implosive's) */
-const VOICED_SLACK = 0.2;
+/**
+ * How far the walls are let go behind a voiced stop (1: as an implosive's).
+ * They are let go as the mouth shuts, `early` before the closure is due, and
+ * held out until it has opened, `late` after the release (s).
+ */
+const VOICED_SLACK = { by: 0.2, early: 0.03, late: 0.02 };
+/**
+ * The room a speaker may make behind a voiced stop, so that the air of the
+ * voice has somewhere to go, cm^3 on the drawing's head (Westbury 1983: the
+ * larynx is let down, the root of the tongue drawn forward, the pharynx
+ * widened). The engine makes it as the pressure calls for it, for as long
+ * as the walls are held out. Chosen, not measured.
+ */
+const VOICED_ROOM = 20;
+/** a tap is one ballistic strike however long its time: the flick lasts this long (s), and the tip is on the ridge for this much of it */
+const TAP_FLICK = 0.04;
+const TAP_CONTACT = 0.012;
+/** the share of a flick's height at which the contact begins, for it to last TAP_CONTACT */
+const TAP_REACH = 0.5 * (1 + Math.cos((Math.PI * TAP_CONTACT) / TAP_FLICK));
 const STIFF_ABD = 0.12;
 /** height of a vowel on the chart (its first symbol), for its intrinsic pitch */
 const vowelHeight = (ipa: string): number | undefined => IPA_VOWELS[normalizeIpa(ipa)[0]]?.height;
@@ -538,6 +555,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   const lp = literal ? prosodyOf(o.lang) : undefined;
   // the shape of the speaker's mouth, if it is not the drawing's: the sounds are aimed for it
   const shape = shapeOf(o.head);
+  const size = o.head?.anatomy.scale ?? 1;
   const units = analyse(phones, literal, shape);
 
   // durations
@@ -698,17 +716,29 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     const r = m !== 'vowel' || !prec ? 0 : prec < 0 ? -prec * (strong ? 0.15 : 0.5) : -prec * (strong ? 0.05 : 0.15);
     const toward = (k: keyof Articulators, v: number) => {
       if (!r || !VOWEL_KEYS.has(k)) return v;
-      const [lo, hi] = ARTICULATOR_RANGES[k];
-      return Math.max(lo, Math.min(hi, v + (neutral[k] - v) * r));
+      return within(k, v, v + (neutral[k] - v) * r);
     };
+    const plain = (k: keyof Articulators) => habitual(k, toward(k, art[k] ?? (nat.coarticulation ? DEFAULT_ARTICULATORS[k] : neutral[k])), s.ph, art[k] !== undefined);
+    // a vowel as this speaker says it (the size of the head, the habits) still lets the air through
+    let said: Articulators | undefined, glide: Articulators | undefined;
+    if (m === 'vowel') {
+      const whole = {} as Articulators;
+      for (const k of ARTICULATOR_KEYS) whole[k] = plain(k);
+      said = vented(s.ph.ipa, whole, shape, size);
+      if (off) {
+        const to = { ...whole };
+        for (const k of ARTICULATOR_KEYS) if (off[k] !== undefined) to[k] = habitual(k, toward(k, off[k]!), s.ph, true);
+        glide = vented(s.ph.offglide!, to, shape, size);
+      }
+    }
     for (const k of keys) {
-      const v = habitual(k, toward(k, art[k] ?? (nat.coarticulation ? DEFAULT_ARTICULATORS[k] : neutral[k])), s.ph, art[k] !== undefined);
+      const v = said ? said[k] : plain(k);
       if (off) {
         // diphthong: hold the nucleus, then glide to the offglide target
         // (the nucleus is aimed to be reached a quarter of the way in)
         const d = s.t1 - s.t0;
         anchors[k].push({ t0: s.t0 - lead, t1: s.t0 + 0.35 * d - lead, v, mid: s.t0 + 0.25 * d });
-        anchors[k].push({ t0: s.t1 - 0.2 * d - lead, t1: s.t1 - lead, v: off[k] !== undefined ? habitual(k, toward(k, off[k]!), s.ph, true) : v });
+        anchors[k].push({ t0: s.t1 - 0.2 * d - lead, t1: s.t1 - lead, v: glide ? glide[k] : off[k] !== undefined ? habitual(k, toward(k, off[k]!), s.ph, true) : v });
       } else if (m !== 'vowel') {
         // a consonant gesture starts earlier than its sound (it overlaps the
         // vowel before), so that a short fricative or nasal still reaches its
@@ -772,11 +802,11 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // vowel, as a speaker does who means to reach it, so that the middle of the
   // vowel gets there. The engine's own dynamics are run here to find out by how
   // much; the aim goes past the vowel by at most OVERSHOOT of the way, and
-  // never outside the articulator's range
+  // never outside the articulator's range (a vowel fitted to another head may
+  // itself be past it: then no further out than the vowel)
   for (const k of COMPENSATED) {
     const vowels = anchors[k].filter((a) => a.mid !== undefined).map((a) => ({ a, v0: a.v, from: a.v }));
     if (!vowels.length) continue;
-    const [lo, hi] = ARTICULATOR_RANGES[k];
     for (let iter = 0; iter < 3; iter++) {
       const tr = new TamChannel(valueAt(k, 0), tau(k));
       const y: number[] = [];
@@ -786,7 +816,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
         if (iter === 0) w.from = at(w.a.t0);
         const miss = w.v0 - at(w.a.mid!);
         const room = overshoot * Math.abs(w.v0 - w.from);
-        w.a.v = Math.max(lo, Math.min(hi, Math.max(w.v0 - room, Math.min(w.v0 + room, w.a.v + miss))));
+        w.a.v = within(k, w.v0, Math.max(w.v0 - room, Math.min(w.v0 + room, w.a.v + miss)));
       }
     }
   }
@@ -996,7 +1026,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // contacts of taps (raised-cosine flicks up to the contact: the tongue tip
   // to the ridge, the lips to the teeth). Their size is measured from where
   // the smoothed articulator really is, so the same target dynamics as the
-  // engine are run here. The fitted tap keeps the height it was tuned with.
+  // engine are run here.
   // Trills are left to the air: the tip, the lips or the dorsum is held on a
   // spring lightly past its contact, and the engine lets the pressure behind
   // the closure blow it open, as many times as the air allows
@@ -1010,6 +1040,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   const now = (key: FlickKey, time: number) => tracks[key][Math.max(0, Math.min(tracks[key].length - 1, Math.round(time / FRAME)))];
   const flicks: Record<FlickKey, { c: number; w: number; a: number }[]> = { tipY: [], lipOpen: [], tongueX: [] };
   const trills: { t0: number; t1: number; key: FlickKey; at: number; open?: number }[] = [];
+  let posture: ((time: number) => Articulators) | undefined;
   for (const s of segs) {
     if (s.ph.manner !== 'tap' && s.ph.manner !== 'trill') continue;
     const fl = s.ph.flick;
@@ -1022,10 +1053,19 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     };
     if (s.ph.manner === 'tap') {
       // the flick is added after the smoothing, so it is not led like the
-      // postures; it overshoots the ridge so that the contact lasts about
-      // 10-15 ms (American flaps 10-40 ms, Zue & Laferriere 1979)
+      // postures. Where the tip meets the ridge depends on the tongue behind
+      // it (under a high body it is there after half the way), so the contact
+      // is looked for in the posture of that moment, and the flick goes past
+      // it by as much as makes the contact last about 12 ms (American flaps
+      // 10-40 ms, Zue & Laferriere 1979). Where the tip does not get there,
+      // the flick goes as far as it was tuned to
       const c = 0.5 * (s.t0 + s.t1);
-      flicks[key].push({ c, w: Math.max(0.04, (s.t1 - s.t0) * 1.6), a: toward(fl?.contact ?? 2.2, c, 0) });
+      const bound = fl?.contact ?? 2.2;
+      posture ??= moved();
+      const at = contactPoint(posture(c), key, bound, shape);
+      const far = toward(bound, c, 0);
+      const a = at === bound ? far : toward(at, c, 0) / TAP_REACH;
+      flicks[key].push({ c, w: TAP_FLICK, a: up ? Math.min(far, a) : Math.max(far, a) });
     } else {
       const at = trillContact(s.ph, key, fl?.contact ?? 2.3, shape);
       trills.push({ t0: s.t0 - lead * 0.3, t1: s.t1, key, at, ...(fl?.open ? { open: fl.open } : {}) });
@@ -1285,10 +1325,24 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // closure, drawn outward with the falling larynx, so that the vibrating
   // glottis can keep filling the cavity without the pressure rising behind it
   const expand = segs.filter((s) => s.part === 'closure' && units[s.unit].ph.airstream === 'implosive' && units[s.unit].ph.voiced).map((s) => ({ t0: s.t0, t1: s.t1 }));
-  // a voiced stop does a little of the same: the speaker slackens the walls and makes room behind the
-  // closure (Westbury 1983: voiced stops come with large increases of the volume above the glottis), or
-  // the pressure would stop the voice within the closure
-  const slack = segs.filter((s) => s.part === 'closure' && !units[s.unit].ph.airstream && units[s.unit].ph.voiced).map((s) => ({ t0: s.t0, t1: s.t1 }));
+  // a voiced stop does a little of the same, and a tap: the speaker slackens the walls behind the closure
+  // and, if it lasts, makes room there (Westbury 1983: voiced stops come with large increases of the
+  // volume above the glottis), or the pressure would stop the voice within the closure
+  const slack: { t0: number; t1: number; by: number; tap: boolean }[] = [];
+  for (const s of segs) {
+    if ((s.part !== 'closure' && s.ph.manner !== 'tap') || units[s.unit].ph.airstream || !units[s.unit].ph.voiced) continue;
+    const last = slack[slack.length - 1];
+    // two closures on end (a long consonant) are one closure
+    if (last && Math.abs(last.t1 - s.t0) < 1e-6) last.t1 = s.t1;
+    else slack.push({ t0: s.t0, t1: s.t1, by: VOICED_SLACK.by, tap: s.ph.manner === 'tap' });
+  }
+  // the walls stay out until the mouth has opened: stiffened while it is still shut, they would give the air
+  // they took back to the cavity, and the pressure would stop the voice right at the release
+  for (const w of slack) {
+    const rel = segs.find((s) => s.part === 'release' && Math.abs(s.t0 - w.t1) < 1e-6);
+    w.t0 -= VOICED_SLACK.early;
+    w.t1 = (rel ? rel.t1 : w.t1) + VOICED_SLACK.late;
+  }
   // A breath is taken at a full stop, where the lungs are refilled: they
   // pull instead of holding back, the folds part wide and the air is heard
   // going in. It begins once the last sound has died away and ends in time
@@ -1355,8 +1409,9 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     // and tenses the walls of the pharynx, so that the rising larynx compresses the air instead of stretching them
     let tense = 0;
     for (const w of glottalHold) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) { abd = 0; gate = 0; tense = 1; }
-    for (const w of slack) if (time >= w.t0 && time < w.t1) tense = -VOICED_SLACK;
+    for (const w of slack) if (time >= w.t0 && time < w.t1) tense = -w.by;
     for (const w of expand) if (time >= w.t0 && time < w.t1) tense = -1;
+    const roomy = slack.some((w) => !w.tap && time >= w.t0 && time < w.t1);
     // the voice quality of the segment: murmur (breathy) or creak
     let quality = 0;
     const phon = sg && sg.ph.manner !== 'stop' ? units[sg.unit].ph.phonation : undefined;
@@ -1407,7 +1462,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     const tip = flickAt('tipY', time), lips = flickAt('lipOpen', time), dorsum = flickAt('tongueX', time);
     const tr = trills.find((w) => time >= w.t0 && time < w.t1);
     frames.push({
-      t: time, art, abduction: abd, f0: f0At(time) * (fry > 0 ? Math.pow(2, (-FRY_DROP * fry) / 12) : 1), ps, ...(Math.max(creak, fry) > 0 ? { creak: Math.max(creak, fry) } : {}), tip, ...(lips ? { lips } : {}), ...(dorsum ? { dorsum } : {}), rd, gate, ...(stiff ? { stiff } : {}), ...(tense ? { tense } : {}),
+      t: time, art, abduction: abd, f0: f0At(time) * (fry > 0 ? Math.pow(2, (-FRY_DROP * fry) / 12) : 1), ps, ...(Math.max(creak, fry) > 0 ? { creak: Math.max(creak, fry) } : {}), tip, ...(lips ? { lips } : {}), ...(dorsum ? { dorsum } : {}), rd, gate, ...(stiff ? { stiff } : {}), ...(tense ? { tense } : {}), ...(roomy ? { room: VOICED_ROOM } : {}),
       ...(tr ? { trill: 1, trillKey: tr.key, trillAt: tr.at, ...(tr.open ? { trillOpen: tr.open } : {}) } : {}),
       ...(clickAt(time) > 0 ? { click: clickAt(time) } : {}),
     });

@@ -232,6 +232,13 @@ export interface ScoreFrame {
   stiff?: number;
   /** walls of the cavity tensed (up to 1: they do not yield to the pressure of an ejective) or let go (down to -1: they give way, as in an implosive) */
   tense?: number;
+  /**
+   * room the speaker may make behind a closure, cm^3 on the drawing's head:
+   * while it is above 0 the cavity is enlarged as the voice needs it (the
+   * larynx let down, the root of the tongue drawn forward, the pharynx
+   * widened), by this much at most; back at 0, the room is given back
+   */
+  room?: number;
 }
 
 export interface ScorePhone { ipa: string; t0: number; t1: number; label?: string }

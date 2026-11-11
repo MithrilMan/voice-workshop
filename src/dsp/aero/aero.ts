@@ -49,6 +49,8 @@ const A_REF = 0.1;
  * to about 0.23 cm^2, 0.6 cm from the teeth) and of a tip of the tongue
  * letting go of the ridge (0.1-0.37 cm^2, 1.4-1.8 cm), toward those of [h]
  * (0.55 cm^2), of an [ɪ] after it (0.4 cm^2) and of [ɚ] (2.3-2.6 cm).
+ * They are those of the drawing's head: a posture shrinks or grows with the
+ * head, so a passage and its distance are taken at the drawing's size.
  */
 const AIM_AREA: readonly [number, number] = [0.45, 0.32];
 const AIM_DISTANCE: readonly [number, number] = [2.6, 2.0];
@@ -104,6 +106,17 @@ export interface AeroInputs {
    * does the same a little
    */
   dVdt?: number;
+  /**
+   * room made in that cavity as the pressure calls for it: above `roomAbove`
+   * (dyn/cm^2) the cavity grows, by `roomConductance` (cm^5/(dyn s)) for
+   * the pressure above it and no faster than `roomMost` (cm^3/s); below it
+   * the room is given back, `roomBack` cm^3/s with no pressure at all and
+   * the less the nearer the pressure is to `roomAbove`
+   */
+  roomAbove?: number;
+  roomConductance?: number;
+  roomMost?: number;
+  roomBack?: number;
 }
 
 export class Aero {
@@ -119,13 +132,16 @@ export class Aero {
   vWall = 0;
   pw = 0;
   uWall = 0;
+  /** how fast the room behind a closure is being made (below 0: given back), cm^3/s */
+  uRoom = 0;
 
-  reset(): void { this.po = 0; this.ug = 0; this.uMouth = 0; this.uNose = 0; this.dUMouth = 0; this.vWall = 0; this.pw = 0; this.uWall = 0; }
+  reset(): void { this.po = 0; this.ug = 0; this.uMouth = 0; this.uNose = 0; this.dUMouth = 0; this.vWall = 0; this.pw = 0; this.uWall = 0; this.uRoom = 0; }
 
   step(dt: number, x: AeroInputs): void {
     // (below zero the lungs pull: the air goes in through the glottis, and in through the mouth and the nose)
     const ps = x.ps;
     if ((x.wallCompliance ?? 0) > 0) { this.stepWalls(dt, x, ps, x.wallCompliance!); return; }
+    this.uRoom = 0;
     const ag2 = x.glottalArea * x.glottalArea;
     const aout = x.oralArea + x.nasalArea;
     const ao2 = aout * aout;
@@ -173,7 +189,10 @@ export class Aero {
     const z = lw + (x.wallResistance ?? 0) + dt / cw;
     const b = this.uWall * lw - pw0;
     const p0 = this.po;
-    const h = (p: number) => (ca * (p - p0)) / dt - ag * rootThroughZero(ps - p, x.glottalArea) + ao * Math.sign(p) * Math.sqrt(Math.abs(p)) + q + (b + p) / z;
+    // the room made as the pressure calls for it, and given back as it falls, grows with the pressure too
+    const gr = x.roomConductance ?? 0, pr = x.roomAbove ?? 0, most = x.roomMost ?? 0, gb = x.roomBack ?? 0;
+    const room = (p: number) => (gr > 0 ? Math.min(most, Math.max(0, gr * (p - pr))) : 0) - (gb > 0 ? gb * Math.min(1, Math.max(0, 1 - p / Math.max(pr, 1))) : 0);
+    const h = (p: number) => (ca * (p - p0)) / dt - ag * rootThroughZero(ps - p, x.glottalArea) + ao * Math.sign(p) * Math.sqrt(Math.abs(p)) + q + (b + p) / z + room(p);
     let lo = Math.min(p0, pw0, ps, 0) - 1, hi = Math.max(p0, pw0, ps, 0) + 1;
     let w = hi - lo;
     for (let i = 0; i < 60 && h(lo) > 0; i++) { lo -= w; w *= 2; }
@@ -187,6 +206,7 @@ export class Aero {
     this.uWall = (b + p) / z;
     this.vWall += this.uWall * dt;
     this.pw = this.vWall / cw;
+    this.uRoom = room(p);
     this.ug = ag * rootThroughZero(ps - p, x.glottalArea);
     const sq = Math.sign(p) * Math.sqrt(Math.abs(p));
     const um = x.oralArea * k * sq;
@@ -199,9 +219,9 @@ export class Aero {
    * Jet and noise-source description for a constriction of area ac, wetted
    * perimeter `perimeter` and lateral width `width` (0 = a round passage).
    * `share` is the part of the pressure behind the passages that drops across
-   * this one (1 when it is the only one).
+   * this one (1 when it is the only one), `size` the scale of the head.
    */
-  jet(ac: number, toTeeth: number, slitHeight: number, out: JetInfo, perimeter = 0, width = 0, share = 1): JetInfo {
+  jet(ac: number, toTeeth: number, slitHeight: number, out: JetInfo, perimeter = 0, width = 0, share = 1, size = 1): JetInfo {
     // the jet blows out, or in when the pressure behind the passage is below the outside
     const v = Math.sqrt((2 * share * Math.abs(this.po)) / RHO);
     const a = Math.max(ac, 1e-4);
@@ -225,7 +245,7 @@ export class Aero {
       const x = toTeeth;
       const vt = x <= core ? v : x <= turn ? v * Math.sqrt(core / x) : (v * Math.sqrt(core / turn) * turn) / x;
       const width = dh * thin + 0.22 * x;
-      const aim = smoothstep(AIM_AREA[0], AIM_AREA[1], ac) * smoothstep(AIM_DISTANCE[0], AIM_DISTANCE[1], x);
+      const aim = smoothstep(AIM_AREA[0], AIM_AREA[1], ac / (size * size)) * smoothstep(AIM_DISTANCE[0], AIM_DISTANCE[1], x / size);
       const impinge = aim * Math.max(0, Math.min(1, 1 - slitHeight / width));
       out.vAtTeeth = vt;
       out.widthAtTeeth = width;

@@ -13,7 +13,11 @@
  * --set changes fields of the voice, --losses the engine's waveguide losses (to try what moves the copy toward the recording),
  * --mute=aspiration,frication,obstacle,burst switches noise sources of the engine off (to hear and measure what they add)
  * With --cross, --before=key keeps the files of an earlier run's column `key` as a column "before" (to hear a change of the model)
+ * and --columns=all,sharp writes only those of its columns (all, sharp, nobreath, pothers: by default all four)
  * list.json: [{ "file": "a.wav", "text": "What it says.", "lang": "en" }, ...]
+ * A recording that comes with the times of its sounds (a.phones.json next to a.wav: [{ "ipa": "h", "t0": 1.38, "t1": 1.41 }, ...],
+ * one entry for each sound, stress mark, length mark, space and punctuation mark that has a time) is copied by them; --dtw
+ * lines the two signals up instead, as for a recording without them.
  * Without --voice, a list's own fitted voice (fit_auto_<name>.voice.json
  * next to it) if there is one, else the man's or the woman's by its pitch.
  */
@@ -29,7 +33,7 @@ import { VoiceDesign, withField } from '../src/dsp/voice/design';
 import { utterance } from '../src/dsp/voice/utterance';
 import { VoiceEngine } from '../src/dsp/engine/engine';
 import { EngineParams, Score } from '../src/dsp/engine/params';
-import { analyse, align, copyTiming, imposePitch, imposeLoudness, swell, crossSynth, Timing } from '../src/dsp/voice/copy';
+import { analyse, align, clock, copyTiming, copyTimingSaid, imposePitch, imposeLoudness, swell, crossSynth, Said, Timing } from '../src/dsp/voice/copy';
 
 setEnglishLexicon(gunzipSync(readFileSync(new URL('../public/lexicon/en-us.lex', import.meta.url))).toString('utf-8'));
 const opt = (k: string) => process.argv.find((a) => a.startsWith(`--${k}=`))?.slice(k.length + 3);
@@ -64,8 +68,16 @@ function level(x: Float32Array, fs: number): Float32Array {
 
 /** the return phase of the column with a sharper closure of the folds */
 const SHARP = 0.55;
+/** the columns of the page with --cross after the recording (and the one of --before): key, heading, and what the page says of it */
+const CROSS: [string, string, string][] = [
+  ['all', 'Nostra, con tempi, melodia e volume copiati', ''],
+  ['sharp', 'Nostra, le corde si chiudono più nette', ` «Le corde si chiudono più nette» cambia una cosa sola: la fine di ogni impulso delle corde (fase di ritorno ${SHARP} di quella che dà la loro forma: formanti alte più forti).`],
+  ['nobreath', 'Nostra, senza il soffio aggiunto dalla stima', ' «Senza il soffio aggiunto dalla stima» riporta il soffio della glottide al livello di partenza (la stima lo alza di 8 dB per avvicinare la periodicità della voce a quella delle registrazioni).'],
+  ['pothers', 'Nostra, inviluppo loro solo nei passaggi di nasali, liquide e fricative', ' L’ultima prende l’inviluppo della registrazione solo nei passaggi tra un suono e l’altro di nasali, liquide e fricative, con una dissolvenza di 20 ms: è un taglia e cuci tra le due voci, che mostra dove sta la differenza ma non dice com’è la nostra.'],
+];
+const shown = CROSS.filter(([k]) => !opt('columns') || opt('columns')!.split(',').includes(k));
 const VERSIONS: [string, string][] = cross
-  ? [['orig', 'Originale'], ...(opt('before') ? [['before', 'Prima (la migliore della volta scorsa)'] as [string, string]] : []), ['all', 'Nostra, con tempi, melodia e volume copiati'], ['sharp', 'Nostra, le corde si chiudono più nette'], ['nobreath', 'Nostra, senza il soffio aggiunto dalla stima'], ['pothers', 'Nostra, inviluppo loro solo nei passaggi di nasali, liquide e fricative']]
+  ? [['orig', 'Originale'], ...(opt('before') ? [['before', 'Prima (com’era la volta scorsa)'] as [string, string]] : []), ...shown.map(([k, l]) => [k, l] as [string, string])]
   : [['orig', 'Originale'], ['rules', 'Le nostre regole'], ['living', 'Regole, viva'], ['timing', 'Tempi copiati'], ['melody', 'Tempi e melodia'], ['all', 'Tempi, melodia e volume'], ['mouth', 'Tutto copiato, bocca viva']];
 const rows: { name: string; text: string; voice: string; files: string[] }[] = [];
 
@@ -106,9 +118,16 @@ for (const listPath of lists) {
     const tau = !tauOpt ? undefined : tauOpt.includes(':') ? Object.fromEntries(tauOpt.split(',').map((kv) => { const [k, v] = kv.split(':'); return [k, Number(v)]; }))
       : Object.fromEntries(['tongueX', 'tongueY', 'tongueRoot', 'jaw', 'lipRound', 'lipProtrude'].map((k) => [k, Number(tauOpt)]));
     const plan = (ph: typeof phones, timing?: Timing) => utterance(d!, ph, item.lang, { ...(timing ? { timing } : {}), ...(tau ? { tauScale: tau } : {}) }).score;
-    let copied = copyTiming(phones, plan, recA, map, recSeconds);
+    // the times of the recording's sounds, if it comes with them
+    const sidecar = join(dirname(listPath), item.file.replace(/.wav$/, '.phones.json'));
+    const said: Said[] | null = !process.argv.includes('--dtw') && existsSync(sidecar)
+      ? (JSON.parse(readFileSync(sidecar, 'utf-8')) as { ipa?: string; ph?: string; t0: number; t1: number }[]).map((x) => ({ ipa: x.ipa ?? x.ph ?? '', t0: x.t0, t1: x.t1 }))
+      : null;
+    // how long our own sounds come after the times we plan them at, by the same measure as the recording's
+    const trail = said ? clock(u.score.phones, analyse({ samples: rules, fs }, true)) : 0;
+    let copied = said ? copyTimingSaid(phones, plan, recA, said, trail) : copyTiming(phones, plan, recA, map, recSeconds);
     // a pause the recording made and our text did not: aligned again with it
-    if (copied.phones.some((p, i) => p.pause !== phones[i].pause)) copied = copyTiming(copied.phones, plan, recA, align(recA, analyse({ samples: render(u.params, plan(copied.phones), fs), fs })), recSeconds);
+    if (!said && copied.phones.some((p, i) => p.pause !== phones[i].pause)) copied = copyTiming(copied.phones, plan, recA, align(recA, analyse({ samples: render(u.params, plan(copied.phones), fs), fs })), recSeconds);
     const timed = copied.score;
     const timing = render(u.params, timed, fs);
     const sung = imposePitch(timed, recA);
@@ -131,7 +150,7 @@ for (const listPath of lists) {
       for (const i of ks) { num += (a[i] - ma) * (b[i] - mb); da += (a[i] - ma) ** 2; db += (b[i] - mb) ** 2; }
       return num / Math.sqrt(da * db);
     };
-    console.log(`  timing: median gap ${lag(map).toFixed(0)} ms by our rules, ${lag(align(recA, analyse({ samples: timing, fs }))).toFixed(0)} ms copied; pitch off by ${st.length ? st[st.length >> 1].toFixed(2) : '-'} st (median, ${st.length} frames); loudness against the recording r = ${corr(recA.level, melA.level).toFixed(2)} with its melody, ${corr(recA.level, allA.level).toFixed(2)} with its swell too; swell off by ${rms(swell(recA, melA)).toFixed(1)} -> ${rms(swell(recA, allA)).toFixed(1)} dB rms`);
+    console.log(`  timing${said ? ` by the times of its sounds (given ${(-1000 * clock(said, recA)).toFixed(0)} ms late; ours come ${(1000 * trail).toFixed(0)} ms after their plan)` : ''}: median gap ${lag(map).toFixed(0)} ms by our rules, ${lag(align(recA, analyse({ samples: timing, fs }))).toFixed(0)} ms copied; pitch off by ${st.length ? st[st.length >> 1].toFixed(2) : '-'} st (median, ${st.length} frames); loudness against the recording r = ${corr(recA.level, melA.level).toFixed(2)} with its melody, ${corr(recA.level, allA.level).toFixed(2)} with its swell too; swell off by ${rms(swell(recA, melA)).toFixed(1)} -> ${rms(swell(recA, allA)).toFixed(1)} dB rms`);
     const k = rows.length;
     const files = VERSIONS.map(([key]) => `${name}_${k}_${key}.wav`);
     const allC = { samples: all, fs };
@@ -146,7 +165,13 @@ for (const listPath of lists) {
     const passage = near(() => true), pStops = near((e) => e.stop), pOthers = (t: number) => passage(t) && !pStops(t);
     const before = opt('before'), was = join(out, `${name}_${k}_${before}.wav`);
     if (cross && before && existsSync(was)) copyFileSync(was, join(out, `${name}_${k}_before.wav`));
-    const versions = cross ? [wav.samples, ...(before ? [null] : []), all, render(voiceWith({ 'phonation.returnPhase': SHARP }), loud, fs), render(voiceWith({ 'phonation.aspiration': 0 }), loud, fs), crossSynth(allC, rec, pOthers)] : [wav.samples, rules, living, timing, melody, all, mouth];
+    const made: Record<string, () => Float32Array | null> = {
+      orig: () => wav.samples, before: () => null, all: () => all,
+      sharp: () => render(voiceWith({ 'phonation.returnPhase': SHARP }), loud, fs),
+      nobreath: () => render(voiceWith({ 'phonation.aspiration': 0 }), loud, fs),
+      pothers: () => crossSynth(allC, rec, pOthers),
+    };
+    const versions = cross ? VERSIONS.map(([key]) => made[key]()) : [wav.samples, rules, living, timing, melody, all, mouth];
     versions.forEach((x, i) => { if (x) writeFileSync(join(out, files[i]), encodeWav(level(x, fs), fs)); });
     // the sounds of the copy, on the recording's time (for scripts/envelope-report.ts)
     writeFileSync(join(out, `${name}_${k}_phones.json`), JSON.stringify(loud.phones.map((p) => ({ ipa: p.ipa, t0: +p.t0.toFixed(4), t1: +p.t1.toFixed(4) }))));
@@ -167,7 +192,7 @@ th { font-weight: 600; font-size: 13px; } .t { min-width: 20ch; max-width: 30ch;
 audio { width: 170px; height: 32px; }
 </style></head><body>
 ${cross ? `<h1>Sintesi incrociata</h1>
-<p>Le stesse frasi della prova di copia, con la nostra voce già sui tempi, sulla melodia e sul volume della registrazione.${opt('before') ? ' «Prima» è la colonna migliore della volta scorsa, rimasta com’era.' : ''} «Nostra» è il modello di adesso: il getto d'aria fruscia sui denti solo quando esce da un canale stretto e vicino a loro (le sibilanti, lo scoppio di una t), non più in [h] o nelle vocali; a fine frase i polmoni smettono di spingere invece di soffiare ancora 100 ms tra le corde aperte; la voce è stimata di nuovo dalle registrazioni, misurando anche quanto sono forti gli armonici sulle formanti. Le due colonne dopo cambiano una cosa sola: le corde che si chiudono più nette alla fine di ogni impulso (fase di ritorno ${SHARP} di quella che dà la loro forma: formanti alte più forti), oppure il soffio della glottide riportato al livello di partenza (la stima lo alza di 8 dB per avvicinare la periodicità della voce a quella delle registrazioni). L'ultima prende il loro inviluppo solo nei passaggi tra un suono e l'altro di nasali, liquide e fricative, con una dissolvenza di 20 ms.</p>` : `<h1>Prova di copia</h1>
+<p>Le stesse frasi della prova di copia, con la nostra voce già sui tempi, sulla melodia e sul volume della registrazione.${opt('before') ? ' «Prima» è la stessa colonna com’era la volta scorsa.' : ''} «Nostra» è il modello di adesso: i tempi sono quelli dei suoni della registrazione, uno per uno (una doppia dura quanto la loro); dietro una b, d, g lunga la bocca fa posto all’aria poco alla volta, così la voce continua e la pressione non fa scatti; le pareti restano tese fino al rilascio; una vocale lascia sempre passare l’aria, anche su una testa piccola o sotto un palato basso.${shown.map(([, , text]) => text).join('')}</p>` : `<h1>Prova di copia</h1>
 <p>Ogni riga è una frase di una voce registrata. Da sinistra: la registrazione; la nostra voce che la dice con le sue regole; la stessa, viva (variabilità 1); con i tempi della registrazione; con i suoi tempi e la sua melodia; con tempi, melodia e volume. Tutte allo stesso volume medio. Se con tempi e melodia copiati la nostra suona molto più umana, il lavoro va sulla prosodia; se resta meccanica, sul suono.</p>`}
 <div class="wrap"><table><tr><th>Frase</th>${VERSIONS.map(([, l]) => `<th>${l}</th>`).join('')}</tr>
 ${rows.map((r) => `<tr><td class="t">${esc(r.text)}<div class="v">${esc(r.name)} · voce: ${esc(r.voice)}</div></td>${r.files.map((f) => `<td><audio controls preload="none" src="${f}"></audio></td>`).join('')}</tr>`).join('\n')}

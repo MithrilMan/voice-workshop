@@ -1,4 +1,4 @@
-import { Anatomy, Articulators, ARTICULATOR_RANGES, DEFAULT_ANATOMY, DEFAULT_ARTICULATORS, DEFAULT_TEETH, Teeth } from '../tract/types';
+import { Anatomy, Articulators, ARTICULATOR_KEYS, ARTICULATOR_RANGES, DEFAULT_ANATOMY, DEFAULT_ARTICULATORS, DEFAULT_TEETH, Teeth, within } from '../tract/types';
 import { computeGeometry, EPILARYNX_PASSAGE } from '../tract/geometry';
 import { PHONEMES, VOWELS, Phoneme, Manner, NASAL_VELUM, FlickKey, ApproxCode } from './phonemes';
 import { IPA_CONSONANTS, IPA_VOWELS, ChartConsonant, ChartVowel, Modifier, Place, ChartManner, IPA_SPELLINGS } from './ipa';
@@ -762,18 +762,27 @@ const DORSAL_KEYS = new Set<keyof Articulators>(['tongueY', 'tongueX', 'tongueRo
  * and `tooWide` does not, moved as little as it takes; the sound as it was
  * if it is already there. If none can, the first one goes as far as it can
  * (a vowel left as open as the head allows rather than shut) and the sound
- * is marked approximate ('anatomy').
+ * is marked approximate ('anatomy'). With `inRange`, an articulator that
+ * would have to go past its range is passed over for a later one that does
+ * it within its own, and used only if none does: the slow body of the tongue
+ * pushed below its range under a low palate takes longer to get there than
+ * the sound lasts, where the tip lowered a little is there at once.
  */
-function withLevers(ph: Phoneme, levers: Lever[], open: (x: Articulators) => boolean, tooWide?: (x: Articulators) => boolean): Phoneme {
+function withLevers(ph: Phoneme, levers: Lever[], open: (x: Articulators) => boolean, tooWide?: (x: Articulators) => boolean, inRange = false): Phoneme {
   const a = baseArt(ph.art);
-  let best: Phoneme | undefined;
+  let best: Phoneme | undefined, past: Phoneme | undefined;
   for (const [key, dir] of levers) {
     const r = aim(a, key, dir, open, tooWide);
     if (!r) return ph;
-    if (r.ok) return rounded(ph, key, r.value);
+    if (r.ok) {
+      if (!inRange || within(key, a[key], r.value) === r.value) return rounded(ph, key, r.value);
+      past ??= rounded(ph, key, r.value);
+      continue;
+    }
     // as open as it gets, rather than shut; an articulator that cannot narrow the passage is not moved for nothing
     if (r.opening) best ??= rounded(ph, key, r.value);
   }
+  if (past) return past;
   return { ...(best ?? ph), approx: ph.approx ?? 'anatomy' };
 }
 
@@ -902,7 +911,67 @@ function adaptVowel(ph: Phoneme, head: Head): Phoneme {
     return m.inWindow >= NARROWEST * own && m.min >= safe;
   };
   const tooWide = mouth ? (x: Articulators) => measure(x, win, head).inWindow > WIDEST * own : undefined;
-  return withLevers(ph, mouth ? [BODY, LIPS, TIP, ROOT, FRONT] : [ROOT, FRONT, BODY], open, tooWide);
+  return withLevers(ph, mouth ? [BODY, LIPS, TIP, ROOT, FRONT] : [ROOT, FRONT, BODY], open, tooWide, true);
+}
+
+/** the narrowest passage of each vowel on the drawing's head, cm² */
+const vowelPassages = new Map<string, number>();
+/** the vowels already checked, by voice and posture */
+const vents = new Map<string, Articulators>();
+/** a vowel is not asked for a passage wider than this on the speaker's own head, cm² (chosen, not measured) */
+const VENT = 0.3;
+/** the lips make a vowel's passage this close to them, cm; the tip of the tongue may make it this close */
+const VENT_LIPS = 1;
+const VENT_TIP = 6;
+
+/**
+ * A vowel as a voice says it, still letting the air through. A posture
+ * shrinks with the head (its passages with the square of the size) and takes
+ * the speaker's habits, but the air that has to go through does not: a
+ * passage wide enough on the drawing's head holds the breath behind it on a
+ * small one, or under a tongue kept back, and the vowel loses its voice and
+ * hisses. So the narrowest passage of a vowel, in cm² on the speaker's own
+ * head, is kept no narrower than NARROWEST of the one it has on the drawing's
+ * head (of VENT, if that is wider). Place by place, the narrowest first, the
+ * articulator that widens it with the least move does it; a place none of
+ * them can widen is left as it is. `said` is the whole posture with the
+ * habits, `head` the shape of the speaker's head and `size` its scale.
+ */
+export function vented(symbol: string, said: Articulators, head: Head | undefined, size = 1): Articulators {
+  let own = vowelPassages.get(symbol);
+  if (own === undefined) {
+    const canon = phonemeFor(symbol);
+    own = canon && canon.manner === 'vowel' ? measure(baseArt(canon.art)).min : 0;
+    vowelPassages.set(symbol, own);
+  }
+  if (!own) return said;
+  const key = `${shapeKey(head)}|${size.toFixed(3)}|${symbol}|${ARTICULATOR_KEYS.map((k) => said[k].toFixed(4)).join(',')}`;
+  const known = vents.get(key);
+  if (known) return known;
+  // the passages are measured at the drawing's size
+  const least = (NARROWEST * Math.min(own, VENT)) / (size * size);
+  let out = said;
+  for (let place = 0; place < 3; place++) {
+    const m = measure(out, undefined, head);
+    if (m.min >= least) break;
+    const win: [number, number] = [Math.max(0, m.at - 1.5), m.at + 1.5];
+    const open = (x: Articulators) => measure(x, win, head).inWindow >= least;
+    const levers = m.at <= VENT_LIPS ? [LIPS] : m.at <= VENT_TIP ? [TIP, BODY] : m.at <= VOWEL_MOUTH ? [BODY] : [ROOT, FRONT, BODY];
+    let best: Articulators | undefined, leastMove = Infinity;
+    for (const [k, dir] of levers) {
+      const r = aim(out, k, dir, open);
+      if (!r?.ok) continue;
+      const [lo, hi] = ARTICULATOR_RANGES[k];
+      // (one that would go past its range moves the most of all)
+      const move = Math.abs(r.value - out[k]) / (hi - lo) + (within(k, out[k], r.value) === r.value ? 0 : 1);
+      if (move < leastMove) { leastMove = move; best = { ...out, [k]: r.value }; }
+    }
+    if (!best) break;
+    out = best;
+  }
+  if (vents.size >= 2000) vents.clear();
+  vents.set(key, out);
+  return out;
 }
 
 /** Something about a transcription the listener should know: a symbol not read, or a sound only approximated. */

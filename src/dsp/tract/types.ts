@@ -127,6 +127,16 @@ export const ARTICULATOR_KEYS: (keyof Articulators)[] = [
 ];
 
 /** Allowed ranges of the articulators (used by the UI and the sequencer). */
+/**
+ * A value moved to `to`, kept inside the articulator's range. A posture
+ * fitted to another head may already be past it (a tongue kept lower under a
+ * low palate): then no further out than where it was, and never pulled back.
+ */
+export function within(k: keyof Articulators, from: number, to: number): number {
+  const [lo, hi] = ARTICULATOR_RANGES[k];
+  return Math.max(Math.min(lo, from), Math.min(Math.max(hi, from), to));
+}
+
 export const ARTICULATOR_RANGES: Record<keyof Articulators, [number, number]> = {
   jaw: [0, 1],
   tongueX: [-1.6, 1.4],

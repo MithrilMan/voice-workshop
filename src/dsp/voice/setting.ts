@@ -1,4 +1,4 @@
-import { Articulators, ARTICULATOR_RANGES } from '../tract/types';
+import { Articulators, within } from '../tract/types';
 import type { Phoneme } from '../speech/phonemes';
 
 /**
@@ -66,8 +66,7 @@ export function adjust(k: keyof Articulators, v: number, ph: Phoneme, own: boole
   // an epiglottal is made by the sphincter itself
   if (k === 'epilarynx' && own && ph.place === 'epiglottal') return v;
   if (ph.manner === 'vowel' || !own || ALWAYS.has(k)) {
-    const [lo, hi] = ARTICULATOR_RANGES[k];
-    return Math.max(lo, Math.min(hi, v + off));
+    return within(k, v, v + off);
   }
   return v;
 }

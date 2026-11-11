@@ -572,9 +572,29 @@ passage at its place with the articulator that makes it, and the body of
 the tongue comes down (or the root forward) if the head would narrow the
 tract somewhere else; a lateral keeps its sides; a vowel keeps its passage
 within 0.85-1.2 of its own at its constriction and never narrower than
-0.3 cm², so what is left of the difference is the head's timbre. The size,
+0.3 cm², so what is left of the difference is the head's timbre. It does
+so with an articulator that stays inside its range, where one can. Under
+a low palate the body of the tongue was sent below its range for the
+r-coloured vowels; wherever a posture was then kept to the ranges (the
+planner, the engine, the habits of a voice) it was pulled back up, their
+passage fell from 0.21-0.25 to 0.05-0.07 cm², the pressure rose behind it
+and the voice went out in a hiss ("heard" on a voice fitted to a
+recording); nor would the slow body have got that far in a short vowel.
+Now the tip of the tongue comes down a little instead, and a posture
+already past a range is taken no further out, but never pulled back
+(`within`). The size,
 the length of the pharynx and the nose change no posture (a posture scales
 with the head), nor do the teeth (their effect on a hiss is theirs to give).
+Only a vowel that would no longer let the air through is opened, as a
+voice says it (`vented`): a posture shrinks with the head, its passages
+with the square of the size, and takes the speaker's habits, but the air
+that has to go through does not. Its narrowest passage, in cm² on the
+speaker's own head, is kept to 0.85 of the one it has on the drawing's
+head (of 0.3 cm², if that is wider; chosen, not measured), place by
+place, by the articulator that does it with the least move. On a head
+0.83 of the drawing's, 15 of the 35 vowels were narrower than that; with
+the tongue kept back by 0.08 as well, 14 (down to 0.35 of what they
+need); with that tongue on the drawing's head, 6.
 The planner, the sounds held by hand and the trills' contacts all use the
 adapted sounds; a sound the head does not let the tongue make is listed as
 approximate.
@@ -619,7 +639,7 @@ was measured on close vowels with the glottis closed (Fujimura & Lindqvist
 moves the tissue out to the skin of the neck and the cheeks, which radiates
 it like a small mouth. Half of their summed volume velocity joins the sound
 (the back of the pharynx rests on the spine, and the neck is farther from
-the listener than the lips), so a voiced closure hums low, 25-28 dB below its
+the listener than the lips), so a voiced closure hums low, 24-26 dB below its
 vowel: the voice bar of a spectrogram, through which /b d g/ sound voiced;
 a voiceless closure stays silent. The surfaces glide with the areas, and a
 wall where a branch joins comes to rest instead of stopping, still taking
@@ -800,7 +820,8 @@ Flanagan & Cherry 1969; Shadle 1985):
   wide passage, or one far back, the jet spreads along the palate first and
   makes its noise on the walls. The share that hits fades from 1 to 0 as
   the passage widens from 0.32 to 0.45 cm² and as its exit moves from 2.0
-  to 2.6 cm behind the incisors (chosen, not measured): past the sibilants
+  to 2.6 cm behind the incisors (chosen, not measured; both taken at the
+  drawing's size, as a posture is): past the sibilants
   (up to about 0.23 cm², 0.6 cm) and a tip of the tongue letting go of the
   ridge (0.1-0.37 cm², 1.4-1.8 cm), toward the tongue of an [h] (0.55 cm²)
   and of an r-coloured vowel (2.3-2.6 cm). Without it the teeth hissed in
@@ -1277,7 +1298,27 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   for /k/ (12, 17 and 25 ms; Italian voiceless stops are short-lag, under
   about 30 ms, with /k/ the longest). A voiced stop slackens the walls
   behind its closure and makes room there (Westbury 1983), or the pressure
-  would stop the voice within it.
+  would stop the voice within it: by his measurements and model, tense
+  walls let the voice go on for about 10 ms of a closure, slack ones for
+  80 ms or more, a cavity actively made larger almost indefinitely. The
+  walls are let go as the mouth shuts, 30 ms before the closure is due,
+  and held out until it has opened, 20 ms after the release (two closures
+  on end are one): stiffened while the mouth was still shut, they gave
+  the air they had taken back to the cavity, and the pressure stopped the
+  voice right at the release. The room (`room` in the score, on a voiced
+  closure that is not a tap) is made as the pressure calls for it: above
+  half the lungs' pressure behind the closure the cavity grows, by up to
+  300 cm³/s and 20 cm³ in all on the drawing's head, and once the
+  pressure has fallen it is given back slowly (40 % of it is left 0.1 s
+  after the release, 14 % after 0.2 s). Nothing in it is sudden (the
+  leave to make room comes and goes within 10 ms, the making slows down
+  over the last quarter of the room there is): the walls have mass, and
+  would turn a jump of the flow into a jump of the pressure, and that
+  into a knock at the release. A short closure makes no room and builds
+  its pressure as before; a long one (76-104 ms shut in [ˈabːa ˈadːa
+  ˈagːa]) keeps its voice, 0.48-0.49 of full at its end against 0.00-0.13
+  without the room, with 3.7-7.6 cm³, and about twice that behind folds
+  that leak. The rates and the sizes are chosen, not measured.
   A stop is shut when its sound is due. The lips shut some 40 ms after they
   set out, the tongue leaving an open vowel 70-80 ms after, with the jaw it
   rides on: set out a fixed time before its sound, the tongue shut some
@@ -1309,7 +1350,13 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   gives a longer breath, a comma none. A tap is a ballistic
   raised-cosine flick of the tongue tip added on top of the smoothed posture
   (Recasens 1991); its height is computed from the tip's smoothed position,
-  so it really closes against the ridge. A trill is aeroelastic (McGowan
+  so it really closes against the ridge. It is one strike of 40 ms however
+  long its time: its height is the way to the contact, looked for in the
+  posture of that moment, and a quarter more, so that the tip is on the
+  ridge for about 12 ms of it (chosen, not measured; 13 ms shut in "the
+  city", and as many when the tap is given four times its time). Spread
+  over the time a copy gave it, the flick held the tip on the ridge as
+  long as a stop. A trill is aeroelastic (McGowan
   1992; Solé 2002): the tip, the lips or the dorsum becomes a mass on a
   spring (19, 18 and 21 Hz, lightly damped) held a little past its contact,
   and the air does the rest. Pressed on the contact, where the tissue is
@@ -1464,6 +1511,26 @@ score of a voice saying something: one turn of a dialogue.
   its end, aligned again; the planner plans the saying again on those
   lengths (the score option `timing`, three rounds), so that every
   gesture is made whole, and the score starts where the recording does.
+  A recording that comes with the times of its sounds (a `.phones.json`
+  next to it, as a synthesizer that reports them or a labelled corpus
+  gives) is copied by them instead (`copyTimingSaid`; `--dtw` lines the
+  two signals up all the same): two signals slip where the two say a
+  sound differently, and a double consonant came out single (the /t/ of
+  "stanotte" 60 ms long for the recording's 215), a word in a hurry
+  behind a pause that was not there ("heard": 56 ms of vowel and a tap,
+  for 225 ms and a /d/). The labels are first put on the recording's
+  clock (they trail its sounds by 25-55 ms on the reference voices: the
+  shift within 120 ms that best puts the voiceless sounds on frames
+  without a voice, the vowels and the sonorants on frames with one), then
+  matched with ours letter by letter. Each sound of ours takes the time
+  of its partners and of the sounds about them that we do not say (no
+  shorter than 40 % of ours nor than 20 ms, no longer than six times),
+  each pause the gap between the two sounds about it. Times that leave
+  no gaps fold the pauses into the sounds: a silence of 150 ms in the
+  time of the last sound of a word becomes a pause, unless it is the
+  closure of a voiceless stop. Our own sounds are planned as much earlier
+  as they come after their plan (up to 20 ms), so that the two are heard
+  together.
   Its pitch is replaced by the recording's (gliding in log across the
   voiceless stretches). YIN finds a period in breath, creak and
   near-silence too, and the copy followed it an octave or two up for a
@@ -1480,10 +1547,11 @@ score of a voice saying something: one turn of a dialogue.
   each sentence, the recording, our saying by the rules, the same living,
   and the copies of timing, of timing and melody, and of all three, with
   a page that plays them side by side. On the five reference voices (15
-  sentences) the copies lie a median 11-47 ms from the recording (the
-  alignment of the two, again), against 55-427 ms by our rules, the pitch
-  0.18-0.32 semitone off (jitter and flutter included), the swell of the
-  loudness 0.5-1.5 dB rms off against 1.9-4.0.
+  sentences, copied by the times of their sounds) the copies lie a median
+  18-48 ms from the recording (as the two signals line up), against
+  48-307 ms by our rules, the pitch 0.21-0.30 semitone off (jitter and
+  flutter included), the swell of the loudness 0.5-1.7 dB rms off against
+  2.3-3.8.
 - Cross-synthesis (`crossSynth`, `scripts/copy-test.ts --cross`): the
   fine structure of one saying (its linear-prediction residual: the
   pulses of the folds, their irregularity, the breath and the noise of
@@ -1511,12 +1579,14 @@ score of a voice saying something: one turn of a dialogue.
   only in the sibilants (s z ʃ ʒ and the affricates; elsewhere the same
   score rendered without that source) was clearly better again: the
   shrill noises between them were the teeth's, and the model now aims the
-  jet (see the obstacle source). The page now plays the best column of
-  the time before (`--before`, its files kept), our copy with the model as
-  it is, the same with a sharper closure of the folds (return phase 0.55)
-  and with the glottal hiss at its default level (the fit raises it by
-  8 dB), and their envelope only in the passages of the nasals, liquids
-  and fricatives.
+  jet (see the obstacle source). The page plays the recording, a column
+  of the time before (`--before`, its files kept), our copy with the
+  model as it is, the same with a sharper closure of the folds (return
+  phase 0.55) and with the glottal hiss at its default level (the fit
+  raises it by 8 dB), and their envelope only in the passages of the
+  nasals, liquids and fricatives; `--columns` writes only some of them.
+  A crossing is a patchwork of two voices: it shows where the difference
+  lies, and cannot be judged as our voice.
 - Envelope report (`scripts/envelope-report.ts`): on the voiced frames
   where a copy and its recording are both loud, the formants and their
   LPC bandwidths, the balance of five bands and how fast the envelope
@@ -1640,8 +1710,10 @@ in brackets are the adult male targets described under Speech.
 | Nasal cycle | /m/ with one passage congested (cycle 0.6): a new resonance at 2170 Hz with its antiresonance; first resonance 280 -> 270 Hz |
 | Pinched nostril | /m/ with the left nostril pinched: first resonance 310 -> 240 Hz, new antiresonance at 550 Hz |
 | Asymmetric nose, waveguide vs reference | congested left side, right nostril 40 % open, lossless: worst difference 0.34 % over 6 resonances below 3 kHz |
-| No clicks in running speech | "la luna e le stelle", with the piriform junction moving twice: loudest transient inside a vowel or sonorant, above 6 kHz, against the 40 ms around it +16 dB (+41 when a move zeroed the branch). Millisecond by millisecond, "la luna è piena stanotte." has 8 ms that stand 15 dB out of the 20 ms around them and "where did you put the keys?" 5 (the closures of the folds, which come back a period before and a period after, are the voice and are not counted): all at the edges of the stops, none inside a vowel, none sharp inside a closure (before: +41 dB inside the closure of a /d/, +28 dB between /u/ and /n/, +21 dB inside the /ɪ/ of "did") |
+| No clicks in running speech | "la luna e le stelle", with the piriform junction moving twice: loudest transient inside a vowel or sonorant, above 6 kHz, against the 40 ms around it +16 dB (+41 when a move zeroed the branch). Millisecond by millisecond, "la luna è piena stanotte." has 6 ms that stand 15 dB out of the 20 ms around them and "where did you put the keys?" 9 (the closures of the folds, which come back a period before and a period after, are the voice and are not counted): all at the edges of the stops (where the mouth shuts and opens, or where the time of a stop that the glottis held ends), none inside a vowel, none sharp inside a closure (before: +41 dB inside the closure of a /d/, +28 dB between /u/ and /n/, +21 dB inside the /ɪ/ of "did") |
 | Stops on time | the mouth shut against the plan, and for how long: "la luna è piena stanotte." p +16 ms (56 of 89 ms), t -3 (63 of 79), t +16 (127 of 157); "where did you put the keys?" d +4 (50 of 68), d +12 (43 of 65), p -6 (80 of 93), k +19 (47 of 140, the rest its aspiration); no breath before the closure of a voiceless stop (the tongue after an open vowel shut some 45 ms late before) |
+| Room behind a voiced closure | [ˈabːa ˈadːa ˈagːa], shut 103, 76 and 104 ms: the voice at the end of the closure 0.48, 0.49, 0.48 of full, with 0.54 of the lungs' pressure behind it and 6.3, 3.7, 7.6 cm³ of room made (0.02, 0.13, 0.00 and 0.79, 0.72, 0.82 without the room); largest rise of the pressure in 1 ms 0.93, 0.24, 0.16 cmH2O (2.20, 0.24, 3.31 without), the highest sample after the release within 1 % of the one without; of the 6.3 cm³ of [ˈabːa], 2.5 and 0.9 are left 0.1 and 0.2 s after the release; [ˈabːabːa] 0.50 and 0.45 at the end of its two closures (0.04, 0.03 without); behind folds that leak (a chink of 0.04 cm²) 0.46-0.47 with 12.7, 8.6, 14.9 cm³ (0.00 without) |
+| Tap | the tap of "the city": shut 13 ms in its 20 ms, and 13 ms when given 80 ms |
 | Edges of a word | as the studio plays it, against the loudest of the word: "tonight" -49 dB before its first sound, the folds at 0.12 of their swing after its last, -42 dB 60 ms on; "this" -52 dB, 0.03, -26 dB; "stop" -43 dB, 0.14, -43 dB (before: 45 ms of full voice ahead of the first /t/ of "tonight", and a breathy vowel of 100 ms and more after its last) |
 | Breath at a full stop | "la luna è piena. Stanotte la vedo.", a pause of 300 ms: the lungs pull down to -2.8 cmH2O and 1098 cm³/s go in, for 161 ms; its hiss 39 dB below the loudest vowel of the sentence before (83 dB below with no breath taken; 27 dB while the air going in hissed on the teeth too, which it cannot); the loudest millisecond of the pause 20 dB above its median one and 30 dB below that vowel; no air goes in at a comma |
 | Airways below a wide glottis | the flow is the airways' (1.5 cmH2O per l/s) below 1.21 cmH2O with the glottis wide open (0.56 cm²), 0.35 cmH2O at 0.3 cm², 0.010 cmH2O for the glottis of a voice (0.05 cm²) |
@@ -1662,7 +1734,7 @@ in brackets are the adult male targets described under Speech.
 | Italian durations | stressed /a/ in fato 156 ms vs fatto 104 ms |
 | Voice onset time | /t/ English 64 ms, after /s/ 20 ms; Italian /p t k/ 12 / 17 / 25 ms (Lisker & Abramson: English /t/ about 70 ms, range 30-105; Italian voiceless stops short-lag, under about 30 ms, /k/ longest) |
 | Trill and tap | tongue-tip closures: "carro" 3, "caro" 1 |
-| Consonant dips | nasals 6.2-13.4 dB, /v/ 10.9-18.8 dB below their vowels (natural speech: nasals 6-12 dB, voiced fricatives 12-20 dB) ("la mamma vuole la nonna e il vino", "Every voice you have ever heard is raining in."); no complete closure in /v w l/, the narrowest /v/ 0.08 cm² (0.03 before the lip could slide out from under the teeth); /ŋ/ in front of the nasal port in every vowel context |
+| Consonant dips | nasals 5.9-13.4 dB, /v/ 10.9-18.8 dB below their vowels (natural speech: nasals 6-12 dB, voiced fricatives 12-20 dB) ("la mamma vuole la nonna e il vino", "Every voice you have ever heard is raining in."); no complete closure in /v w l/, the narrowest /v/ 0.08 cm² (0.03 before the lip could slide out from under the teeth); /ŋ/ in front of the nasal port in every vowel context |
 | Vowels in running speech | 15 English and Italian sentences, each vowel in its middle against the same vowel held: front vowels F2 99 % on average, 97 % at the 10th percentile; F3 of non-rhotic vowels 2353 Hz at the 10th percentile, 8.6 % of them 150 Hz below their own (after /ɹ/, before /l/); tip 0.26 at the 90th percentile; F1 98 %; tongue body 0.04 from its target; nasal port 0.008 cm² at most away from nasals, 0.05 cm² on average next to one |
 | Fujisaki intonation | final F0: statement 106 Hz, wh-question 101 Hz, yes/no question 180 Hz (base 120 Hz) |
 | Melody | "Every voice you have ever heard is made of just two ingredients.": planned F0 range 10.2 st; the voice follows the plan within 0.74 st (90 %), 1.9 st with the slider smoothing |
@@ -1673,7 +1745,8 @@ in brackets are the adult male targets described under Speech.
 | Czech ř | laminal, its narrowest passage in front of /r/'s; contacts in [ˈr̝eka] 3, in [ˈtr̝̊i] 2; open phases at most 0.16 cm², their hiss 27 dB above /r/'s |
 | Dentals | t̪ d̪ n̪ closed 2.4 cm in front of /t/, with no note |
 | Stops close | "papa tata kaka gaga": every closure builds its pressure (/g/ after /a/ did not close before) |
-| Head shapes | 120 sounds on 13 heads (vault 0.6 and 1.45, arch 0.8 and 1.25, pharynx 0.7 and 1.4, tongue 0.92 and 1.08, frenulum 0.6, mouth 0.8 and 1.2, lips 0.7 and 1.4): every stop, nasal and click closes, every other consonant keeps its passage within 0.8-1.15, no vowel narrows below 0.25 cm²; only the laterals closed by the dorsum (ʎ ʟ) under the lowest vault or the biggest tongue are approximate. On a vault of 0.6 "kaka gaga tata cece" builds 56-100 % of the lungs' pressure behind each closure |
+| Head shapes | 120 sounds on 13 heads (vault 0.6 and 1.45, arch 0.8 and 1.25, pharynx 0.7 and 1.4, tongue 0.92 and 1.08, frenulum 0.6, mouth 0.8 and 1.2, lips 0.7 and 1.4): every stop, nasal and click closes, every other consonant keeps its passage within 0.8-1.15, no vowel narrows below 0.25 cm²; only the laterals closed by the dorsum (ʎ ʟ) under the lowest vault or the biggest tongue are approximate. On a vault of 0.6 "kaka gaga tata cece" builds 51-100 % of the lungs' pressure behind each closure |
+| Vowels that let the air through | of 35 vowels, narrower than they need as their posture leaves them: 15 on a head 0.83 of the drawing's (the narrowest 0.81 of what it needs), 14 with the tongue kept back by 0.08 as well (0.35), 6 with that tongue on the drawing's head (0.51); none as the voice says them. The r-coloured vowels of "ever heard" under a low palate, on two heads: passage 0.23 cm², voice 0.90-0.98 of full, 0.07-0.14 of the lungs' pressure behind it |
 | Palate and arch | F2 of /i/ 2192 Hz: 2036 with a vault of 1.3, 2258 with 0.7; 2140 with an arch of 1.2, 2237 with 0.85 |
 | Language prosody | unstressed against stressed vowels: German 0.46, Spanish 0.78, Japanese 1.00; a long vowel in Japanese 2.0 times a short one (Spanish 1.7); the same four words, Spanish accents the first 4.5 st above French, which accents only the last (3.7 st above the one before); a yes/no question: Spanish rises to the end (112 -> 163 Hz), Hungarian and Greek peak on the last stress and fall (152 -> 98 Hz) |
 | Falsetto | 300 Hz, fold thickness 1 -> 0.3: LF H1-H2 4.0 -> 13.7 dB, H1 over the harmonic near 3 kHz 35.3 -> 54.4 dB, 8.3 dB weaker; two-mass still at 300 Hz, H1-H2 9.0 -> 19.5 dB, slope 25.4 -> 47.8 dB |
@@ -1684,7 +1757,7 @@ in brackets are the adult male targets described under Speech.
 | Trills | closures of the lips in [aʙa] 3, of the dorsum against the uvula in [aʀa] 3, of the tip in [ara] 1 |
 | Velar lateral | ʟ: midline closed by the dorsum, lateral channels over 10 grid lines, 7.0-9.6 cm from the lips; /l/ F3 still 2421 Hz |
 | Uvular nasal | murmur against the vowel: [ŋ] -5.7 dB, [ɴ] -5.9 dB (-19.3 dB with the nose joined at the velum, in front of the closure) |
-| Walls heard | quietest 10 ms of a closure against its vowel: /b/ -25, /d/ -25, /g/ -28 dB, a hum centred at 148 Hz (-102 dB with the walls unheard); /p/ -83 dB; held against /a/: /i/ -4.2 dB, /u/ -8.3 dB (-13.2 unheard), /m/ -7.4 dB |
+| Walls heard | quietest 10 ms of a closure against its vowel: /b/ -25, /d/ -24, /g/ -26 dB, a hum centred at 148 Hz (-101 dB with the walls unheard); /p/ -83 dB; held against /a/: /i/ -4.2 dB, /u/ -8.3 dB (-13.2 unheard), /m/ -7.4 dB |
 | Epilarynx | narrowest section of the tube above the folds 0.43 cm² at rest, 0.19 with the sphincter at 0.5, shut at 1; at 0.5 the band 2.4-3.6 kHz rises against the first formant's by 3.9 dB (/a/), 4.6 (/i/), 8.9 (/u/) in the transfer function and by 2.8 dB in a held /a/ |
 | Subglottal resonances | trachea (2.54 cm², 12 cm) and 2, 4, 8 bronchi (3.14, 3.42, 3.89 cm² over 4.4, 1.9, 1.2 cm), 19.5 cm in all: 523 (B 31), 1324 (B 36), 2195 (B 61) Hz, against 554 ± 42, 1327 ± 77, 2179 ± 126 Hz measured on men (Lulich et al. 2012); with rigid walls the first at 469 Hz; 0.87 times the size: 601, 1522, 2523 Hz (women 660 ± 47, 1513 ± 69, 2426 ± 101) |
 | Subglottal impedance | the tube at its closed end: 291, 222 and 153 dyn s/cm⁵ at the three peaks; the resonances the engine keeps are within 0.1 dB of it there, within 1.5 dB half a width to either side |
@@ -1705,16 +1778,16 @@ in brackets are the adult male targets described under Speech.
 | Two-mass flow, glottis wide | 1354, 1508 and 1629 cm³/s at 0.7, 0.85 and 1 of the full opening, steady within 1 % (LF source 1210, 1366, 1493: the folds at rest add their own opening) |
 | Two-mass folds speaking | "he has a house": -26.1 dB, peak 0.26 (LF source -26.3 dB, 0.29); 2 cm³/s through the glottis 0.2 s after the end |
 | Ejective | [kʼ] 10.6 cmH2O behind the shut glottis (lungs 8), larynx up 0.88 cm, no flow from the lungs; mouth flow in the 30 ms after the burst 66 cm³/s against 462 for [k] |
-| Implosive | [ɓ] 2.7 cmH2O behind the lips against 4.4 for [b], voicing amplitude at the release 0.69 against 0.49, larynx down 1.25 cm |
+| Implosive | [ɓ] 2.7 cmH2O behind the lips against 4.1 for [b], voicing amplitude at the release 0.69 against 0.53, larynx down 1.25 cm |
 | Voiceless implosive | [ɓ̥] -8.7 cmH2O at the release, mouth flow -349 cm³/s (the air drawn in) |
 | Mandarin tones | [ma˥ ma˧˥ ma˨˩˦ ma˥˩], F0 at five points of each vowel, semitones from the base, heard (YIN): high level 5.5 5.6 5.4 5.4 5.4; rising 1.9 1.9 2.5 3.3 3.9; dipping -5.2 -5.8 -5.6 -4.3 -3.2; falling 1.6 -0.4 -2.2 -4.4 -5.5 |
 | Downstep | [á ꜜá á]: high tones at 2.2, 0.6, -0.2 st |
 | Phonemizer | French "Bonjour, comment ça va ? Je m'appelle Mireille." bɔ̃ʒˈuʁ kɔmˈɑ̃ sˈa vˈa? ʒˈə mapˈɛl miʁˈɛj (5 words from the dictionary, 2 from the model); Mandarin 你好，世界 ni˨˩˦ xɑʊ˨˩˦ ʂɚ˥˩ tɕjɛ˥˩ (dictionary, tones read); German "Guten Morgen, wie geht es dir?" gˈuːtən mˈɔʁgən viː get ˈɛs dˈiːʁ (model, 6 words in 0.5 s including loading it, Node, one thread); dictionary format, word splitting, the longest dictionary words, greedy decoding and fixed stress tested on a scripted network |
 | Voice print | held /a/: formants 730 / 1286 / 2590 Hz (the waveguide's own 729 / 1298 / 2594); with the woman's head 844 / 1632 / 3056 Hz |
-| Voice fit | the Sky-like voice saying "Is it raining in the city today? Not at all.", found again from the woman's (effort 0.3): distance 2.93 → 0.46 in 50 renderings, median pitch 191 Hz against 191 |
+| Voice fit | the Sky-like voice saying "Is it raining in the city today? Not at all.", found again from the woman's (effort 0.3): distance 2.46 → 0.45 in 52 renderings, median pitch 196 Hz against 196 |
 | Living variation | "ieri sera, sulla spiaggia, abbiamo guardato la luna piena salire sopra il mare." over 30 seeds: its sounds 8.6 % longer or shorter (sd), its accent peaks moved by 0.89 st (sd), the whole 95-106 % of the saying by the rules; at variation 2, 17.2 % and 1.93 st |
-| Copy synthesis | "la luna piena sale sopra il mare" copied onto the same said slower (rate 0.8), higher (140 Hz) and with wider phrases: middles of the sounds 308 → 4 ms apart (median), pitch 4.96 → 0.16 st off, swell of the loudness 1.1 → 0.4 dB rms off |
-| Cross-synthesis | "la luna piena" crossed with itself: the same samples; the man's folds through the woman's mouth: pitch 110 Hz (the man's 110), centroid of 200-1000 Hz in the /u/ 332 Hz (the woman's 321, the man's 301); her mouth every other 60 ms: no 5 ms frame louder than both the whole crossing and the man as he is (0.0 dB) |
+| Copy synthesis | "la luna piena sale sopra il mare" copied onto the same said slower (rate 0.8), higher (140 Hz) and with wider phrases: middles of the sounds 308 → 4 ms apart (median), pitch 4.95 → 0.15 st off, swell of the loudness 1.1 → 0.5 dB rms off. By the times of its sounds: labels given 40 ms late are found 25 ms after the sounds, which come 15 ms after their plan, and the starts of the sounds lie 0 ms off the recording's (median and at most); the last sound, labelled 300 ms too long, ends 22 ms after the recording's; a silence in the time of the last sound of "luna" becomes a pause, the /p/ after it starting 15 ms off the recording's |
+| Cross-synthesis | "la luna piena" crossed with itself: the same samples; the man's folds through the woman's mouth: pitch 116 Hz (the man's 116), centroid of 200-1000 Hz in the /u/ 330 Hz (the woman's 322, the man's 301); her mouth every other 60 ms: no 5 ms frame louder than both the whole crossing and the man as he is (0.0 dB) |
 
 ## Simplifications and limits
 
@@ -1893,8 +1966,10 @@ in brackets are the adult male targets described under Speech.
   pronunciation. Italian open and close e/o are only known where an accent is
   written. Prosody is rule-based: it has no idea which word the sentence is
   about, so the nuclear accent always falls on the last content word.
-- An American flap /ɾ/ closes long enough for the pressure behind it to
-  build (4.5 cmH2O in "heard is"), and its release bursts like a stop.
+- An American flap /ɾ/ after an r-coloured vowel still closes long enough
+  for the pressure behind it to build (shut 23 ms, 3.7 cmH2O in "heard
+  is"; 13 ms and 2.2 in "the city"), and its release bursts like a stop;
+  the one of "get it" does not close (0.03 cm² at its narrowest).
 - The other languages are read word by word, with no context: homographs
   take one pronunciation, links across words (French liaison, tone sandhi)
   are not made, and the model's mistakes pass unchecked (привет comes out
@@ -2055,6 +2130,8 @@ npx tsx scripts/say.ts out/            # render example sentences to WAV, print 
 npx tsx scripts/fit-voice.ts list.json --out=a.voice.json   # fit a voice to WAV recordings and their texts
 npx tsx scripts/copy-test.ts list.json --n=3 --out=.ref/copy    # a recording's timing, melody and loudness on our voice, to listen to
 npx tsx scripts/copy-test.ts list.json --n=3 --cross            # the fine structure of each through the envelope of the other
+npx tsx scripts/copy-test.ts list.json --n=3 --cross --before=all --columns=all,sharp   # only those columns, next to one of the time before
+npx tsx scripts/copy-test.ts list.json --n=3 --dtw              # timing by lining the two signals up, also where the times of the sounds are given
 npx tsx scripts/envelope-report.ts .ref/copy                    # how the envelope of the copies differs from the recordings'
 npx tsx scripts/consonant-report.ts .ref/copy                   # the consonants of the copies: level, bands, /s/, passages, hiss
 npx tsx scripts/say.ts out/ en "any sentence"   # one sentence; add --flat for the robot version

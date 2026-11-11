@@ -97,7 +97,10 @@ describe('running speech without ticks', () => {
   it('no millisecond stands out of a vowel, and none loudly out of a closure', () => {
     for (const [text, lang] of SENTENCES) {
       const t = take(text, lang), found = standouts(t), shut = closures(t);
-      const edge = (ms: number) => Math.min(...shut.map((c) => Math.min(Math.abs(ms - c.shut), Math.abs(ms - c.open))));
+      // the edges of the stops: where the mouth shuts and opens, and where the time of a stop ends
+      // (one the glottis held may never shut the mouth: the voice starts again as its time ends)
+      const edge = (ms: number) => Math.min(...shut.map((c) => Math.min(Math.abs(ms - c.shut), Math.abs(ms - c.open))),
+        ...t.phones.filter((p) => STOPS.has(p.ipa)).map((p) => Math.abs(ms - p.t1 * 1000)));
       let inside = 0, loud = 0;
       for (const f of found) {
         // the first sound of the sentence starts from silence

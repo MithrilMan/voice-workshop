@@ -1,7 +1,8 @@
 /**
  * Copy synthesis: the timing, the melody and the swell of a recording put
  * on a voice of the simulator that says the same text. Our saying and the
- * recording are aligned by dynamic time warping of their cepstra; the score
+ * recording are lined up by the times of the recording's sounds, when it
+ * comes with them, else by dynamic time warping of their cepstra; the score
  * is stretched where the recording is slower and squeezed where it is
  * faster, its pitch follows the recording's, and its lung pressure the rise
  * and fall of the recording's loudness. What is left between the two is
@@ -191,6 +192,43 @@ export interface Timing { stretch: number[]; pauses: number[] }
 /** a silence of the recording this long, at the end of a word, is a pause our text did not have */
 const PAUSE_MIN = 0.15;
 
+/** the longest silence of a recording between two times (s), and its middle */
+function silences(rec: Analysis): (t0: number, t1: number) => { len: number; mid: number } {
+  const top = Math.max(...rec.level);
+  return (t0, t1) => {
+    let best = 0, mid = 0, run = 0;
+    for (let k = Math.max(0, Math.ceil((t0 - WIN / 2) / HOP)); k < rec.level.length && centre(k) <= t1; k++) {
+      if (rec.level[k] < top - GATE) { run++; if (run * HOP > best) { best = run * HOP; mid = centre(k) - (best - HOP) / 2; } } else run = 0;
+    }
+    return { len: best, mid };
+  };
+}
+
+/**
+ * The planner's score on the lengths wanted for its sounds (one for each
+ * sound it keeps) and for the pauses after them: three rounds, as some
+ * parts (the breath after a stop) keep their own length. The score then
+ * waits for the recording's first sound (`first`, s), or its lead in is
+ * cut short.
+ */
+function retime(phones: Phone[], said: Phone[], kept: number[], want: number[], after: number[], plan: (phones: Phone[], timing?: Timing) => Score, plain: Score, first: number): { score: Score; phones: Phone[] } {
+  const last = want.length - 1;
+  const pauses: number[] = [];
+  for (let j = 0; j < last; j++) if (said[kept[j]]?.pause) pauses.push(after[j] ?? 0.01);
+  const stretch = want.map(() => 1);
+  let sc = plan(said, { stretch: [...stretch], pauses });
+  for (let round = 0; round < 3; round++) {
+    const now = sc.phones.filter((p) => p.ipa !== '_');
+    if (now.length !== want.length) return { score: plain, phones };
+    now.forEach((p, j) => { if (p.t1 > p.t0) stretch[j] *= want[j] / (p.t1 - p.t0); });
+    sc = plan(said, { stretch: [...stretch], pauses });
+  }
+  // our first sound where the recording's is: later (rest until then), or earlier, its lead in cut short
+  const start = first - (sc.phones[0]?.t0 ?? 0);
+  const cut = Math.min(-start, (sc.phones[0]?.t0 ?? 0) - 0.01);
+  return { score: start > FRAME ? delay(sc, start) : cut > FRAME ? advance(sc, cut) : sc, phones: said };
+}
+
 /**
  * A score said with the recording's timing: every sound of our saying is
  * made as long as the stretch of the recording the alignment gives it (no
@@ -209,15 +247,7 @@ const PAUSE_MIN = 0.15;
 export function copyTiming(phones: Phone[], plan: (phones: Phone[], timing?: Timing) => Score, rec: Analysis, ourTime: (tRec: number) => number, recSeconds: number): { score: Score; phones: Phone[] } {
   const plain = plan(phones);
   const recTime = inverse(ourTime, -1, recSeconds + 5);
-  const top = Math.max(...rec.level);
-  /** the longest silence of the recording between two times, and its middle */
-  const silence = (t0: number, t1: number) => {
-    let best = 0, mid = 0, run = 0;
-    for (let k = Math.max(0, Math.ceil((t0 - WIN / 2) / HOP)); k < rec.level.length && centre(k) <= t1; k++) {
-      if (rec.level[k] < top - GATE) { run++; if (run * HOP > best) { best = run * HOP; mid = centre(k) - (best - HOP) / 2; } } else run = 0;
-    }
-    return { len: best, mid };
-  };
+  const silence = silences(rec);
   // the sounds the planner keeps (one unit each), and the phone of each
   const kept = phones.map((p, i) => (phonemeFor(p.ipa) ? i : -1)).filter((i) => i >= 0);
   const want: number[] = [], after: number[] = [];
@@ -242,20 +272,236 @@ export function copyTiming(phones: Phone[], plan: (phones: Phone[], timing?: Tim
   const last = want.length - 1;
   const said = phones.map((p) => ({ ...p }));
   after.forEach((len, j) => { if (len > 0 && j < last && !said[kept[j]].pause) said[kept[j]] = { ...said[kept[j]], pause: 'short', wordEnd: true }; });
-  const pauses: number[] = [];
-  for (let j = 0; j < last; j++) if (said[kept[j]]?.pause) pauses.push(after[j] ?? 0.01);
-  const stretch = want.map(() => 1);
-  let sc = plan(said, { stretch: [...stretch], pauses });
-  for (let round = 0; round < 3; round++) {
-    const now = sc.phones.filter((p) => p.ipa !== '_');
-    if (now.length !== want.length) return { score: plain, phones };
-    now.forEach((p, j) => { if (p.t1 > p.t0) stretch[j] *= want[j] / (p.t1 - p.t0); });
-    sc = plan(said, { stretch: [...stretch], pauses });
+  return retime(phones, said, kept, want, after, plan, plain, recTime(plain.phones[0]?.t0 ?? 0));
+}
+
+/** a sound of a recording and when it is said (s): a letter of the IPA, or a stress mark, a length mark, a space or a punctuation mark with a time of its own */
+export interface Said { ipa: string; t0: number; t1: number }
+
+interface Unit { sym: string; t0: number; t1: number; start: boolean }
+
+const VOWELS = 'aeiouyɑɐɒæɔəɚɛɜɝɘɵɞɪʏʊʌᵻøœɶɨʉɯɤ';
+/** consonants that stand for each other more easily than for the rest: stops and taps, nasals, fricatives, liquids and glides */
+const KINDS = ['pbtdkgʔɾ', 'mnŋɲɱ', 'fvszʃʒθðçxhɦ', 'lrɹjwʎ'];
+/** two ways of writing a sound */
+const SAME: Record<string, string> = { 'ɡ': 'g', 'ɜ': 'ɝ', 'ɚ': 'ɝ', 'ɐ': 'ə', 'ᵻ': 'ɪ', 'ɫ': 'l' };
+const norm = (c: string) => SAME[c] ?? c;
+const STOP = /^[pbtdkgɡʔ]/;
+/** the letters of a symbol, without its marks (length, stress, diacritics) */
+const letters = (s: string) => [...s].filter((c) => /\p{L}/u.test(c) && !/\p{Lm}/u.test(c));
+
+/**
+ * The sounds of a recording, one for each letter: a stress mark gives its
+ * time to the sound after it, a length mark or a diacritic to the one
+ * before, a letter said twice in a word is one long sound, and a space or
+ * a punctuation mark starts a word (its time, and any silence there, is
+ * the gap between the two sounds about it).
+ */
+function soundsOf(said: Said[], shift: number): Unit[] {
+  const out: Unit[] = [];
+  let lead = NaN, start = true;
+  for (const s of said) {
+    if (!s.ipa || !(s.t1 >= s.t0)) continue;
+    if (s.ipa === 'ˈ' || s.ipa === 'ˌ') { if (Number.isNaN(lead)) lead = s.t0; continue; }
+    const l = letters(s.ipa);
+    if (!l.length) {
+      if (/[\p{Lm}\p{M}]/u.test(s.ipa) && out.length && !start) out[out.length - 1].t1 = s.t1 + shift;
+      else { start = true; lead = NaN; }
+      continue;
+    }
+    const t0 = (Number.isNaN(lead) ? s.t0 : lead) + shift, t1 = s.t1 + shift, last = out[out.length - 1];
+    lead = NaN;
+    if (last && !start && l.length === 1 && last.sym === l[0]) last.t1 = t1;
+    else l.forEach((c, i) => out.push({ sym: c, t0: t0 + ((t1 - t0) * i) / l.length, t1: t0 + ((t1 - t0) * (i + 1)) / l.length, start: start && i === 0 }));
+    start = false;
   }
-  // our first sound where the recording's is: later (rest until then), or earlier, its lead in cut short
-  const start = recTime(plain.phones[0]?.t0 ?? 0) - (sc.phones[0]?.t0 ?? 0);
-  const cut = Math.min(-start, (sc.phones[0]?.t0 ?? 0) - 0.01);
-  return { score: start > FRAME ? delay(sc, start) : cut > FRAME ? advance(sc, cut) : sc, phones: said };
+  return out;
+}
+
+/**
+ * By how much the times given for a recording's sounds run behind the
+ * recording (s, to add to them, so mostly negative: a synthesizer's own
+ * times trail its sound by some tens of ms): the shift within 120 ms that
+ * best puts its voiceless sounds on frames without a voice, and its vowels
+ * and sonorants on frames with one. The recording analysed with its pitch.
+ */
+/** the consonants that are voice all through */
+const SONORANTS = 'mnŋɲlrɹjw';
+const hasVoice = (c: string) => VOWELS.includes(c) || SONORANTS.includes(c);
+
+export function clock(said: Said[], rec: Analysis): number {
+  const units = soundsOf(said, 0), n = rec.f0.length;
+  let best = 0, top = -1;
+  for (let q = -24; q <= 24; q++) {
+    const s = q * 0.005;
+    let ok = 0, all = 0;
+    for (const u of units) {
+      const c = norm(u.sym), voiced = hasVoice(c);
+      if (!voiced && !'ptkfsʃθ'.includes(c)) continue;
+      for (let t = u.t0 + 0.005; t < u.t1 - 0.004; t += 0.005) {
+        const k = Math.round((t + s - WIN / 2) / HOP);
+        all++;
+        if ((k >= 0 && k < n && rec.f0[k] > 0) === voiced) ok++;
+      }
+    }
+    const score = all ? ok / all : 0;
+    if (score > top + 1e-9 || (score > top - 1e-9 && Math.abs(s) < Math.abs(best))) { top = score; best = s; }
+  }
+  return best;
+}
+
+/**
+ * Two sayings of a text, letter by letter: the pairs (one of the first,
+ * one of the second, -1 for a sound the other does not say) that cost the
+ * least. The same sound costs nothing, a vowel for a vowel 0.4, a
+ * consonant for one of its kind 0.6, a vowel for a glide or a liquid 0.8,
+ * a sound with no partner 1, and a word that starts in one and not in the
+ * other 0.2 more (chosen, not measured).
+ */
+function match(a: { sym: string; start: boolean }[], b: { sym: string; start: boolean }[]): [number, number][] {
+  const n = a.length, m = b.length, W = m + 1;
+  const kind = (c: string) => { if (VOWELS.includes(c)) return 0; const k = KINDS.findIndex((x) => x.includes(c)); return k < 0 ? 9 : k + 1; };
+  const open = (k: number) => k === 0 || k === 4;
+  const cost = (x: { sym: string; start: boolean }, y: { sym: string; start: boolean }) => {
+    const p = norm(x.sym), q = norm(y.sym), kp = kind(p), kq = kind(q);
+    return (p === q ? 0 : kp === 0 && kq === 0 ? 0.4 : kp === kq ? 0.6 : open(kp) && open(kq) ? 0.8 : 2.5) + (x.start !== y.start ? 0.2 : 0);
+  };
+  const D = new Float64Array((n + 1) * W), how = new Uint8Array((n + 1) * W);
+  for (let i = 0; i <= n; i++) for (let j = 0; j <= m; j++) {
+    if (!i && !j) continue;
+    let best = Infinity, h = 0;
+    if (i && j) { const c = D[(i - 1) * W + j - 1] + cost(a[i - 1], b[j - 1]); if (c < best) { best = c; h = 0; } }
+    if (i) { const c = D[(i - 1) * W + j] + 1; if (c < best) { best = c; h = 1; } }
+    if (j) { const c = D[i * W + j - 1] + 1; if (c < best) { best = c; h = 2; } }
+    D[i * W + j] = best; how[i * W + j] = h;
+  }
+  const ops: [number, number][] = [];
+  for (let i = n, j = m; i || j;) {
+    const h = how[i * W + j];
+    if (h === 0) ops.push([--i, --j]); else if (h === 1) ops.push([--i, -1]); else ops.push([-1, --j]);
+  }
+  return ops.reverse();
+}
+
+/** When a stop is let go between two times of a recording: the steepest rise of
+ *  its level after the quietest frame of the closure, if it rises by 6 dB (else NaN). */
+function burst(rec: Analysis, t0: number, t1: number): number {
+  const k0 = Math.max(1, Math.round((t0 - WIN / 2) / HOP)), k1 = Math.min(rec.level.length - 2, Math.round((t1 - WIN / 2) / HOP));
+  let q = k0;
+  for (let k = k0; k <= k1; k++) if (rec.level[k] < rec.level[q]) q = k;
+  let best = -1, rise = 6;
+  for (let k = q; k <= k1; k++) {
+    const r = rec.level[k + 1] - rec.level[k - 1];
+    if (r > rise) { rise = r; best = k; }
+  }
+  return best < 0 ? NaN : centre(best);
+}
+
+/**
+ * The same from a recording that comes with the times of its sounds (a
+ * synthesizer that reports them, a labelled corpus): no two signals to
+ * line up, which slips where the two say a sound differently. Its sounds
+ * are put on the recording's clock (`clock`) and matched with ours letter
+ * by letter (`match`). Each sound of ours takes the time of its partners
+ * and of the sounds about them that we do not say (no shorter than 40 %
+ * of ours nor than 20 ms, no longer than six times; what one cannot take
+ * passes to the next), each pause the gap between the two sounds about
+ * it. A gap where the recording is silent for 150 ms becomes a pause, if
+ * our text has none there, and so does such a silence inside the time of
+ * the last sound of a word (times that leave no gaps between the sounds
+ * fold the pauses into them), unless it is the closure of a voiceless stop; a pause of ours where the recording runs on
+ * (a gap under 150 ms, not 30 of them silent) is not made. The time of
+ * any other gap goes to the stop next to it, if the recording is silent
+ * for half of it (a closure), else half to each of the two sounds. Where
+ * the recording says a stop and we a tap for the same /t d/, or the other
+ * way, ours says what it says; the phones said come back with the score.
+ * The last label runs on through the silence after it: the last sound ends
+ * where the speech does, a voice where it stops, a stop where it is let go.
+ * `trail` is how long our own sounds come after the times we plan them at
+ * (`clock` of our saying against its own plan): ours are planned that much
+ * earlier, so that the two are heard together.
+ */
+export function copyTimingSaid(phones: Phone[], plan: (phones: Phone[], timing?: Timing) => Score, rec: Analysis, said: Said[], trail = 0): { score: Score; phones: Phone[] } {
+  const theirs = soundsOf(said, clock(said, rec));
+  // the label of the last sound runs on through the silence after it: the sound
+  // ends where the speech does, a voice where it stops (the recording may trail
+  // off in a breath), and a last stop where the recording lets it go
+  const lastOne = theirs[theirs.length - 1];
+  if (lastOne) {
+    const frame = (t: number) => Math.max(0, Math.min(rec.level.length - 1, Math.round((t - WIN / 2) / HOP)));
+    let t1 = Math.min(lastOne.t1, centre(extent(rec.level)[1]) + HOP / 2);
+    if (hasVoice(norm(lastOne.sym))) {
+      let k = frame(t1);
+      while (k > frame(lastOne.t0) && !(rec.f0[k] > 0)) k--;
+      if (k > frame(lastOne.t0)) t1 = Math.min(t1, centre(k) + 0.03);
+    } else if (STOP.test(norm(lastOne.sym))) {
+      const go = burst(rec, lastOne.t0, t1);
+      if (go > lastOne.t0 + 0.02) t1 = Math.min(t1, go + 0.015);
+    }
+    lastOne.t1 = Math.max(lastOne.t0 + 0.02, t1);
+  }
+  const kept = phones.map((p, i) => (phonemeFor(p.ipa) ? i : -1)).filter((i) => i >= 0), K = kept.length;
+  const ours = phones.map((p) => ({ ...p }));
+  const mine: { sym: string; k: number; start: boolean }[] = [];
+  kept.forEach((i, k) => {
+    const l = letters(phones[i].ipa), before = k > 0 ? phones[kept[k - 1]] : undefined;
+    (l.length ? l : [phones[i].ipa]).forEach((c, q) => mine.push({ sym: c, k, start: q === 0 && (!before || !!phones[i].wordStart || !!before.wordEnd || !!before.pause) }));
+  });
+  // their time for each sound of ours, and for the gap after it
+  const len = new Array<number>(K).fill(0), gap = new Array<number>(K).fill(0), span: [number, number][] = [], at: [number, number][] = [];
+  let cur = -1, pending = 0;
+  for (const [a, b] of match(theirs, mine)) {
+    if (a < 0) { cur = mine[b].k; len[cur] += pending; pending = 0; continue; }
+    const u = theirs[a], g = a > 0 ? u.t0 - theirs[a - 1].t1 : 0, k = b >= 0 ? mine[b].k : -1;
+    if (g > 1e-6 && cur >= 0) {
+      if (k === cur) len[cur] += g;
+      else { gap[cur] += g; span[cur] = [span[cur]?.[0] ?? theirs[a - 1].t1, u.t0]; }
+    }
+    if (k >= 0) {
+      len[k] += u.t1 - u.t0 + pending; pending = 0; cur = k;
+      at[k] = [at[k]?.[0] ?? u.t0, u.t1];
+      const p = ours[kept[k]];
+      if (p.ipa === 'ɾ' && (u.sym === 't' || u.sym === 'd')) ours[kept[k]] = { ...p, ipa: u.sym };
+      else if ((p.ipa === 't' || p.ipa === 'd') && u.sym === 'ɾ') ours[kept[k]] = { ...p, ipa: 'ɾ' };
+    } else if (cur < 0 || g > 1e-6 || (a + 1 < theirs.length && norm(theirs[a + 1].sym) === norm(u.sym))) pending += u.t1 - u.t0;
+    // a sound we do not say: with the word after it if it starts one (or is said again there), else with the sound before
+    else len[cur] += u.t1 - u.t0;
+  }
+  if (cur >= 0) len[cur] += pending;
+  const plain = plan(ours);
+  const own = plain.phones.filter((p) => p.ipa !== '_').map((p) => p.t1 - p.t0);
+  if (own.length !== K || !theirs.length) return { score: plain, phones: ours };
+  const silence = silences(rec);
+  // times that leave no gaps fold a pause into the sound before it: a sound at the
+  // end of a word ends where the recording falls silent for as long as a pause
+  // (not a voiceless stop, whose closure is a silence of its own)
+  for (let k = 0; k < K - 1; k++) {
+    const p = ours[kept[k]], a = at[k];
+    if (!a || !(p.wordEnd || ours[kept[k + 1]].wordStart) || /^[ptkʔ]/.test(p.ipa)) continue;
+    const q = silence(a[0], a[1]), from = q.mid - q.len / 2;
+    if (q.len < PAUSE_MIN || from < a[0] + 0.02) continue;
+    const cut = Math.min(len[k] - 0.02, a[1] - from);
+    if (!(cut > 0)) continue;
+    len[k] -= cut; gap[k] += cut; span[k] = [from, span[k]?.[1] ?? a[1]];
+  }
+  for (let k = 0; k < K - 1; k++) {
+    const p = ours[kept[k]], quiet = gap[k] > 0 ? silence(span[k][0], span[k][1]).len : 0;
+    if (p.pause && gap[k] < PAUSE_MIN && quiet < 0.03) { const q = { ...p }; delete q.pause; ours[kept[k]] = q; }
+    else if (!p.pause && quiet >= PAUSE_MIN) ours[kept[k]] = { ...p, pause: 'short', wordEnd: true };
+    if (ours[kept[k]].pause || !(gap[k] > 0)) continue;
+    const stop = (j: number) => STOP.test(ours[kept[j]].ipa);
+    if (quiet >= 0.5 * gap[k] && stop(k + 1)) len[k + 1] += gap[k];
+    else if (quiet >= 0.5 * gap[k] && stop(k)) len[k] += gap[k];
+    else { len[k] += 0.5 * gap[k]; len[k + 1] += 0.5 * gap[k]; }
+  }
+  const want: number[] = [], after: number[] = [];
+  let debt = 0;
+  for (let k = 0; k < K; k++) {
+    want[k] = Math.min(6 * own[k], Math.max(0.4 * own[k], 0.02, len[k] + debt));
+    debt += len[k] - want[k];
+    if (ours[kept[k]].pause && k < K - 1) { after[k] = Math.max(0.01, gap[k] + debt); debt = 0; }
+  }
+  return retime(phones, ours, kept, want, after, plan, plain, theirs[0].t0 - trail);
 }
 
 /** a score that begins earlier, the start of its lead in cut */
