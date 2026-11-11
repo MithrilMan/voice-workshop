@@ -41,7 +41,7 @@ export interface Analysis {
 }
 
 /** the time of the middle of analysis frame k */
-const centre = (k: number) => k * HOP + WIN / 2;
+export const centre = (k: number) => k * HOP + WIN / 2;
 
 /** frames of a clip every 10 ms */
 export function analyse(c: Clip, pitch = false): Analysis {

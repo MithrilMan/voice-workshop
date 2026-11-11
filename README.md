@@ -1651,6 +1651,76 @@ score of a voice saying something: one turn of a dialogue.
   same holds where a stop or a tap ends a word before a pause ("heard,"):
   its closure, made before the lungs let go, bursts on the teeth into the
   silence.
+- The delivery of a voice (`src/dsp/voice/delivery.ts`,
+  `scripts/analyse-voice.ts`): how a speaker says their sentences,
+  measured through the text. Each sentence is turned into our own
+  sounds; a recording that comes with the times of its sounds gives each
+  of them its stretch of time, as in the copies, and each vowel gets the
+  median of its pitch, its length and its level. From the vowels of all
+  the sentences come the figures of the delivery: the median pitch and
+  how far apart the vowels are (10th to 90th percentile); how high a
+  vowel that our rules accent (the stressed vowel of a content word)
+  stands over the unaccented ones next to it; how far the pitch moves
+  from a vowel to the next (rms); the highest vowel of a phrase over the
+  median of its vowels, and the slope of the pitch through the phrase;
+  where the last vowel of a phrase ends before a full stop, before the
+  question mark of a question to answer yes or no, and before a comma;
+  the sounds a second; how much longer a stressed vowel and a last one
+  are; the pauses at a comma and between sentences; and, from a
+  recording only, how much louder a stressed vowel is and how far the
+  last one drops. The same figures are taken from a voice of the
+  simulator saying the same sentences by its rules, off the plan (no
+  sound is made: seven sentences take 0.2 s), and `fitDelivery` moves
+  the fields of the voice's melody and rhythm until the two agree: the
+  pitch and the pace outright, then the accent, the arc of the phrase,
+  the final fall, the rise of the questions, the continuation, the
+  bottom of the voice, the downstep, the final lengthening and the two
+  pauses, each tried a step up and a step down and followed while it
+  helps, the step halved over four rounds (about a hundred plans, 8-23
+  s). The differences that count as one (0.7 to 1.5 st for the figures
+  of the pitch, 1 st/s for the slope, 10 % for the lengths, 40 and 60 ms
+  for the pauses) are chosen, not measured. A field is left alone when
+  the sentences do not show its figure (the rise of the questions is not
+  learnt from sentences without one), and a field that ends at an end of
+  its range is reported. What a recording does on each sentence is not
+  copied: the habits behind it are, so the voice says any other sentence
+  with them. Every third sentence is kept out of the fit and compared
+  afterwards with the recording vowel by vowel (the pitch of each about
+  the voice's own median, rms, and how the two go together) and sound by
+  sound (the lengths, the pace taken out); the script writes the fitted
+  voice and a page with the recording, the voice as it was and the voice
+  with the fitted delivery.
+  On five neural text-to-speech voices (three English, two Italian; four
+  to seven sentences fitted, two or three kept out), starting from the
+  voices fitted to their voice prints: the recordings' vowels are about
+  as far apart in pitch as ours (4.3-8.7 st against 6.7-9.9), but not
+  where ours are. Our rules put a peak on every content word: an
+  accented vowel stands 4.6-6.1 st over its neighbours in our English
+  voices and 2.2-2.5 st in the Italian ones, against 0-0.9 st in four of
+  the recordings (3.4 st in the English man's). The recordings carry
+  their range in the arc of the phrase: a high point 2.6-6.1 st over the
+  median of the phrase, a fall of 0.9-4.1 st/s through it, and a last
+  vowel 6.3-7.0 st down before a full stop. Fitted, the accent goes from
+  5.4-7.6 st to 0-5 st and the distance of the figures from 1.8-4.0 to
+  0.6-1.2; on the sentences kept out the vowels come from 1.6-4.6 st rms
+  off the recordings' to 1.2-3.8 st (going together 0.35-0.72 before,
+  0.52-0.76 after), and read off the rendered sound from 1.8-4.6 to
+  1.4-3.6 st. What is left is what the rules cannot place. The
+  recordings still move 2.0-4.4 st rms from a vowel to the next, on
+  words our rules do not single out; and they start a new arc inside a
+  long sentence without a comma, where ours start one only at a
+  punctuation mark: with the accent at 0 and the arc at the end of its
+  range, one English voice says a sentence of 3.4 s gliding from 200 Hz
+  to 125-130 Hz by its middle and staying there, and over four rendered
+  sentences its median pitch as heard is 135 Hz against the recording's
+  157 (165 before the fit). With four sentences the fit also reads too
+  much into them: for the English man the figures of the two sentences
+  kept out end further off (2.27 to 2.47). The lengths are not helped
+  at all: sound by sound ours stay 0.29-0.50 off the recordings' (rms of
+  the logarithm of the ratio, the pace taken out; 0.3 is a sound 35 %
+  longer or shorter), since no field says how long each kind of sound
+  is. And the level is only measured: over the rendered sentences the
+  recordings' last vowel is 7-12 dB below the others, ours 2-8 dB.
 
 ## Main parameters
 
@@ -1801,6 +1871,7 @@ in brackets are the adult male targets described under Speech.
 | Living variation | "ieri sera, sulla spiaggia, abbiamo guardato la luna piena salire sopra il mare." over 30 seeds: its sounds 8.6 % longer or shorter (sd), its accent peaks moved by 0.89 st (sd), the whole 95-106 % of the saying by the rules; at variation 2, 17.2 % and 1.93 st |
 | Copy synthesis | "la luna piena sale sopra il mare" copied onto the same said slower (rate 0.8), higher (140 Hz) and with wider phrases: middles of the sounds 308 → 4 ms apart (median), pitch 4.95 → 0.15 st off, swell of the loudness 1.1 → 0.5 dB rms off. By the times of its sounds: labels given 40 ms late are found 25 ms after the sounds, which come 15 ms after their plan, and the starts of the sounds lie 0 ms off the recording's (median and at most); the last sound, labelled 300 ms too long, ends 22 ms after the recording's; a silence in the time of the last sound of "luna" becomes a pause, the /p/ after it starting 15 ms off the recording's |
 | Cross-synthesis | "la luna piena" crossed with itself: the same samples; the man's folds through the woman's mouth: pitch 116 Hz (the man's 116), centroid of 200-1000 Hz in the /u/ 330 Hz (the woman's 322, the man's 301); her mouth every other 60 ms: no 5 ms frame louder than both the whole crossing and the man as he is (0.0 dB) |
+| Delivery of a voice | the man on six Italian sentences, off his plans: an accented vowel 2.3 st over its neighbours (4.0 with 4 st more of accent), the last vowel before a full stop -4.0 st (-4.7 with a final fall of 6 st), of a yes/no question 3.2 st (-0.5 with a rise of 3 st), the pause at a comma 0.16 s (0.40 at 0.4 s); brought to a speaker with other habits (the same voice at 128 Hz, 1.15 times the pace, with another accent, arc, final fall, rise of the questions and pause), 118 plans: distance of the figures 1.64 → 0.04, pitch field 126.8 Hz, pace 1.15, and on three other sentences the vowels 1.42 → 0.09 st rms from the speaker's; a field whose figure the sentences do not show is not moved; read off the sound, the 16 vowels of a sentence are 0.23 st rms from its plan |
 
 ## Simplifications and limits
 
@@ -2031,6 +2102,17 @@ in brackets are the adult male targets described under Speech.
   The linear-prediction envelope holds the tilt of the source as well as
   the formants, so the crossing splits the fine structure from the
   envelope, not exactly the folds from the mouth.
+- The delivery fitted to a voice holds a dozen habits, not the speaker's
+  reading: which words they lean on, where they start a new arc inside a
+  long sentence, how long each kind of sound is and how the level falls
+  at the end are not fields yet, so a fitted voice moves less from vowel
+  to vowel than the recording, sinks to the bottom of its range in the
+  second half of a long sentence, and keeps our lengths. It has been
+  fitted on four to seven sentences a voice, of neural text-to-speech
+  voices that come with the times of their sounds, not of people; with
+  so few, a figure can rest on one or two vowels (the last vowel of the
+  only question), and the sentences kept out gain less than the fitted
+  ones.
 
 ## References
 
@@ -2145,6 +2227,7 @@ npx tsx scripts/copy-test.ts list.json --n=3 --out=.ref/copy    # a recording's 
 npx tsx scripts/copy-test.ts list.json --n=3 --cross            # the fine structure of each through the envelope of the other
 npx tsx scripts/copy-test.ts list.json --n=3 --cross --before=all --columns=all,sharp   # only those columns, next to one of the time before
 npx tsx scripts/copy-test.ts list.json --n=3 --dtw              # timing by lining the two signals up, also where the times of the sounds are given
+npx tsx scripts/analyse-voice.ts list.json --n=4 --out=.ref/delivery   # how a voice says its sentences, a voice's melody and rhythm fitted to it, a page to listen to
 npx tsx scripts/envelope-report.ts .ref/copy                    # how the envelope of the copies differs from the recordings'
 npx tsx scripts/consonant-report.ts .ref/copy                   # the consonants of the copies: level, bands, /s/, passages, hiss
 npx tsx scripts/say.ts out/ en "any sentence"   # one sentence; add --flat for the robot version
