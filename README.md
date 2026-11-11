@@ -1165,7 +1165,18 @@ sibilants. The teeth panel draws the front and side views with the live jet.
     and declination of each phrase) + accent commands (steps through
     1 - (1 + βt) e^(-βt), capped at 0.9) on the stressed syllables of content
     words, 5 semitones by default, with a gentle downstep (x0.9 per accent,
-    never below 60 %). Each command lasts at least 130-170 ms, so that short
+    never below 60 %). A style can make a phrase that runs long without a
+    pause start its melody again (`phraseSpan`, off by default): the
+    phrase holds as many arcs as spans of that length, and each new one
+    starts at the break nearest to an even share of the phrase, among the
+    breaks between a content word and a function word after it (the
+    "chunk" and "chink" of Liberman & Church 1992), and where one of them
+    starts a predicate (an auxiliary, a form of "to be", "to do" or "to
+    have") rather than at any other. The new arc starts with that word
+    and leaves the word before it low; it is 0.26 against the 0.32 of an
+    utterance's first (chosen, not measured), and the accents after it
+    stand at their full height again. Each command lasts at least 130-170
+    ms, so that short
     syllables still reach their peak. English accents rise through the
     stressed syllable and peak inside its vowel; Italian prenuclear accents
     peak late (L+H*), at the end of the vowel rather than on the next
@@ -1399,6 +1410,7 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   changes the speech planner's own defaults (tests/golden.test.ts keeps
   fingerprints of eleven scores and of every sound's posture).
   - *Prosodic style*: the pitch floor, the strength of the phrase commands,
+    the stretch after which a long phrase starts its melody again,
     the downstep and its floor, the final fall, the rises of questions and of
     commas, the microprosody, the flutter, the pauses, the final lengthening,
     the fall of the lung pressure, the push of an accent, the way a phrase
@@ -1663,6 +1675,8 @@ score of a voice saying something: one turn of a dialogue.
   stands over the unaccented ones next to it; how far the pitch moves
   from a vowel to the next (rms); the highest vowel of a phrase over the
   median of its vowels, and the slope of the pitch through the phrase;
+  where the melody stands late in a long phrase (its vowels more than
+  1.5 s after its start against the earlier ones);
   where the last vowel of a phrase ends before a full stop, before the
   question mark of a question to answer yes or no, and before a comma;
   the sounds a second; how much longer a stressed vowel and a last one
@@ -1673,12 +1687,17 @@ score of a voice saying something: one turn of a dialogue.
   sound is made: seven sentences take 0.2 s), and `fitDelivery` moves
   the fields of the voice's melody and rhythm until the two agree: the
   pitch and the pace outright, then the accent, the arc of the phrase,
-  the final fall, the rise of the questions, the continuation, the
-  bottom of the voice, the downstep, the final lengthening and the two
-  pauses, each tried a step up and a step down and followed while it
-  helps, the step halved over four rounds (about a hundred plans, 8-23
-  s). The differences that count as one (0.7 to 1.5 st for the figures
-  of the pitch, 1 st/s for the slope, 10 % for the lengths, 40 and 60 ms
+  the stretch after which the melody starts again, the final fall, the
+  rise of the questions, the continuation, the bottom of the voice, the
+  downstep, the final lengthening and the two pauses, each tried a step
+  up and a step down and followed while it helps, the step halved over
+  four rounds (about a hundred plans, 8-24 s). A melody that starts
+  again is a habit that is on or off, and the other fields have to
+  follow it (it stays up, and the range it had from sinking has to come
+  from its arcs): where the search leaves it off, it is run again from
+  an arc every 2 s, and the nearer of the two ends is kept. The
+  differences that count as one (0.7 to 1.5 st for the figures of the
+  pitch, 1 st/s for the slope, 10 % for the lengths, 40 and 60 ms
   for the pauses) are chosen, not measured. A field is left alone when
   the sentences do not show its figure (the rise of the questions is not
   learnt from sentences without one), and a field that ends at an end of
@@ -1701,26 +1720,38 @@ score of a voice saying something: one turn of a dialogue.
   their range in the arc of the phrase: a high point 2.6-6.1 st over the
   median of the phrase, a fall of 0.9-4.1 st/s through it, and a last
   vowel 6.3-7.0 st down before a full stop. Fitted, the accent goes from
-  5.4-7.6 st to 0-5 st and the distance of the figures from 1.8-4.0 to
-  0.6-1.2; on the sentences kept out the vowels come from 1.6-4.6 st rms
-  off the recordings' to 1.2-3.8 st (going together 0.35-0.72 before,
-  0.52-0.76 after), and read off the rendered sound from 1.8-4.6 to
-  1.4-3.6 st. What is left is what the rules cannot place. The
-  recordings still move 2.0-4.4 st rms from a vowel to the next, on
-  words our rules do not single out; and they start a new arc inside a
-  long sentence without a comma, where ours start one only at a
-  punctuation mark: with the accent at 0 and the arc at the end of its
-  range, one English voice says a sentence of 3.4 s gliding from 200 Hz
-  to 125-130 Hz by its middle and staying there, and over four rendered
-  sentences its median pitch as heard is 135 Hz against the recording's
-  157 (165 before the fit). With four sentences the fit also reads too
-  much into them: for the English man the figures of the two sentences
-  kept out end further off (2.27 to 2.47). The lengths are not helped
-  at all: sound by sound ours stay 0.29-0.50 off the recordings' (rms of
-  the logarithm of the ratio, the pace taken out; 0.3 is a sound 35 %
-  longer or shorter), since no field says how long each kind of sound
-  is. And the level is only measured: over the rendered sentences the
-  recordings' last vowel is 7-12 dB below the others, ours 2-8 dB.
+  5.4-7.6 st to 0-5.3 st and the distance of the figures from 1.7-3.9 to
+  0.7-1.2; on the sentences kept out the vowels come from 1.6-4.6 st rms
+  off the recordings' to 1.3-3.8 st (going together 0.35-0.72 before,
+  0.52-0.83 after), and read off the rendered sound from 1.8-4.6 to
+  1.5-3.6 st. Two of the English recordings do not sink through a long
+  phrase: their vowels more than 1.5 s into it stand 0.2-0.5 st over the
+  earlier ones, where ours stood 2.9-3.0 st under them. For these two
+  the fit switches the restart on, an arc every 2 s, and the late vowels
+  end 0.0-0.3 st under the earlier ones; against the fit of the same
+  voices without the restart, the vowels of the sentences kept out come
+  from 2.3-2.6 to 1.9-2.5 st rms off the recordings' (going together
+  0.62-0.73 to 0.66-0.83), and read off the sound from 2.8-3.1 to
+  2.2-2.7 st. For one Italian voice it switches it on too, for a figure
+  1 st off (-0.4 st against -1.4), and the sentences kept out end
+  slightly further off than without it (1.2 to 1.3 st); there the break
+  is taken before any function word, since an Italian predicate starts
+  with a full verb. The other two recordings do sink (2.8 and 4.0 st),
+  and their voices keep one arc a phrase. What is left is what the rules
+  cannot place. The recordings still move 2.0-4.4 st rms from a vowel to
+  the next, on words our rules do not single out. With the accent at 0
+  and the arc at the end of its range, one English voice says a sentence
+  of 3.4 s gliding from 200 Hz to 125-130 Hz by its middle and staying
+  there, and over four rendered sentences its median pitch as heard is
+  135 Hz against the recording's 157 (165 before the fit). With four
+  sentences a fit also rests on little: for the English man the figures
+  of the two sentences kept out end about where they started (2.27 to
+  2.22). The lengths are not helped at all: sound by sound ours stay
+  0.29-0.50 off the recordings' (rms of the logarithm of the ratio, the
+  pace taken out; 0.3 is a sound 35 % longer or shorter), since no field
+  says how long each kind of sound is. And the level is only measured:
+  over the rendered sentences the recordings' last vowel is 7-12 dB
+  below the others, ours 3-8 dB.
 
 ## Main parameters
 
@@ -1871,7 +1902,7 @@ in brackets are the adult male targets described under Speech.
 | Living variation | "ieri sera, sulla spiaggia, abbiamo guardato la luna piena salire sopra il mare." over 30 seeds: its sounds 8.6 % longer or shorter (sd), its accent peaks moved by 0.89 st (sd), the whole 95-106 % of the saying by the rules; at variation 2, 17.2 % and 1.93 st |
 | Copy synthesis | "la luna piena sale sopra il mare" copied onto the same said slower (rate 0.8), higher (140 Hz) and with wider phrases: middles of the sounds 308 → 4 ms apart (median), pitch 4.95 → 0.15 st off, swell of the loudness 1.1 → 0.5 dB rms off. By the times of its sounds: labels given 40 ms late are found 25 ms after the sounds, which come 15 ms after their plan, and the starts of the sounds lie 0 ms off the recording's (median and at most); the last sound, labelled 300 ms too long, ends 22 ms after the recording's; a silence in the time of the last sound of "luna" becomes a pause, the /p/ after it starting 15 ms off the recording's |
 | Cross-synthesis | "la luna piena" crossed with itself: the same samples; the man's folds through the woman's mouth: pitch 116 Hz (the man's 116), centroid of 200-1000 Hz in the /u/ 330 Hz (the woman's 322, the man's 301); her mouth every other 60 ms: no 5 ms frame louder than both the whole crossing and the man as he is (0.0 dB) |
-| Delivery of a voice | the man on six Italian sentences, off his plans: an accented vowel 2.3 st over its neighbours (4.0 with 4 st more of accent), the last vowel before a full stop -4.0 st (-4.7 with a final fall of 6 st), of a yes/no question 3.2 st (-0.5 with a rise of 3 st), the pause at a comma 0.16 s (0.40 at 0.4 s); brought to a speaker with other habits (the same voice at 128 Hz, 1.15 times the pace, with another accent, arc, final fall, rise of the questions and pause), 118 plans: distance of the figures 1.64 → 0.04, pitch field 126.8 Hz, pace 1.15, and on three other sentences the vowels 1.42 → 0.09 st rms from the speaker's; a field whose figure the sentences do not show is not moved; read off the sound, the 16 vowels of a sentence are 0.23 st rms from its plan |
+| Delivery of a voice | the man on six Italian sentences, off his plans: an accented vowel 2.3 st over its neighbours (4.0 with 4 st more of accent), the last vowel before a full stop -4.0 st (-4.7 with a final fall of 6 st), of a yes/no question 3.2 st (-0.5 with a rise of 3 st), the pause at a comma 0.16 s (0.40 at 0.4 s); brought to a speaker with other habits (the same voice at 128 Hz, 1.15 times the pace, with another accent, arc, final fall, rise of the questions and pause), 252 plans: distance of the figures 1.59 → 0.04, pitch field 126.8 Hz, pace 1.15, and on three other sentences the vowels 1.42 → 0.09 st rms from the speaker's; a field whose figure the sentences do not show is not moved; with an arc every 2 s three long sentences stand 1.2 st under their earlier vowels late in a phrase instead of 2.7 st, the 11 vowels before the predicate of one unmoved and the 5 after it 2.9 st higher, a short sentence said as before, and the fit finds the habit of a speaker who has it; read off the sound, the 16 vowels of a sentence are 0.23 st rms from its plan |
 
 ## Simplifications and limits
 
@@ -2103,11 +2134,16 @@ in brackets are the adult male targets described under Speech.
   the formants, so the crossing splits the fine structure from the
   envelope, not exactly the folds from the mouth.
 - The delivery fitted to a voice holds a dozen habits, not the speaker's
-  reading: which words they lean on, where they start a new arc inside a
-  long sentence, how long each kind of sound is and how the level falls
-  at the end are not fields yet, so a fitted voice moves less from vowel
-  to vowel than the recording, sinks to the bottom of its range in the
-  second half of a long sentence, and keeps our lengths. It has been
+  reading: which words they lean on, how long each kind of sound is and
+  how the level falls at the end are not fields yet, so a fitted voice
+  moves less from vowel to vowel than the recording and keeps our
+  lengths. Where the melody starts again inside a long phrase is a
+  field, but its place comes from the classes of the words alone: before
+  an auxiliary or a form of "to be", "to do" or "to have" where there is
+  one, else before any function word after a content word. A predicate
+  that starts with a full verb is not found (in Italian every verb but
+  "è", "ha", "ho" and "hai"), and the new arc has one strength
+  whatever the sentence. It has been
   fitted on four to seven sentences a voice, of neural text-to-speech
   voices that come with the times of their sounds, not of people; with
   so few, a figure can rest on one or two vowels (the last vowel of the
@@ -2175,6 +2211,7 @@ in brackets are the adult male targets described under Speech.
 - Dauer, R. M. (1983). Stress-timing and syllable-timing reanalyzed. J. Phonetics 11.
 - Ramus, F., Nespor, M. & Mehler, J. (1999). Correlates of linguistic rhythm in the speech signal. Cognition 73.
 - Ladd, D. R. (2008). Intonational Phonology (2nd ed.). Cambridge University Press.
+- Liberman, M. Y. & Church, K. W. (1992). Text analysis and word pronunciation in text-to-speech synthesis. In S. Furui & M. M. Sondhi (eds.), Advances in Speech Signal Processing. Marcel Dekker.
 - Pike, K. L. (1945). The Intonation of American English. University of Michigan Press.
 - Perkell, J. S., Matthies, M. L., Svirsky, M. A. & Jordan, M. I. (1993). Trading relations between tongue-body raising and lip rounding in production of the vowel /u/: a pilot "motor equivalence" study. JASA 93.
 - Laver, J. (1980). The Phonetic Description of Voice Quality. Cambridge University Press.

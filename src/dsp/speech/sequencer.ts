@@ -529,6 +529,8 @@ interface Command { t1: number; t2: number; a: number; beta: number }
  * the push and tension of each stressed syllable and the relaxing of each
  * phrase end. Chosen, not measured.
  */
+/** the arc of a melody that starts again inside a phrase, against 0.32 for the first of an utterance and 0.26 after a full stop (chosen, not measured) */
+const RESTART = 0.26;
 const VARY = { tempo: 0.08, drift: 0.7, pause: 0.2, accent: 0.2, phrase: 0.15, boundary: 0.15, push: 0.3, end: 0.2 };
 
 // ---------------------------------------------------------------- the score
@@ -1156,6 +1158,29 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       const startT = segs.find((s) => s.unit === phraseStart)?.t0 ?? 0;
       phraseCmds.push({ t: startT - 0.25, a: st.phrase * (first ? 0.32 : u.boundary === 'comma' || units[phraseStart - 1]?.boundary === 'comma' ? 0.16 : 0.26) * vary(4, VARY.phrase) });
       first = false;
+      // a phrase that runs long without a pause does not sink to its end on one arc: the melody starts again inside
+      // it, at a break between a content word and a function word after it, and where a predicate starts (before
+      // its auxiliary) rather than at any other. The phrase holds as many arcs as spans, and each new one starts
+      // at the break nearest to an even share of its length
+      const resets: number[] = [];
+      if (st.phraseSpan > 0) {
+        const phraseEnd = segs.filter((s) => s.unit <= i).reduce((m, s) => Math.max(m, s.t1), 0);
+        const arcs = Math.round((phraseEnd - startT) / st.phraseSpan), share = (phraseEnd - startT) / Math.max(1, arcs);
+        const breaks: { j: number; t: number; verb: boolean }[] = [];
+        for (let j = phraseStart + 1; j <= i; j++) if (units[j].p.wordStart && units[j].p.func && !units[j - 1].p.func) breaks.push({ j, t: segs.find((s) => s.unit === j)?.t0 ?? 0, verb: !!units[j].p.verb });
+        let lastT = startT;
+        for (let k = 1; k < arcs; k++) {
+          const want = startT + k * share;
+          // not a stub of an arc: at least half a share from the one before and from the end
+          const free = breaks.filter((x) => x.t - lastT >= 0.5 * share && phraseEnd - x.t >= 0.5 * share);
+          const pool = free.some((x) => x.verb) ? free.filter((x) => x.verb) : free;
+          if (!pool.length) continue;
+          const b = pool.reduce((best, x) => (Math.abs(x.t - want) < Math.abs(best.t - want) ? x : best));
+          // (the arc of an utterance starts in the silence before it; this one with its first word, the word before left low)
+          phraseCmds.push({ t: b.t, a: st.phrase * RESTART * vary(4, VARY.phrase) });
+          resets.push(b.j); lastT = b.t;
+        }
+      }
       // accents on the stressed vowels of content words
       const acc: number[] = [];
       // (in a tone language the tones take the place of the pitch accents)
@@ -1175,6 +1200,8 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
         const vs = vowelSeg(j);
         if (!vs) return;
         const nuclear = n === acc.length - 1;
+        // where the melody started again the accents stand at their full height again
+        while (resets.length && j >= resets[0]) { height = o.accent * ST; resets.shift(); }
         let a = height * vary(3, VARY.accent);
         // a yes/no question has a low nuclear accent before its final rise
         if (nuclear && yesNo) a = riseFall ? a * 1.3 : 0;

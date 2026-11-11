@@ -9,6 +9,11 @@ export interface ProsodyStyle {
   floor: number;
   /** strength of the phrase commands, the rise and slow fall of pitch over each phrase (1 = usual) */
   phrase: number;
+  /**
+   * the longest stretch one arc of the melody carries, s: a phrase that runs longer without a pause starts its
+   * melody again inside it, at a break before a function word (0 = never: only a pause starts an arc)
+   */
+  phraseSpan: number;
   /** each accent of a phrase this much of the one before (downstep) ... */
   downstep: number;
   /** ... but never lower than this much of the first */
@@ -57,6 +62,7 @@ export const ST = Math.LN2 / 12;
 export const DEFAULT_STYLE: Readonly<ProsodyStyle> = Object.freeze({
   floor: 4,
   phrase: 1,
+  phraseSpan: 0,
   downstep: 0.9,
   downstepFloor: 0.6,
   finalFall: 0.13 / ST,

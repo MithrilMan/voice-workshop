@@ -142,6 +142,8 @@ export interface Delivery {
   top: number;
   /** how the pitch of the vowels runs through a phrase, its last vowel left out, st/s */
   slope: number;
+  /** where the melody stands late in a long phrase: its vowels more than 1.5 s after its start against the earlier ones (the last one left out), st */
+  late: number;
   /** the last vowel of a phrase against the median of the others: before a full stop (or a question with a question word), st */
   endStop: number;
   /** ... before the question mark of a question to answer yes or no, st */
@@ -164,6 +166,8 @@ export interface Delivery {
   endLevel: number;
 }
 
+/** from here on a phrase is late, s after its start: where one arc of a melody has spent most of its height */
+const LATE = 1.5;
 const accented = (s: Sound) => s.vowel && s.stress && s.content;
 
 export function deliveryOf(sayings: Saying[]): Delivery {
@@ -171,7 +175,7 @@ export function deliveryOf(sayings: Saying[]): Delivery {
   const pitched = vowels.filter((s) => Number.isFinite(s.pitch)).map((s) => s.pitch);
   const mid = median(pitched);
   // accents: over the nearest unaccented vowels of the phrase, on either side (not the last one, which carries how the phrase ends)
-  const acc: number[] = [], steps: number[] = [], tops: number[] = [];
+  const acc: number[] = [], steps: number[] = [], tops: number[] = [], late: number[] = [];
   // the run of the pitch through a phrase: one slope for all, each phrase about its own mean
   let sxy = 0, sxx = 0;
   const ends: Record<Edge, number[]> = { stop: [], wh: [], question: [], comma: [] };
@@ -196,6 +200,9 @@ export function deliveryOf(sayings: Saying[]): Delivery {
         const tm = mean(body.map((s) => 0.5 * (s.t0 + s.t1))), pm = mean(body.map((s) => s.pitch));
         for (const s of body) { const dt = 0.5 * (s.t0 + s.t1) - tm; sxy += dt * (s.pitch - pm); sxx += dt * dt; }
       }
+      const isLate = (s: Sound) => 0.5 * (s.t0 + s.t1) - all[0].t0 > LATE;
+      const early = body.filter((s) => !isLate(s)), rest = body.filter(isLate);
+      if (early.length >= 2 && rest.length >= 2) late.push(mean(rest.map((s) => s.pitch)) - mean(early.map((s) => s.pitch)));
       const lastV = v.find((s) => s.last);
       if (lastV && body.length >= 2) ends[lastV.edge].push(lastV.pitch - median(body.map((s) => s.pitch)));
       const lv = all.filter((s) => s.vowel && Number.isFinite(s.level));
@@ -219,6 +226,7 @@ export function deliveryOf(sayings: Saying[]): Delivery {
     step: Math.sqrt(mean(steps)),
     top: mean(tops),
     slope: sxx > 0 ? sxy / sxx : NaN,
+    late: mean(late),
     endStop: mean([...ends.stop, ...ends.wh]),
     endQuestion: mean(ends.question),
     endComma: mean(ends.comma),
@@ -274,6 +282,7 @@ const TERMS: { key: keyof Delivery; scale: number; log?: boolean }[] = [
   { key: 'step', scale: 0.7 },
   { key: 'top', scale: 1 },
   { key: 'slope', scale: 1 },
+  { key: 'late', scale: 1 },
   { key: 'endStop', scale: 1 },
   { key: 'endQuestion', scale: 1.5 },
   { key: 'endComma', scale: 1 },
@@ -300,9 +309,11 @@ export function deliveryDistance(ours: Delivery, target: Delivery): number {
  * sentences have to show for it to be moved (a rise of the questions is not
  * learnt from sentences without one: it would be spent on the other figures)
  */
-const KNOBS: [string, number, (keyof Delivery)?][] = [
+const KNOBS: [string, number, (keyof Delivery)?, boolean?][] = [
   ['speaking.accent', 2],
   ['speaking.style.phrase', 0.4],
+  // (at 0 the habit is off, and a small span is not a small change: from 0 it is tried at its whole first step in every round)
+  ['speaking.style.phraseSpan', 2, 'late', true],
   ['speaking.style.finalFall', 1.5, 'endStop'],
   ['speaking.style.questionRise', 2, 'endQuestion'],
   ['speaking.style.continuation', 1.5, 'endComma'],
@@ -333,9 +344,8 @@ export interface DeliveryFit {
  * falls, with steps that halve at each round.
  */
 export function fitDelivery(target: Delivery, voice: Readonly<VoiceDesign>, measure: (d: VoiceDesign) => Delivery, rounds = 4): DeliveryFit {
-  let best = cloneVoice(voice), evaluations = 0;
+  let evaluations = 0;
   const run = (d: VoiceDesign) => { evaluations++; return measure(d); };
-  const start = run(best);
   /** the pitch and the pace, which the other figures do not depend on */
   const level = (d: VoiceDesign, m: Delivery): VoiceDesign => {
     let out = d;
@@ -343,31 +353,45 @@ export function fitDelivery(target: Delivery, voice: Readonly<VoiceDesign>, meas
     if (Number.isFinite(m.rate) && Number.isFinite(target.rate)) out = withField(out, 'speaking.rate', out.speaking.rate * target.rate / m.rate);
     return out;
   };
-  best = level(best, start);
-  let now = run(best), cost = deliveryDistance(now, target);
-  const from = deliveryDistance(start, target);
-  for (let r = 0; r < rounds; r++) {
-    for (const [path, first, needs] of KNOBS) {
-      if (needs && !Number.isFinite(target[needs])) continue;
-      const field = VOICE_FIELDS.find((f) => f.path === path);
-      if (!field) continue;
-      const step = first / 2 ** r;
-      // a field is followed while it helps (up to four steps a round)
-      for (let n = 0; n < 4; n++) {
-        const v = fieldValue(best, field) as number;
-        let moved = false;
-        for (const dir of [1, -1]) {
-          const d = withField(best, path, v + dir * step);
-          if (fieldValue(d, field) === v) continue;
-          const m = run(d), c = deliveryDistance(m, target);
-          if (c < cost - 1e-3) { best = d; now = m; cost = c; moved = true; break; }
+  const search = (d0: VoiceDesign, m0: Delivery) => {
+    let best = level(d0, m0);
+    let now = run(best), cost = deliveryDistance(now, target);
+    for (let r = 0; r < rounds; r++) {
+      for (const [path, first, needs, off] of KNOBS) {
+        if (needs && !Number.isFinite(target[needs])) continue;
+        const field = VOICE_FIELDS.find((f) => f.path === path);
+        if (!field) continue;
+        const step = first / 2 ** r;
+        // a field is followed while it helps (up to four steps a round)
+        for (let n = 0; n < 4; n++) {
+          const v = fieldValue(best, field) as number;
+          let moved = false;
+          for (const dir of [1, -1]) {
+            const d = withField(best, path, v + dir * (off && v === 0 ? first : step));
+            if (fieldValue(d, field) === v) continue;
+            const m = run(d), c = deliveryDistance(m, target);
+            if (c < cost - 1e-3) { best = d; now = m; cost = c; moved = true; break; }
+          }
+          if (!moved) break;
         }
-        if (!moved) break;
       }
+      const d = level(best, now), m = run(d);
+      best = d; now = m; cost = deliveryDistance(m, target);
     }
-    const d = level(best, now), m = run(d);
-    best = d; now = m; cost = deliveryDistance(m, target);
+    return { best, now, cost };
+  };
+  const start = run(cloneVoice(voice)), from = deliveryDistance(start, target);
+  let found = search(cloneVoice(voice), start);
+  // a habit that is on or off is not reached a field at a time when the others have to follow it (a melody that starts
+  // again asks for other arcs and accents): where the search left it off it is run again with the habit on, and the
+  // nearer of the two ends is kept
+  for (const [path, first, needs, off] of KNOBS) {
+    const field = VOICE_FIELDS.find((f) => f.path === path);
+    if (!off || !field || (needs && !Number.isFinite(target[needs])) || fieldValue(found.best, field) !== 0) continue;
+    const on = withField(cloneVoice(voice), path, first), other = search(on, run(on));
+    if (other.cost < found.cost - 1e-3) found = other;
   }
+  const best = found.best, now = found.now, cost = found.cost;
   const fields = ['speaking.f0', 'speaking.rate', ...KNOBS.map(([path]) => path)].flatMap((path) => {
     const f = VOICE_FIELDS.find((x) => x.path === path);
     if (!f) return [];

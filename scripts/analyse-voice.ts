@@ -67,6 +67,7 @@ const FIGURES: [keyof Delivery, string, string, number][] = [
   ['step', 'da una vocale alla successiva (rms)', 'st', 1],
   ['top', 'vocale più alta della frase sopra la mediana', 'st', 1],
   ['slope', 'andamento lungo la frase', 'st/s', 1],
+  ['late', 'vocali oltre 1,5 s in una frase lunga, contro le prime', 'st', 1],
   ['endStop', 'ultima vocale prima del punto', 'st', 1],
   ['endQuestion', 'ultima vocale di una domanda sì/no', 'st', 1],
   ['endComma', 'ultima vocale prima della virgola', 'st', 1],

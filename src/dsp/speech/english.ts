@@ -366,6 +366,9 @@ const FUNCTION_WORDS = new Set(('a an the and or but nor of to in on at by for f
   'is am are was were be been being do does did have has had will would shall should can could may might must ' +
   'i me my we us our you your he him his she her it its they them their there here not no so if then').split(' '));
 
+/** ... and the ones among them that start a predicate: the auxiliaries and the forms of "to be", "to do" and "to have" */
+const PREDICATE_WORDS = new Set('is am are was were do does did have has had will would shall should can could may might must'.split(' '));
+
 const LETTER_PHONES: Record<string, string[]> = {
   A: ['eɪ'], I: ['aɪ'], O: ['oʊ'], W: ['aʊ'], Y: ['ɔɪ'], Q: ['oʊ'], 'ʤ': ['dʒ'], 'ʧ': ['tʃ'], 'ɡ': ['g'], 'ɐ': ['ə'],
   'ɒ': ['ɑ'], 'ᵊ': ['ə'], 'ᵻ': ['ɪ'], 'a': ['a'], 'ɚ': ['ɚ'], 'ɝ': ['ɝ'],
@@ -442,5 +445,7 @@ const WEAK_FORMS: Record<string, string> = {
 export function englishWord(word: string): Phone[] {
   const w = word.toLowerCase();
   const weak = WEAK_FORMS[w];
-  return toPhones(weak ?? englishPronunciation(w).ps, FUNCTION_WORDS.has(w));
+  const out = toPhones(weak ?? englishPronunciation(w).ps, FUNCTION_WORDS.has(w));
+  if (PREDICATE_WORDS.has(w)) for (const p of out) p.verb = true;
+  return out;
 }

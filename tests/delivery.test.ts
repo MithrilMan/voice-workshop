@@ -3,6 +3,7 @@ import { textToPhones } from '../src/dsp/speech/g2p';
 import { builtinVoice } from '../src/dsp/voice/builtin';
 import { utterance } from '../src/dsp/voice/utterance';
 import { VoiceDesign, withField } from '../src/dsp/voice/design';
+import { phonemeFor } from '../src/dsp/speech/derive';
 import { VoiceEngine } from '../src/dsp/engine/engine';
 import { analyse, clock } from '../src/dsp/voice/copy';
 import { sayingOf, planned, heard, deliveryOf, deliveryDistance, gapBetween, fitDelivery, Saying } from '../src/dsp/voice/delivery';
@@ -21,6 +22,11 @@ const OTHER = [
   'la nave lascia il porto di sera.',
   'hai visto il film di ieri?',
   'se vuoi, ti porto un libro nuovo.',
+];
+const LONG = [
+  'la casa di mio nonno in montagna è molto grande e piena di vecchi libri.',
+  'il treno che parte da milano alle sette arriva a roma prima di mezzogiorno.',
+  'i ragazzi della scuola hanno preparato una festa per la fine del mese.',
 ];
 const man = builtinVoice('man')!.design;
 const set = (d: VoiceDesign, fields: Record<string, number>) => Object.entries(fields).reduce((v, [path, x]) => withField(v, path, x), d);
@@ -83,6 +89,31 @@ describe('the delivery of a voice', () => {
     expect(far.fields.find((f) => f.path === 'speaking.style.pauseShort')!.limit).toBe(true);
   });
 
+  it('starts the melody again inside a long phrase, where its predicate starts, and the fit finds the habit', () => {
+    const again = set(man, { 'speaking.style.phraseSpan': 2 });
+    const a = say(man, LONG), b = say(again, LONG);
+    const one = deliveryOf(a), two = deliveryOf(b);
+    // "la casa di mio nonno in montagna | è molto grande ...": the same up to the break, higher after it
+    const k = textToPhones(LONG[0], 'it').filter((p) => phonemeFor(p.ipa)).findIndex((p) => p.verb);
+    const lift = a[0].map((s, i) => (s.vowel && !s.last ? b[0][i].pitch - s.pitch : NaN));
+    const before = lift.slice(0, k).filter(Number.isFinite), after = lift.slice(k, k + 12).filter(Number.isFinite);
+    const mean = (x: number[]) => x.reduce((p, q) => p + q, 0) / x.length;
+    note('melody restart', `three long Italian sentences by the man, one arc each and with an arc every 2 s: late in a phrase the vowels stand ${one.late.toFixed(1)} st and ${two.late.toFixed(1)} st against its earlier ones, the pitch runs down ${(-one.slope).toFixed(1)} and ${(-two.slope).toFixed(1)} st/s; in "${LONG[0]}" the ${before.length} vowels before the predicate move by ${Math.max(...before.map(Math.abs)).toFixed(2)} st at most, the ${after.length} after it stand ${mean(after).toFixed(1)} st higher`);
+    expect(k).toBeGreaterThan(10);
+    expect(Math.max(...before.map(Math.abs))).toBeLessThan(0.3);
+    expect(mean(after)).toBeGreaterThan(1);
+    expect(two.late).toBeGreaterThan(one.late + 1);
+    // a short sentence holds one arc either way
+    expect(say(again, [TEXTS[0]])).toEqual(say(man, [TEXTS[0]]));
+    // and a voice with one arc a phrase is brought to a speaker who starts again
+    const all = [...TEXTS, ...LONG];
+    const fit = fitDelivery(deliveryOf(say(again, all)), man, (d) => deliveryOf(say(d, all)));
+    const span = fit.fields.find((f) => f.path === 'speaking.style.phraseSpan')!;
+    expect(span.from).toBe(0);
+    expect(span.to).toBeGreaterThan(1);
+    expect(span.to).toBeLessThan(3);
+    expect(fit.to).toBeLessThan(0.25 * fit.from);
+  });
   it('reads off the sound what the plan holds', () => {
     const phones = textToPhones(TEXTS[1], 'it'), u = utterance(man, phones, 'it');
     const e = new VoiceEngine(FS, u.params);

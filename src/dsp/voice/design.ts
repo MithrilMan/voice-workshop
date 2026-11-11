@@ -287,6 +287,8 @@ export const VOICE_FIELDS: Field[] = [
     { it: 'Quanto sotto l’altezza abituale può scendere una frase.', en: 'How far below the usual pitch a phrase may fall.' }, 0, 10, 0.5, 'st'),
   n('speaking.style.phrase', 'melody', G.phrase, { it: 'Arco della frase', en: 'Arc of the phrase' },
     { it: 'La salita all’inizio di ogni frase e la sua lenta discesa (declinazione; Fujisaki 1984).', en: 'The rise at the start of each phrase and its slow fall (declination; Fujisaki 1984).' }, 0, 2, 0.05),
+  n('speaking.style.phraseSpan', 'melody', G.phrase, { it: 'Ripresa della melodia', en: 'Melody restart' },
+    { it: 'Una frase senza pause più lunga di così fa ripartire la melodia dall’alto al suo interno, prima di una parola grammaticale: 0 mai.', en: 'A phrase without a pause longer than this starts its melody again from the top inside it, before a function word: 0 never.' }, 0, 6, 0.1, 's'),
   n('speaking.style.micro', 'melody', G.phrase, { it: 'Microprosodia', en: 'Microprosody' },
     { it: 'Le piccole spinte di altezza delle vocali chiuse e delle consonanti sorde: 0 le toglie.', en: 'The small pitch pushes of close vowels and voiceless consonants: 0 removes them.' }, 0, 2, 0.05),
   n('speaking.style.flutter', 'melody', G.phrase, { it: 'Ondeggiamento', en: 'Flutter' },

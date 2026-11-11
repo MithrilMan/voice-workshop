@@ -14,6 +14,8 @@ export interface Phone {
   reduced?: boolean;
   /** part of a function word (article, preposition...): no pitch accent */
   func?: boolean;
+  /** part of a function word that starts a predicate (an auxiliary, a short form of "to be" or "to have"): where a long phrase most readily starts its melody again */
+  verb?: boolean;
   /** geminate (Italian double consonant) */
   long?: boolean;
   /** first phone of a word */
@@ -77,6 +79,9 @@ const IT_FUNCTION_WORDS = new Set((
   'nel nello nella nei negli nelle sul sullo sulla sui sugli sulle col coi'
 ).split(' '));
 
+/** ... and the ones among them that start a predicate */
+const IT_PREDICATE_WORDS = new Set(['è', 'ha', 'ho', 'hai']);
+
 /**
  * Italian orthography to phones. Rules: c/g before e/i, ch/gh, sc(i), gn, gl(i),
  * qu, z, geminates, silent h, intervocalic s voiced (northern norm),
@@ -131,6 +136,7 @@ export function italianWord(word: string): Phone[] {
     if (['ɲ', 'ʎ', 'ʃ', 'ts', 'dz'].includes(ipa) && PHONEMES[out[k - 1].ipa]?.manner === 'vowel' && PHONEMES[out[k + 1].ipa]?.manner === 'vowel') out[k].long = true;
   }
   if (func) for (const p of out) p.func = true;
+  if (IT_PREDICATE_WORDS.has(w)) for (const p of out) p.verb = true;
   if (out.length) { out[0].wordStart = true; out[out.length - 1].wordEnd = true; }
   return out;
 }
