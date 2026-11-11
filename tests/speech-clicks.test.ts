@@ -56,7 +56,8 @@ function take(text: string, lang: string): Take {
  * the milliseconds that stand 15 dB out of the 20 around them, within 30 dB of the sharpest of the sentence.
  * The closures of the folds are sharp too, and in the loudest vowel they come within 30 dB of the sharpest
  * breath of the sentence: they are the voice, and are told from a tick by coming back, as sharp to 6 dB,
- * one period before and one period after
+ * one period before and one period after (or one and two periods before: the last strong one of a voice
+ * that fades into a narrower sound)
  */
 function standouts(t: Take): { ms: number; rise: number; hf: number; phone?: ScorePhone }[] {
   const found = [];
@@ -67,6 +68,8 @@ function standouts(t: Take): { ms: number; rise: number; hf: number; phone?: Sco
     const rise = t.hf[i] - around[around.length >> 1];
     const period = t.tel[i].f0 > 0 ? Math.round(1000 / t.tel[i].f0) : 0;
     if (period > 3 && near(i - period) > t.hf[i] - 6 && near(i + period) > t.hf[i] - 6) continue;
+    // the last strong one of a voice that fades into a narrower sound has its like only behind it
+    if (period > 3 && near(i - period) > t.hf[i] - 6 && near(i - 2 * period) > t.hf[i] - 6) continue;
     if (rise > 15 && t.hf[i] >= Math.max(t.hf[i - 1], t.hf[i + 1])) {
       found.push({ ms: i, rise, hf: t.hf[i] - t.top, phone: t.phones.find((p) => i / 1000 >= p.t0 && i / 1000 < p.t1) });
     }

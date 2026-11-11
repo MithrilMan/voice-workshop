@@ -149,7 +149,8 @@ const STIFF_TAU = 0.005;
  * part at once into a flat slit. The tip of the tongue is held against the
  * ridge: its seal takes a
  * millisecond and a half to part, so it pops little, and the air leaves
- * through a channel no wider than the one the tip itself opens, a jet that
+ * at first through a channel no wider than the one the tip itself opens
+ * (the opening then spreads across the seal, see LEAVE), a jet that
  * is turbulent from the start and strikes the teeth: the burst of a /t/ is
  * a short hiss. (Parted at once into a flat slit, it was a bare pop with
  * hardly any hiss in it: a click of the tongue.) The body of the tongue
@@ -157,11 +158,29 @@ const STIFF_TAU = 0.005;
  * and the blade make their closures (cm).
  */
 const SEAL = {
-  lips: { width: 2, tau: 0.0004, flat: true },
-  tip: { width: 1, tau: 0.0015, flat: false },
-  body: { width: 1, tau: 0.0004, flat: true },
+  lips: { width: 2, tau: 0.0004, flat: true, leave: 0 },
+  tip: { width: 1, tau: 0.0015, flat: false, leave: 2 },
+  body: { width: 1, tau: 0.0004, flat: true, leave: 0 },
   reach: 3.5, max: 0.2,
 };
+/**
+ * A tip that comes away from a closure does not leave a passage like the one
+ * it holds for a vowel or a fricative, a channel that closes to a point at
+ * its sides (the law the areas are drawn by was fitted on held sounds): it
+ * was pressed against the ridge or the teeth from side to side, and the
+ * opening that starts on the midline spreads across that whole seal
+ * (`leave` of the seal, cm at the drawing's size) in `spread` seconds. The
+ * air then leaves through a flat slit as high as the tip has come down, the
+ * pressure behind it is gone in some ten milliseconds, and the burst is a
+ * short hiss with the vowel right behind it. (Through the narrow channel
+ * alone the pressure stayed up while the tip crossed its first millimetres,
+ * and a /d/ before a high vowel, the jaw still up, hissed at the teeth for
+ * 40 ms: a [dz].) The slit gives way to the passage the tongue holds as the
+ * tip comes down (between `low` and `high`, cm of height) and as time passes
+ * (between `hold` and `last`, s); a tongue that goes on to the groove of a
+ * sibilant keeps its channel, and so does a trill. Chosen, not measured.
+ */
+const LEAVE = { spread: 0.01, low: 0.2, high: 0.6, hold: 0.03, last: 0.06 };
 /** time the release transient takes to move from one place of the tract to another (s) */
 const PUFF_MOVE = 0.004;
 
@@ -402,6 +421,8 @@ export class VoiceEngine {
   /** the seal the pressure parts: the lips', the tip's or the body's */
   private seal = SEAL.body;
   private parted = 0;
+  /** time since the closure of that seal opened (s) */
+  private leftFor = Infinity;
 
   // geometry
   geom: TractGeometry | null = null;
@@ -416,6 +437,7 @@ export class VoiceEngine {
   /** wetted perimeter and lateral width of the narrowest passage (0 = round) */
   private fineMinPerimeter = 0;
   private fineMinWidth = 0;
+  private fineMinHeight = 0;
   private constrictionIndex = 0;
   /**
    * The narrowest passage as the aerodynamics sees it: its area, perimeter
@@ -428,11 +450,11 @@ export class VoiceEngine {
    * of a click) would be let into sections that have not opened yet, and
    * sound many times louder there.
    */
-  private pass = { area: 1, perimeter: 0, width: 0, toTeeth: -1, slitH: 0.3 };
-  private passTo = { area: 1, perimeter: 0, width: 0, toTeeth: -1, slitH: 0.3 };
+  private pass = { area: 1, perimeter: 0, width: 0, toTeeth: -1, slitH: 0.3, height: 0 };
+  private passTo = { area: 1, perimeter: 0, width: 0, toTeeth: -1, slitH: 0.3, height: 0 };
   /** the passage and the front passage of a click on their way: area, perimeter, width, way to the teeth, slit, front of the click */
-  private passage = new Follow([1, 0, 0, -1, 0.3, 1]);
-  private passGoal = new Float64Array([1, 0, 0, -1, 0.3, 1]);
+  private passage = new Follow([1, 0, 0, -1, 0.3, 1, 0]);
+  private passGoal = new Float64Array([1, 0, 0, -1, 0.3, 1, 0]);
   /** where the transient of a release is let into the tract: the place of the closure that opened */
   private burstJunction = 0;
   /** where the transient is let out now, the place it is leaving, and how far it has moved (0 to 1) */
@@ -793,6 +815,7 @@ export class VoiceEngine {
       this.fineMinArea = Infinity;
       this.fineMinPerimeter = 0;
       this.fineMinWidth = 0;
+      this.fineMinHeight = 0;
       const i0 = Math.max(2, Math.ceil((2.6 * p.tubeLength) / 17.5 / this.af.dx));
       for (let i = i0; i < n; i++) if (areas[i] < this.fineMinArea) { this.fineMinArea = areas[i]; this.fineMinS = (i + 0.5) * this.af.dx; }
     } else {
@@ -814,6 +837,7 @@ export class VoiceEngine {
       this.fineMinS = ms;
       this.fineMinPerimeter = mp;
       this.fineMinWidth = mw;
+      this.fineMinHeight = mi >= 0 ? Math.max(0, g.hits[mi].d) : 0;
       // a second narrow passage of the tongue, with air between it and the
       // first (the teeth and the lips have sources of their own)
       const sc = this.second;
@@ -847,6 +871,7 @@ export class VoiceEngine {
     to.area = Math.max(0, this.fineMinArea);
     to.perimeter = this.fineMinPerimeter;
     to.width = this.fineMinWidth;
+    to.height = this.fineMinHeight;
     to.slitH = gm ? gm.slit.height : 0.3;
     to.toTeeth = -1;
     if (gm) {
@@ -950,7 +975,7 @@ export class VoiceEngine {
       this.clickJetJunction = Math.max(back, this.clickFrontIndex - Math.max(1, Math.round((0.5 * p.anatomy.scale) / dx)));
     } else { this.clickFrontIndex = -1; this.clickJetJunction = -1; }
     const pg = this.passGoal;
-    pg[0] = to.area; pg[1] = to.perimeter; pg[2] = to.width; pg[3] = to.toTeeth; pg[4] = to.slitH; pg[5] = this.clickFrontTo;
+    pg[0] = to.area; pg[1] = to.perimeter; pg[2] = to.width; pg[3] = to.toTeeth; pg[4] = to.slitH; pg[5] = this.clickFrontTo; pg[6] = to.height;
     if (force || !Number.isFinite(to.area)) this.passage.snap(pg);
     else this.passage.to(pg, Math.ceil(GEOM_INTERVAL / (CTRL / this.fsOut) - 1e-9));
     // exit of the constriction: first section downstream that opens up
@@ -1006,10 +1031,11 @@ export class VoiceEngine {
     ps.width = on[2];
     ps.toTeeth = on[3];
     ps.slitH = on[4];
+    ps.height = Math.max(0, on[6]);
     this.clickFrontArea = Math.max(0, on[5]);
     let oral = ps.area;
     if (oral < 0.004) {
-      this.sealed = true; this.parted = 0;
+      this.sealed = true; this.parted = 0; this.leftFor = 0;
       const gm = this.geom, behind = gm ? gm.teethPos - this.fineMinS : Infinity;
       this.seal = behind <= 0 ? SEAL.lips : behind < SEAL.reach * scale ? SEAL.tip : SEAL.body;
     }
@@ -1019,6 +1045,13 @@ export class VoiceEngine {
       this.parted += (want - this.parted) * (1 - Math.exp(-dt / this.seal.tau));
       if (oral >= want) { this.sealed = false; this.parted = 0; }
       else oral = Math.max(oral, this.parted);
+    }
+    let leftW = 0;
+    if (oral >= 0.004 && this.seal.leave > 0 && !this.trillKey && this.leftFor < LEAVE.last) {
+      this.leftFor += dt;
+      const share = (1 - smoothstep(LEAVE.low * scale, LEAVE.high * scale, ps.height)) * (1 - smoothstep(LEAVE.hold, LEAVE.last, this.leftFor)) * (1 - Math.min(1, Math.max(0, this.art.groove)));
+      const wide = ps.width + Math.max(0, this.seal.leave * scale - ps.width) * smoothstep(0, LEAVE.spread, this.leftFor), flat = wide * ps.height;
+      if (share > 0 && flat > oral) { oral += share * (flat - oral); leftW = ps.width + share * (wide - ps.width); }
     }
     // two narrow passages in series pass the flow of one of area (A1^-2 + A2^-2)^-1/2,
     // and each takes the share (A / A_k)^2 of the drop of pressure
@@ -1082,7 +1115,8 @@ export class VoiceEngine {
     // slit as wide as their seal and a few hundredths of a centimetre high;
     // the tip leaves the channel it was opening anyway)
     let jetP = ps.perimeter, jetW = ps.width;
-    if (oral > ps.area && this.seal.flat) { jetW = Math.max(ps.width, this.seal.width * scale); jetP = 2 * (jetW + oral / jetW); }
+    if (leftW > 0) { jetW = Math.max(jetW, leftW); jetP = 2 * (jetW + oral / jetW); }
+    else if (oral > ps.area && this.seal.flat) { jetW = Math.max(ps.width, this.seal.width * scale); jetP = 2 * (jetW + oral / jetW); }
     this.aero.jet(oral, ps.toTeeth, ps.slitH, this.jet, jetP, jetW, share1, p.anatomy.scale);
     // the jets lose their kinetic pressure where they expand: flow resistances
     kineticResistances(this.af.areas, this.aero.uMouth, this.wg.resTarget, this.constrictionIndex, oral);

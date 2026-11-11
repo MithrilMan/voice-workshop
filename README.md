@@ -869,13 +869,25 @@ Flanagan & Cherry 1969; Shadle 1985):
   (Nicolaidis et al. 2019). The lips are free and wide: 2 cm of them part
   at once into a flat slit. The tip of the tongue is held against the
   ridge: its seal takes a millisecond and a half to part, so it pops
-  little, and the air leaves through a channel no wider than the one the
-  tip itself is opening, a jet that is turbulent from the start and strikes
-  the teeth. The burst of a /t/ is then a short hiss, about as loud for its
+  little, and the air leaves at first through a channel no wider than the
+  one the tip itself is opening, a jet that is turbulent from the start and
+  strikes the teeth. The burst of a /t/ is then a short hiss, about as loud for its
   few milliseconds as an /s/, which is what the measures say (-10.7 dB
   against /a/ for the burst, -10 dB for /s/). Parted at once into a flat
   slit, as it was, the tip gave a bare pop with hardly any hiss in it: a
-  click of the tongue. The body of the tongue parts at once over 1 cm. The source stays at the place of its closure while it
+  click of the tongue. The opening then spreads across the seal: the tip
+  was pressed against the ridge or the teeth from side to side, not along
+  the narrow channel that a held sound is drawn with (the law of the areas
+  was fitted on held sounds), so 10 ms after the release the air leaves
+  through a flat slit 2 cm wide (at the drawing's size) and as high as the
+  tip has come down, until the tip is 2-6 mm away or 30-60 ms have passed
+  (all chosen, not measured). The pressure behind a /t/ or a /d/ is then
+  gone in some ten milliseconds also before a high vowel, where the jaw is
+  still up and the tip has little way to go: through the narrow channel
+  alone 40 % of it was still there 10 ms after the /d/ of "la dita", and
+  the air went on hissing at the teeth for 40 ms, a [dz]. A tongue that
+  goes on to the groove of a sibilant keeps its channel, and so does a
+  trill. The body of the tongue parts at once over 1 cm. The source stays at the place of its closure while it
   lasts, also when another place becomes the narrowest, and takes 4 ms to
   move to the next closure that opens.
 - **A second passage**: where the tongue narrows the tract twice, both
@@ -1710,7 +1722,7 @@ in brackets are the adult male targets described under Speech.
 | Nasal cycle | /m/ with one passage congested (cycle 0.6): a new resonance at 2170 Hz with its antiresonance; first resonance 280 -> 270 Hz |
 | Pinched nostril | /m/ with the left nostril pinched: first resonance 310 -> 240 Hz, new antiresonance at 550 Hz |
 | Asymmetric nose, waveguide vs reference | congested left side, right nostril 40 % open, lossless: worst difference 0.34 % over 6 resonances below 3 kHz |
-| No clicks in running speech | "la luna e le stelle", with the piriform junction moving twice: loudest transient inside a vowel or sonorant, above 6 kHz, against the 40 ms around it +16 dB (+41 when a move zeroed the branch). Millisecond by millisecond, "la luna è piena stanotte." has 6 ms that stand 15 dB out of the 20 ms around them and "where did you put the keys?" 9 (the closures of the folds, which come back a period before and a period after, are the voice and are not counted): all at the edges of the stops (where the mouth shuts and opens, or where the time of a stop that the glottis held ends), none inside a vowel, none sharp inside a closure (before: +41 dB inside the closure of a /d/, +28 dB between /u/ and /n/, +21 dB inside the /ɪ/ of "did") |
+| No clicks in running speech | "la luna e le stelle", with the piriform junction moving twice: loudest transient inside a vowel or sonorant, above 6 kHz, against the 40 ms around it +16 dB (+41 when a move zeroed the branch). Millisecond by millisecond, "la luna è piena stanotte." has 7 ms that stand 15 dB out of the 20 ms around them and "where did you put the keys?" 4 (the closures of the folds, which come back a period before and a period after, or a period and two before where the voice fades into a narrower sound, are the voice and are not counted): all at the edges of the stops (where the mouth shuts and opens, or where the time of a stop that the glottis held ends), none inside a vowel, none sharp inside a closure (before: +41 dB inside the closure of a /d/, +28 dB between /u/ and /n/, +21 dB inside the /ɪ/ of "did") |
 | Stops on time | the mouth shut against the plan, and for how long: "la luna è piena stanotte." p +16 ms (56 of 89 ms), t -3 (63 of 79), t +16 (127 of 157); "where did you put the keys?" d +4 (50 of 68), d +12 (43 of 65), p -6 (80 of 93), k +19 (47 of 140, the rest its aspiration); no breath before the closure of a voiceless stop (the tongue after an open vowel shut some 45 ms late before) |
 | Room behind a voiced closure | [ˈabːa ˈadːa ˈagːa], shut 103, 76 and 104 ms: the voice at the end of the closure 0.48, 0.49, 0.48 of full, with 0.54 of the lungs' pressure behind it and 6.3, 3.7, 7.6 cm³ of room made (0.02, 0.13, 0.00 and 0.79, 0.72, 0.82 without the room); largest rise of the pressure in 1 ms 0.93, 0.24, 0.16 cmH2O (2.20, 0.24, 3.31 without), the highest sample after the release within 1 % of the one without; of the 6.3 cm³ of [ˈabːa], 2.5 and 0.9 are left 0.1 and 0.2 s after the release; [ˈabːabːa] 0.50 and 0.45 at the end of its two closures (0.04, 0.03 without); behind folds that leak (a chink of 0.04 cm²) 0.46-0.47 with 12.7, 8.6, 14.9 cm³ (0.00 without) |
 | Tap | the tap of "the city": shut 13 ms in its 20 ms, and 13 ms when given 80 ms |
@@ -1718,8 +1730,9 @@ in brackets are the adult male targets described under Speech.
 | Breath at a full stop | "la luna è piena. Stanotte la vedo.", a pause of 300 ms: the lungs pull down to -2.8 cmH2O and 1098 cm³/s go in, for 161 ms; its hiss 39 dB below the loudest vowel of the sentence before (83 dB below with no breath taken; 27 dB while the air going in hissed on the teeth too, which it cannot); the loudest millisecond of the pause 20 dB above its median one and 30 dB below that vowel; no air goes in at a comma |
 | Airways below a wide glottis | the flow is the airways' (1.5 cmH2O per l/s) below 1.21 cmH2O with the glottis wide open (0.56 cm²), 0.35 cmH2O at 0.3 cm², 0.010 cmH2O for the glottis of a voice (0.05 cm²) |
 | Sibilant in a sentence | the /s/ of "stanotte": narrower than 0.2 cm² 5 ms into its sound, the teeth sounding through 75 % of it; the releases of the two /t/ 2.1 and 3.6 dB below its hiss |
-| Bursts | RMS of 10 ms at the burst less 30 ms at the start of the vowel, as Nicolaidis et al. (2019) measured Greek /p t k/ (theirs in brackets): "la pata" -15.3 dB (-11.2), "la pita" -11.7 (-11.0), "la tata" -15.3 (-10.7), "la tita" -14.1 (-13.0), "la cata" -19.1 (-5.9), "la chita" -17.2 (-11.1); the voice starts after 10, 5, 19, 16, 27 and 25 ms (16, 14, 12, 23, 30, 63); without the pop of the air let out the burst of /p/ loses 2.0 dB, that of /t/ 0.9 dB: it is mostly a hiss |
-| Fricated release | every /t/ as the studio plays it, from the moment it is let go: when the voice begins, for how long the noise stays within 10 dB of the start of the vowel, how much of it lies below 3 kHz, and by how much its first 15 ms stand over the rest. "tattoo" in English 46 ms, 18 ms, 9 %, +0.5 dB and 82 ms, 64 ms, 7 %, -2.3 dB; "tea" 77 ms, 62 ms, 5 %, +0.7 dB; in Italian 20 ms, 4 ms, 41 % and 17 ms, 4 ms, 45 %; "ti" 23 ms, 19 ms, 35 % (let go at once with the folds apart, the English ones had 46 and 26 % below 3 kHz and a first stage 9.6 and 15.4 dB over the rest) |
+| Bursts | RMS of 10 ms at the burst less 30 ms at the start of the vowel, as Nicolaidis et al. (2019) measured Greek /p t k/ (theirs in brackets): "la pata" -15.3 dB (-11.2), "la pita" -11.7 (-11.0), "la tata" -15.3 (-10.7), "la tita" -17.0 (-13.0), "la cata" -19.1 (-5.9), "la chita" -15.4 (-11.1); the voice starts after 10, 5, 19, 15, 27 and 25 ms (16, 14, 12, 23, 30, 63); without the pop of the air let out the burst of /p/ loses 2.0 dB, that of /t/ 0.9 dB: it is mostly a hiss |
+| Fricated release | every /t/ as the studio plays it, from the moment it is let go: when the voice begins, for how long the noise stays within 10 dB of the start of the vowel, how much of it lies below 3 kHz, and by how much its first 15 ms stand over the rest. "tattoo" in English 46 ms, 9 ms, 6 %, +2.8 dB and 82 ms, 64 ms, 6 %, -1.6 dB; "tea" 77 ms, 60 ms, 5 %, +0.2 dB; in Italian 20 ms, 4 ms, 50 % and 17 ms, 3 ms, 70 %; "ti" 16 ms, 3 ms, 76 % (let go at once with the folds apart, the English ones had 46 and 26 % below 3 kHz and a first stage 9.6 and 15.4 dB over the rest) |
+| A tip that leaves its closure | the pressure behind a /t/ or a /d/ 10 and 20 ms after its release, against the one at the release: the man's "la dita" 11 and 5 %, "la tita" 5 and 3 %, "la data" 12 and 2 %; the woman's 10 and 5 %, 5 and 3 %, 12 and 2 % (through the narrow channel alone "la dita" kept 40 and 28 %, "la tita" 30 and 21 %, "la data" as now) |
 | Place of a velar | front edge of the contact when the stop is let go: 6.9 cm from the lips before /i/, 7.8 before /a/, 8.0 before /u/, 9.0 before /o/; /t/ 3.9 before /i/, 4.4 before /o/ |
 | Speaking rate | the whole lasts 1/rate of what it lasts at the usual rate, from 0.6 to 2.5 times (Italian within 1 %; English, whose aspiration follows the root of the rate, within 15 %); between a slow rate (0.9) and a fast one (1.15): Italian vowels 0.74 and stops 0.83 of their duration, English 0.72 and 0.83 (speakers 0.75 and 0.9, Gay 1978; 0.74 and 0.8, Port 1981); slower than usual (0.9): vowels +14 % and stops +9 %, English +15 % and +8 %; from 2 to 2.5 times vowels and stops both 0.80 |
 | Unstressed /a/ | /tatata/: F1 728 Hz stressed (156 ms, jaw 0.88); 583 Hz before the stress (77 ms, jaw 0.38), 20 % below; 544 Hz after it, 25 % below; 728 Hz at the end of the word (speakers 18 % and 28 % below, the last of the word open again: Farnetani & Vayra 1991); /i/ and /u/ the same stressed or not |
