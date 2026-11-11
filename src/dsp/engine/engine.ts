@@ -70,6 +70,16 @@ const HF_LOSS = 12500;
  */
 const THIN = { rd: 1.4, chink: 0.04, swing: 0.4 };
 /**
+ * The return phase of a pulse scaled against the one Fant's regression gives
+ * for its Rd: the opening (and so H1-H2) is kept, the closure made sharper or
+ * softer. Fant (1995) ties the two together for an average voice; voices
+ * differ, and with his return phase ours had their upper formants 4-8 dB
+ * weaker against H1 than recordings with the same H1-H2.
+ */
+function withReturnPhase(t: LFTiming, scale = 1): LFTiming {
+  return scale === 1 ? t : { ...t, ta: Math.min(0.9 * (1 - t.te), Math.max(0.0015, t.ta * scale)) };
+}
+/**
  * What the pressure changes in the LF source, whose pulse shape and pitch are
  * given rather than computed. A louder voice closes more sharply: Rd falls by
  * this much per doubling of the lung pressure from the speaking pressure, so
@@ -1082,7 +1092,7 @@ export class VoiceEngine {
     const effort = Math.max(-PRESSURE.octaves, Math.min(PRESSURE.octaves, Math.log2(Math.max(this.psCur, 1) / (8 * CMH2O))));
     const shape = this.live > 0 ? this.live * WANDER.rdPeriod * this.rng.gauss() : 0;
     const rd = Math.max(0.3, Math.min(2.7, s.rd + this.rdOffset + shape + THIN.rd * thinness(s) - PRESSURE.rd * effort));
-    const timing: LFTiming = s.advanced ? timingFromQuotients(s.oq, s.alphaM, s.ra) : rdToTiming(rd);
+    const timing: LFTiming = s.advanced ? timingFromQuotients(s.oq, s.alphaM, s.ra) : withReturnPhase(rdToTiming(rd), s.returnPhase);
     src.setShape(timing);
     // measured F0 (for display)
     this.measuredF0 = src.periodF0;
@@ -1341,7 +1351,7 @@ export class VoiceEngine {
     lv.voice = la.voice / ln; lv.out = Math.sqrt(la.out / Math.max(1, ln / this.ratio));
     la.aspiration = la.wall = la.obstacle = la.user = la.voice = la.out = 0; la.n = 0;
     const s = this.params.source;
-    const timing = s.advanced ? timingFromQuotients(s.oq, s.alphaM, s.ra) : rdToTiming(s.rd);
+    const timing = s.advanced ? timingFromQuotients(s.oq, s.alphaM, s.ra) : withReturnPhase(rdToTiming(s.rd), s.returnPhase);
     const g = this.geom;
     let phone = '';
     if (this.score) {

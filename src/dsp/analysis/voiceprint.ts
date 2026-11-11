@@ -1,7 +1,8 @@
 /**
  * What can be measured of a voice from a recording, without knowing what it
  * says: its pitch and how far it moves, the shape of its pulses (the first
- * two harmonics, the cepstral peak), its formants, the balance of its
+ * two harmonics, the cepstral peak), its formants and how strong the voice is
+ * at them against its first harmonic, the balance of its
  * spectrum, the hiss of its consonants against its vowels, its pace and its
  * pauses. The same measures are taken on a recording and on what the
  * simulator says, so that one can be brought toward the other.
@@ -31,6 +32,9 @@ export interface VoicePrint {
   cpp: number;
   /** F1-F4 (Hz), medians of the loud voiced frames */
   formants: number[];
+  /** the first harmonic over the strongest harmonic near F1, F2 and F3 (dB; Hanson 1997's H1-A1, H1-A2, H1-A3), medians of
+   *  the same frames: the higher, the faster the harmonics of the source fall (a softer closure of the folds) */
+  h1a: number[];
   /** the voiced frames' power in BANDS, dB against all of it */
   bands: number[];
   /** the unvoiced frames' power in HISS_BANDS, dB against the mean power of a voiced frame (NaN above the band of the recording) */
@@ -70,7 +74,7 @@ export function voicePrint(input: Clip[]): VoicePrint {
   // everything is measured at 24 kHz or below (as fast, and the same for every source)
   const clips = input.map((c) => { const f = Math.max(1, Math.floor(c.fs / 24000)); return f > 1 ? { samples: Float32Array.from(decimate(c.samples, f)), fs: c.fs / f } : c; });
   const fs = Math.min(...clips.map((c) => c.fs));
-  const f0s: number[] = [], h12: number[] = [], cpps: number[] = [], fm: number[][] = [[], [], [], []];
+  const f0s: number[] = [], h12: number[] = [], cpps: number[] = [], fm: number[][] = [[], [], [], []], h1a: number[][] = [[], [], []];
   const bandV = new Float64Array(BANDS.length), bandU = new Float64Array(HISS_BANDS.length);
   let voicedPower = 0, nVoiced = 0, nUnvoiced = 0, nSpeech = 0, nuclei = 0;
   const pauses: number[] = [];
@@ -96,14 +100,18 @@ export function voicePrint(input: Clip[]): VoicePrint {
         for (let k = 1; k < f.power.length; k++) tot += f.power[k];
         voicedPower += tot;
         BANDS.forEach(([a, b], j) => { bandV[j] += bandPower(f.power, binHz, a, b); });
-        const peak = (c: number) => { let m = 0; for (let k = Math.floor((0.8 * c) / binHz); k <= Math.ceil((1.2 * c) / binHz) && k < f.power.length; k++) m = Math.max(m, f.power[k]); return m; };
+        const peak = (c: number, r = 0.2) => { let m = 0; for (let k = Math.floor(((1 - r) * c) / binHz); k <= Math.ceil(((1 + r) * c) / binHz) && k < f.power.length; k++) m = Math.max(m, f.power[k]); return m; };
         h12.push(db(peak(f.f0)) - db(peak(2 * f.f0)));
         cpps.push(cppOf(f.power, fsC, size));
         if (f.level > top - LOUD) {
           const c = Math.round(f.t * fsD), a = Math.max(0, c - (nD >> 1));
           if (a + nD <= low.length) {
             const got = lpcFormants(low.subarray(a, a + nD), fsD, 12, 500).filter((x) => x.f > 180);
-            if (got.length >= 3) for (let j = 0; j < Math.min(4, got.length); j++) fm[j].push(got[j].f);
+            if (got.length >= 3) {
+              for (let j = 0; j < Math.min(4, got.length); j++) fm[j].push(got[j].f);
+              const h1 = db(peak(f.f0, 0.1));
+              [0.1, 0.08, 0.06].forEach((r, j) => { if (got[j].f < fsC / 2 - 200) h1a[j].push(h1 - db(peak(got[j].f, r))); });
+            }
           }
         }
       } else {
@@ -133,6 +141,7 @@ export function voicePrint(input: Clip[]): VoicePrint {
     f0Sd: Math.sqrt(st.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, st.length)),
     h1h2: pct(h12, 0.5), cpp: pct(cpps, 0.5),
     formants: fm.map((xs) => pct(xs, 0.5)),
+    h1a: h1a.map((xs) => pct(xs, 0.5)),
     bands: Array.from(bandV, (e) => db(e) - db(allV)),
     hiss: Array.from(bandU, (e) => (Number.isNaN(e) || !nUnvoiced ? NaN : db(e / nUnvoiced) - db(meanV))),
     syllables: nuclei / Math.max(HOP, nSpeech * HOP),

@@ -4,26 +4,25 @@
  * same living (a seed), and then with the recording's timing, its timing
  * and melody, and its timing, melody and loudness. Writes WAV files and a
  * page that plays them side by side. With --cross, instead: the recording,
- * our copy with all three, our fine structure through the recording's
- * spectral envelope, and through it only in the passages of nasals,
- * liquids and fricatives, our copy in a small room, and our copy with the
- * jet on the teeth only in the sibilants.
- * Other stretches: crossSynth's `where`.
+ * our copy with all three, the same with a sharper closure of the folds and
+ * with the glottal hiss back at its default level, and our fine structure
+ * through the recording's spectral envelope only in the passages of nasals,
+ * liquids and fricatives. Other stretches: crossSynth's `where`.
  *   npx tsx scripts/copy-test.ts list.json [list2.json ...] [--voice=woman|file.voice.json]
  *       [--n=3] [--out=.ref/copy] [--cross] [--set=habits.precision=1,phonation.rd=1] [--losses=0.8] [--live=1] [--tau=0.8] [--mute=aspiration,...]
  * --set changes fields of the voice, --losses the engine's waveguide losses (to try what moves the copy toward the recording),
  * --mute=aspiration,frication,obstacle,burst switches noise sources of the engine off (to hear and measure what they add)
+ * With --cross, --before=key keeps the files of an earlier run's column `key` as a column "before" (to hear a change of the model)
  * list.json: [{ "file": "a.wav", "text": "What it says.", "lang": "en" }, ...]
  * Without --voice, a list's own fitted voice (fit_auto_<name>.voice.json
  * next to it) if there is one, else the man's or the woman's by its pitch.
  */
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync } from 'node:fs';
 import { dirname, join, basename } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { textToPhones } from '../src/dsp/speech/g2p';
 import { setEnglishLexicon } from '../src/dsp/speech/english';
 import { decodeWav, encodeWav } from '../src/dsp/util/wav';
-import { Rng } from '../src/dsp/util/rng';
 import { builtinVoice } from '../src/dsp/voice/builtin';
 import { voiceFromJson } from '../src/dsp/voice/codec';
 import { VoiceDesign, withField } from '../src/dsp/voice/design';
@@ -63,42 +62,10 @@ function level(x: Float32Array, fs: number): Float32Array {
   return Float32Array.from(x, (v) => v * k);
 }
 
-/**
- * The jet on the teeth heard only in the sibilants (s z ʃ ʒ and the
- * affricates): elsewhere the same saying rendered without it, crossfaded
- * over 10 ms. Both renders share the score, and the engine draws the noise
- * of each source from its own generator, so they differ only by that
- * source. To hear whether the hiss between the sibilants is the teeth's.
- */
-function sibilantTeeth(withIt: Float32Array, without: Float32Array, phones: { ipa: string; t0: number; t1: number }[], fs: number): Float32Array {
-  const n = Math.min(withIt.length, without.length), w = new Float64Array(n), sm = new Float64Array(n), f = Math.round(0.01 * fs);
-  for (const p of phones) if (/^(t?[szʃʒɕʑ]|d[zʒ])/.test(p.ipa)) w.fill(1, Math.max(0, Math.round(p.t0 * fs)), Math.min(n, Math.round(p.t1 * fs)));
-  let acc = 0;
-  for (let i = 0; i < n + (f >> 1); i++) { if (i < n) acc += w[i]; if (i - f >= 0) acc -= w[i - f]; const j = i - (f >> 1); if (j >= 0 && j < n) sm[j] = acc / f; }
-  return Float32Array.from({ length: n }, (_, i) => sm[i] * withIt[i] + (1 - sm[i]) * without[i]);
-}
-
-/**
- * The voice in a small room: the dry sound plus a tail of dark noise that
- * dies away by 60 dB in 0.3 s, 3 ms after it, its energy 25 dB below the
- * direct sound's (a voice recorded near the mouth). Chosen, not measured:
- * only to hear whether the silences of ours, which are digital zero, matter.
- */
-function room(x: Float32Array, fs: number): Float32Array {
-  const len = Math.round(0.3 * fs), ir = new Float64Array(len), rng = new Rng(7), a = 1 - Math.exp((-2 * Math.PI * 3000) / fs);
-  let lp = 0, e = 0;
-  for (let i = 0; i < len; i++) { lp += (rng.gauss() - lp) * a; ir[i] = lp * Math.exp((-6.91 * i) / len); e += ir[i] * ir[i]; }
-  const g = 10 ** (-25 / 20) / Math.sqrt(e), d = Math.round(0.003 * fs), y = Float32Array.from(x);
-  for (let i = d; i < x.length; i++) {
-    let s = 0;
-    for (let k = 0, j = i - d; k < len && j >= 0; k++, j--) s += ir[k] * x[j];
-    y[i] += g * s;
-  }
-  return y;
-}
-
+/** the return phase of the column with a sharper closure of the folds */
+const SHARP = 0.55;
 const VERSIONS: [string, string][] = cross
-  ? [['orig', 'Originale'], ['all', 'Nostra, con tempi, melodia e volume copiati'], ['oursrc', 'Struttura fine nostra, inviluppo loro'], ['pothers', 'Nostra, inviluppo loro solo nei passaggi di nasali, liquide e fricative'], ['room', 'Nostra, in una stanza'], ['teeth', 'Nostra, fruscio sui denti solo nelle sibilanti']]
+  ? [['orig', 'Originale'], ...(opt('before') ? [['before', 'Prima (la migliore della volta scorsa)'] as [string, string]] : []), ['all', 'Nostra, con tempi, melodia e volume copiati'], ['sharp', 'Nostra, le corde si chiudono più nette'], ['nobreath', 'Nostra, senza il soffio aggiunto dalla stima'], ['pothers', 'Nostra, inviluppo loro solo nei passaggi di nasali, liquide e fricative']]
   : [['orig', 'Originale'], ['rules', 'Le nostre regole'], ['living', 'Regole, viva'], ['timing', 'Tempi copiati'], ['melody', 'Tempi e melodia'], ['all', 'Tempi, melodia e volume'], ['mouth', 'Tutto copiato, bocca viva']];
 const rows: { name: string; text: string; voice: string; files: string[] }[] = [];
 
@@ -121,8 +88,14 @@ for (const listPath of lists) {
     for (const kv of (opt('set') ?? '').split(',').filter(Boolean)) { const [path, value] = kv.split('='); d = withField(d, path, Number(value)); }
     const phones = textToPhones(item.text, item.lang);
     const u = utterance(d, phones, item.lang);
-    if (opt('losses')) u.params.losses = Number(opt('losses'));
-    for (const k of (opt('mute') ?? '').split(',').filter(Boolean)) (u.params.noise as unknown as Record<string, boolean>)[`${k}On`] = false;
+    const tune = (params: typeof u.params) => {
+      if (opt('losses')) params.losses = Number(opt('losses'));
+      for (const k of (opt('mute') ?? '').split(',').filter(Boolean)) (params.noise as unknown as Record<string, boolean>)[`${k}On`] = false;
+      return params;
+    };
+    tune(u.params);
+    // the same voice with some fields changed (its sound only: the plan and the copied score stay)
+    const voiceWith = (set: Record<string, number>) => { let d2 = d!; for (const [k, x] of Object.entries(set)) d2 = withField(d2, k, x); return tune(utterance(d2, phones, item.lang).params); };
     const rules = render(u.params, u.score, fs);
     const living = render(u.params, utterance(d, phones, item.lang, { seed: 1 + rows.length }).score, fs);
     const map = align(recA, analyse({ samples: rules, fs }));
@@ -171,8 +144,10 @@ for (const listPath of lists) {
     const edges = [{ t: ps[0].t0, stop: stop(0) }, ...ps.map((p, i) => ({ t: p.t1, stop: stop(i) || stop(i + 1) }))];
     const near = (which: (e: (typeof edges)[number]) => boolean) => (t: number) => edges.some((e) => which(e) && Math.abs(t - e.t) < 0.025);
     const passage = near(() => true), pStops = near((e) => e.stop), pOthers = (t: number) => passage(t) && !pStops(t);
-    const versions = cross ? [wav.samples, all, crossSynth(allC, rec), crossSynth(allC, rec, pOthers), room(all, fs), sibilantTeeth(all, render({ ...u.params, noise: { ...u.params.noise, obstacleOn: false } }, loud, fs), loud.phones, fs)] : [wav.samples, rules, living, timing, melody, all, mouth];
-    versions.forEach((x, i) => writeFileSync(join(out, files[i]), encodeWav(level(x, fs), fs)));
+    const before = opt('before'), was = join(out, `${name}_${k}_${before}.wav`);
+    if (cross && before && existsSync(was)) copyFileSync(was, join(out, `${name}_${k}_before.wav`));
+    const versions = cross ? [wav.samples, ...(before ? [null] : []), all, render(voiceWith({ 'phonation.returnPhase': SHARP }), loud, fs), render(voiceWith({ 'phonation.aspiration': 0 }), loud, fs), crossSynth(allC, rec, pOthers)] : [wav.samples, rules, living, timing, melody, all, mouth];
+    versions.forEach((x, i) => { if (x) writeFileSync(join(out, files[i]), encodeWav(level(x, fs), fs)); });
     // the sounds of the copy, on the recording's time (for scripts/envelope-report.ts)
     writeFileSync(join(out, `${name}_${k}_phones.json`), JSON.stringify(loud.phones.map((p) => ({ ipa: p.ipa, t0: +p.t0.toFixed(4), t1: +p.t1.toFixed(4) }))));
     rows.push({ name, text: item.text, voice: d.name, files });
@@ -192,7 +167,7 @@ th { font-weight: 600; font-size: 13px; } .t { min-width: 20ch; max-width: 30ch;
 audio { width: 170px; height: 32px; }
 </style></head><body>
 ${cross ? `<h1>Sintesi incrociata</h1>
-<p>Le stesse frasi della prova di copia, con la nostra voce già sui tempi, sulla melodia e sul volume della registrazione. Ogni suono si divide in due parti: la <b>struttura fine</b> (gli impulsi delle corde vocali, la loro irregolarità, il soffio, il rumore delle consonanti) e l'<b>inviluppo</b> (le formanti, cioè la bocca, e l'inclinazione dello spettro). La terza colonna tiene la nostra struttura fine e prende tutto il loro inviluppo. La quarta lo prende solo nei passaggi tra un suono e l'altro (i 25 ms prima e dopo ogni confine) di nasali, liquide e fricative, e altrove resta la nostra voce, con una dissolvenza di 20 ms. La quinta è la nostra copia in una piccola stanza (un'eco breve, 25 dB sotto la voce): i nostri silenzi sono zero assoluto, quelli di una registrazione no. L'ultima è la nostra copia con il fruscio del getto d'aria sui denti solo nelle sibilanti (s, z, sc, le affricate): altrove lo stesso parlato senza quel fruscio. Se i rumori striduli tra una sibilante e l'altra spariscono, vengono dai denti (anche la t inglese perde il suo fruscio).</p>` : `<h1>Prova di copia</h1>
+<p>Le stesse frasi della prova di copia, con la nostra voce già sui tempi, sulla melodia e sul volume della registrazione.${opt('before') ? ' «Prima» è la colonna migliore della volta scorsa, rimasta com’era.' : ''} «Nostra» è il modello di adesso: il getto d'aria fruscia sui denti solo quando esce da un canale stretto e vicino a loro (le sibilanti, lo scoppio di una t), non più in [h] o nelle vocali; a fine frase i polmoni smettono di spingere invece di soffiare ancora 100 ms tra le corde aperte; la voce è stimata di nuovo dalle registrazioni, misurando anche quanto sono forti gli armonici sulle formanti. Le due colonne dopo cambiano una cosa sola: le corde che si chiudono più nette alla fine di ogni impulso (fase di ritorno ${SHARP} di quella che dà la loro forma: formanti alte più forti), oppure il soffio della glottide riportato al livello di partenza (la stima lo alza di 8 dB per avvicinare la periodicità della voce a quella delle registrazioni). L'ultima prende il loro inviluppo solo nei passaggi tra un suono e l'altro di nasali, liquide e fricative, con una dissolvenza di 20 ms.</p>` : `<h1>Prova di copia</h1>
 <p>Ogni riga è una frase di una voce registrata. Da sinistra: la registrazione; la nostra voce che la dice con le sue regole; la stessa, viva (variabilità 1); con i tempi della registrazione; con i suoi tempi e la sua melodia; con tempi, melodia e volume. Tutte allo stesso volume medio. Se con tempi e melodia copiati la nostra suona molto più umana, il lavoro va sulla prosodia; se resta meccanica, sul suono.</p>`}
 <div class="wrap"><table><tr><th>Frase</th>${VERSIONS.map(([, l]) => `<th>${l}</th>`).join('')}</tr>
 ${rows.map((r) => `<tr><td class="t">${esc(r.text)}<div class="v">${esc(r.name)} · voce: ${esc(r.voice)}</div></td>${r.files.map((f) => `<td><audio controls preload="none" src="${f}"></audio></td>`).join('')}</tr>`).join('\n')}

@@ -39,6 +39,19 @@ import { smoothstep } from '../util/math';
 export const RE_CRIT = 1800;
 /** reference area for the sqrt(A) source law, cm^2 */
 const A_REF = 0.1;
+/**
+ * The teeth are an obstacle only to a jet aimed at them: one out of a narrow
+ * channel close behind them, as in a sibilant (Shadle 1985). Out of a wide
+ * passage, or one far back (the tongue of an [h] before a high vowel, of an
+ * r-coloured vowel), the jet is spread along the palate before it gets there,
+ * and makes its noise on the walls. Areas (cm^2) and distances (cm) over which
+ * the aim fades: chosen, not measured, past the passages of the sibilants (up
+ * to about 0.23 cm^2, 0.6 cm from the teeth) and of a tip of the tongue
+ * letting go of the ridge (0.1-0.37 cm^2, 1.4-1.8 cm), toward those of [h]
+ * (0.55 cm^2), of an [ɪ] after it (0.4 cm^2) and of [ɚ] (2.3-2.6 cm).
+ */
+const AIM_AREA: readonly [number, number] = [0.45, 0.32];
+const AIM_DISTANCE: readonly [number, number] = [2.6, 2.0];
 
 export interface JetInfo {
   /** jet velocity at the constriction (cm/s) */
@@ -212,7 +225,8 @@ export class Aero {
       const x = toTeeth;
       const vt = x <= core ? v : x <= turn ? v * Math.sqrt(core / x) : (v * Math.sqrt(core / turn) * turn) / x;
       const width = dh * thin + 0.22 * x;
-      const impinge = Math.max(0, Math.min(1, 1 - slitHeight / width));
+      const aim = smoothstep(AIM_AREA[0], AIM_AREA[1], ac) * smoothstep(AIM_DISTANCE[0], AIM_DISTANCE[1], x);
+      const impinge = aim * Math.max(0, Math.min(1, 1 - slitHeight / width));
       out.vAtTeeth = vt;
       out.widthAtTeeth = width;
       out.impinge = impinge;

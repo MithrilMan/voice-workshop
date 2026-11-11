@@ -21,6 +21,7 @@ const MEASURES: Record<string, Bi> = {
   f0: { it: 'Altezza', en: 'Pitch' }, below: { it: 'Discesa sotto la mediana', en: 'Range below the median' }, above: { it: 'Salita sopra la mediana', en: 'Range above the median' },
   f0Sd: { it: 'Escursione', en: 'Pitch spread' }, F1: { it: 'F1', en: 'F1' }, F2: { it: 'F2', en: 'F2' }, F3: { it: 'F3', en: 'F3' }, F4: { it: 'F4', en: 'F4' },
   h1h2: { it: 'H1-H2 (forma dell’impulso)', en: 'H1-H2 (shape of the pulse)' }, cpp: { it: 'Periodicità (CPP)', en: 'Periodicity (CPP)' },
+  a1: { it: 'H1-A1 (voce su F1)', en: 'H1-A1 (voice at F1)' }, a2: { it: 'H1-A2 (voce su F2)', en: 'H1-A2 (voice at F2)' }, a3: { it: 'H1-A3 (voce su F3)', en: 'H1-A3 (voice at F3)' },
   b1: { it: 'Voce 0,5-1 kHz', en: 'Voice 0.5-1 kHz' }, b2: { it: 'Voce 1-2 kHz', en: 'Voice 1-2 kHz' }, b3: { it: 'Voce 2-4 kHz', en: 'Voice 2-4 kHz' }, b4: { it: 'Voce 4-8 kHz', en: 'Voice 4-8 kHz' },
   h0: { it: 'Fruscio 2-4 kHz', en: 'Hiss 2-4 kHz' }, h1: { it: 'Fruscio 4-8 kHz', en: 'Hiss 4-8 kHz' }, h2: { it: 'Fruscio 8-10,5 kHz', en: 'Hiss 8-10.5 kHz' },
   speech: { it: 'Tempo di parola', en: 'Time speaking' }, syllables: { it: 'Sillabe al secondo', en: 'Syllables per second' }, pause: { it: 'Pausa media', en: 'Mean pause' },

@@ -96,11 +96,16 @@ describe('the breath taken in a pause', () => {
     const text = 'la luna è piena. Stanotte la vedo.';
     const on = said(text), off = said(text, { breath: 0 });
     const p = on.pause!;
-    // every millisecond from the first turn of the air to the second: none stands out of the breath
+    // every millisecond from the first turn of the air to the second: none stands out of the breath much,
+    // and none comes near the voice. (Against the breath alone it was 15 dB at most while the air going
+    // in hissed on the teeth as well; it cannot, flowing in, and the same turn now stands 20 dB above a
+    // quieter breath, as loud as it was.)
     const lv = on.ms(p.t0 + 0.09, p.t1 - 0.01).sort((x, y) => x - y);
     const median = lv[lv.length >> 1], top = lv[lv.length - 1];
-    note('turns of the breath', `the loudest millisecond of the pause ${(top - median).toFixed(0)} dB above its median one`);
-    expect(top - median).toBeLessThan(15);
+    const voice = Math.max(...on.ms(0.05, p.t0));
+    note('turns of the breath', `the loudest millisecond of the pause ${(top - median).toFixed(0)} dB above its median one, ${(voice - top).toFixed(0)} dB below the loudest of the sentence before`);
+    expect(top - median).toBeLessThan(22);
+    expect(voice - top).toBeGreaterThan(25);
     // the second sentence, a tenth of a second in, to within 1.5 dB
     const s = on.u.score.phones.find((q) => q.t0 >= p.t1)!;
     const lev = (x: typeof on) => db(bandPower(x.seg(s.t0 + 0.1, s.t0 + 0.6), fs, 80, 8000));

@@ -75,6 +75,10 @@ const TERMS: Term[] = [
   { key: 'F4', label: 'F4', unit: 'Hz', get: (p) => p.formants[3], kind: 'pct', scale: 3 },
   { key: 'h1h2', label: 'H1-H2', unit: 'dB', get: (p) => p.h1h2, kind: 'db', scale: 1.5 },
   { key: 'cpp', label: 'cepstral peak', unit: 'dB', get: (p) => p.cpp, kind: 'db', scale: 0.4 },
+  // the harmonics at the formants against the first: the bands alone can be matched by more breath, which these tell apart
+  { key: 'a1', label: 'H1-A1', unit: 'dB', get: (p) => p.h1a[0], kind: 'db', scale: 2 },
+  { key: 'a2', label: 'H1-A2', unit: 'dB', get: (p) => p.h1a[1], kind: 'db', scale: 2 },
+  { key: 'a3', label: 'H1-A3', unit: 'dB', get: (p) => p.h1a[2], kind: 'db', scale: 2 },
   { key: 'b1', label: 'voice 0.5-1 kHz', unit: 'dB', get: (p) => p.bands[1], kind: 'db', scale: 1.5 },
   { key: 'b2', label: 'voice 1-2 kHz', unit: 'dB', get: (p) => p.bands[2], kind: 'db', scale: 1.5 },
   { key: 'b3', label: 'voice 2-4 kHz', unit: 'dB', get: (p) => p.bands[3], kind: 'db', scale: 1.5 },
@@ -114,11 +118,11 @@ export function distance(ours: VoicePrint, target: VoicePrint, keys: string[] | 
 interface Stage { name: string; params: [string, number][]; terms: string[]; rounds: number }
 
 const BODY: [string, number][] = [['body.anatomy.scale', 0.04], ['body.anatomy.pharynx', 0.05], ['body.anatomy.palateHeight', 0.15], ['body.anatomy.tongueSize', 0.04], ['habits.tongueX', 0.1]];
-const FOLDS: [string, number][] = [['phonation.rd', 0.2], ['phonation.chink', 0.02], ['phonation.aspiration', 4], ['habits.epilarynx', 0.15]];
+const FOLDS: [string, number][] = [['phonation.rd', 0.2], ['phonation.returnPhase', 0.2], ['phonation.chink', 0.02], ['phonation.aspiration', 4], ['habits.epilarynx', 0.15]];
 const STAGES: Stage[] = [
   { name: 'melody', params: [['speaking.accent', 1.5], ['speaking.style.phrase', 0.3], ['speaking.style.floor', 2], ['speaking.style.finalFall', 1.5], ['speaking.style.downstep', 0.05], ['speaking.style.endCreak', 0.2]], terms: ['below', 'above', 'f0Sd'], rounds: 3 },
   { name: 'body', params: BODY, terms: ['F1', 'F2', 'F3', 'F4', 'b1', 'b2', 'b3'], rounds: 3 },
-  { name: 'folds', params: FOLDS, terms: ['h1h2', 'cpp', 'b1', 'b2', 'b3', 'b4'], rounds: 2 },
+  { name: 'folds', params: FOLDS, terms: ['h1h2', 'cpp', 'a1', 'a2', 'a3', 'b1', 'b2', 'b3', 'b4'], rounds: 2 },
   { name: 'hiss', params: [['phonation.obstacle', 4], ['phonation.frication', 4]], terms: ['h0', 'h1', 'h2'], rounds: 3 },
   { name: 'pace', params: [['speaking.rate', 0.08], ['speaking.style.pauseShort', 0.1], ['speaking.style.pauseLong', 0.15]], terms: ['speech', 'syllables', 'pause'], rounds: 2 },
   { name: 'polish', params: [...BODY, ...FOLDS].map(([p, s]) => [p, s / 2] as [string, number]), terms: [], rounds: 1 },

@@ -14,6 +14,9 @@ export interface SourceParams {
   oq: number;
   alphaM: number;
   ra: number;
+  /** the return phase of each pulse (the time the folds take to close, Ta) against the one its Rd gives, 1 = Fant's:
+   *  shorter, a sharper closure and stronger upper harmonics for the same opening (H1-H2) */
+  returnPhase?: number;
   /** peak glottal opening in LF mode, cm^2 (sets the flow amplitude) */
   peakArea: number;
   /** posterior glottal chink (incomplete closure), cm^2 */
@@ -120,6 +123,7 @@ export const DEFAULT_SOURCE: SourceParams = {
   oq: 0.6,
   alphaM: 0.75,
   ra: 0.03,
+  returnPhase: 1,
   peakArea: 0.12,
   chink: 0.01,
   thickness: 1,

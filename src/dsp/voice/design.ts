@@ -20,6 +20,8 @@ export interface Phonation {
   /** LF (the shape of the glottal pulse) or two-mass (folds that vibrate by themselves) */
   model: SourceModel;
   rd: number;
+  /** the return phase of each pulse against the one its Rd gives (1): shorter, a sharper closure, a brighter voice */
+  returnPhase: number;
   peakArea: number;
   chink: number;
   /** vertical thickness of the vibrating folds: 1 chest voice, thin falsetto */
@@ -74,7 +76,7 @@ export interface VoiceDesign {
   language: string;
 }
 
-const PHONATION_KEYS = ['model', 'rd', 'peakArea', 'chink', 'thickness', 'jitter', 'shimmer', 'diplophonia', 'interaction', 'vibratoRate', 'vibratoDepth', 'asym', 'restArea'] as const;
+const PHONATION_KEYS = ['model', 'rd', 'returnPhase', 'peakArea', 'chink', 'thickness', 'jitter', 'shimmer', 'diplophonia', 'interaction', 'vibratoRate', 'vibratoDepth', 'asym', 'restArea'] as const;
 
 /**
  * The voice every other one is told apart from: the reference adult male of
@@ -89,7 +91,7 @@ export const VOICE_V1_BASE: Readonly<VoiceDesign> = deepFreeze({
   notes: '',
   body: { anatomy: { ...DEFAULT_ANATOMY }, teeth: { ...DEFAULT_TEETH } },
   phonation: {
-    model: DEFAULT_SOURCE.model, rd: DEFAULT_SOURCE.rd, peakArea: DEFAULT_SOURCE.peakArea, chink: DEFAULT_SOURCE.chink, thickness: DEFAULT_SOURCE.thickness,
+    model: DEFAULT_SOURCE.model, rd: DEFAULT_SOURCE.rd, returnPhase: 1, peakArea: DEFAULT_SOURCE.peakArea, chink: DEFAULT_SOURCE.chink, thickness: DEFAULT_SOURCE.thickness,
     jitter: DEFAULT_SOURCE.jitter, shimmer: DEFAULT_SOURCE.shimmer, diplophonia: DEFAULT_SOURCE.diplophonia,
     interaction: DEFAULT_SOURCE.interaction, vibratoRate: DEFAULT_SOURCE.vibratoRate, vibratoDepth: DEFAULT_SOURCE.vibratoDepth,
     asym: DEFAULT_SOURCE.asym, restArea: DEFAULT_SOURCE.restArea, voicing: true, aspiration: DEFAULT_NOISE.aspiration,
@@ -219,6 +221,8 @@ export const VOICE_FIELDS: Field[] = [
     { it: 'Le corde vocali rispetto a quelle di un uomo adulto (circa 1,4 cm): una donna circa 0,7, un bambino 0,5. Più corte, la glottide si apre meno: impulsi più piccoli, meno aria, una voce più sottile; l’altezza resta quella della melodia.', en: 'The vocal folds against an adult man’s (about 1.4 cm): a woman’s about 0.7, a child’s 0.5. Shorter, the glottis opens less: smaller pulses, less air, a thinner voice; the pitch stays the melody’s.' }, 0.45, 1.15, 0.01),
   n('phonation.rd', 'phonation', G.folds, { it: 'Qualità (Rd)', en: 'Quality (Rd)' },
     { it: 'La forma dell’impulso (Fant 1995): 0,3-0,7 pressata, 1 modale, 1,4-2,7 soffiata.', en: 'The shape of the pulse (Fant 1995): 0.3-0.7 pressed, 1 modal, 1.4-2.7 breathy.' }, 0.3, 2.7, 0.01),
+  n('phonation.returnPhase', 'phonation', G.folds, { it: 'Chiusura delle corde', en: 'Closure of the folds' },
+    { it: 'Quanto ci mettono le corde a richiudersi alla fine di ogni impulso, rispetto a quanto dà la loro forma (Rd; la fase di ritorno, Fant 1995). Più breve, una chiusura più netta: le formanti alte più forti, una voce più chiara e piena, con la stessa apertura. Più lunga, una voce più scura e morbida.', en: 'How long the folds take to close at the end of each pulse, against what their shape gives (Rd; the return phase, Fant 1995). Shorter, a sharper closure: stronger upper formants, a clearer, fuller voice, with the same opening. Longer, a darker, softer voice.' }, 0.3, 2, 0.05),
   n('phonation.thickness', 'phonation', G.folds, { it: 'Spessore delle corde (falsetto)', en: 'Fold thickness (falsetto)' },
     { it: 'Quanta parte delle corde vibra in altezza. 1: tutte, corpo e copertura, come nella voce di petto; sottili, solo il bordo tirato dal muscolo cricotiroideo: il falsetto. Chiudono meno e più tardi: l’armonica fondamentale domina, le altre calano in fretta, resta un filo d’aria (Hollien 1974; Zhang 2016).', en: 'How much of the folds vibrates, top to bottom. 1: all of them, body and cover, as in the chest voice; thin, only the edge stretched by the cricothyroid muscle: falsetto. They close less and later: the fundamental dominates, the other harmonics fall fast, a little air is left (Hollien 1974; Zhang 2016).' }, 0.2, 1.2, 0.01),
   n('phonation.peakArea', 'phonation', G.folds, { it: 'Apertura massima', en: 'Peak opening' },

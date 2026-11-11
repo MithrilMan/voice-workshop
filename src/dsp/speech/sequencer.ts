@@ -1379,11 +1379,13 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
           if (d < w) { const e = 0.5 * (1 + Math.cos((Math.PI * d) / w)) * push[k]; ps *= 1 + st.stressPs * e; rd -= st.stressRd * e; }
         });
         // the end of each phrase relaxes: less pressure, breathier voice
-        // (a speaker who ends statements in creak, vocal fry, drops into it instead)
+        // (a speaker who ends statements in creak, vocal fry, drops into it instead).
+        // After the last sound the lungs stay relaxed: pushing again as hard as
+        // before, through the parted folds, they blew a breathy tail of some 100 ms
         phraseEnds.forEach((pe, k) => {
           const d = pe.t - time;
-          if (d >= 0 && d < st.endWindow) {
-            const e = 1 - d / st.endWindow, c = pe.fall ? st.endCreak : 0;
+          if ((d >= 0 || k === phraseEnds.length - 1) && d < st.endWindow) {
+            const e = Math.min(1, 1 - d / st.endWindow), c = pe.fall ? st.endCreak : 0;
             ps *= 1 - Math.min(0.9, st.endPs * relax[k]) * e; rd += (st.endRd * relax[k] * (1 - c) - 0.6 * c) * e;
             if (c > 0) fry = Math.max(fry, c * Math.min(1, 1.6 * e));
           }
@@ -1394,9 +1396,10 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       // before it (begun 40 ms into it, the air blew a breathy [h] through the
       // parted folds for some 100 ms, 11 dB below the vowels), and push
       // again 30 ms before the sound after it, as before the first sound of
-      // all (60 ms before one without voice, whose folds are apart)
+      // all (60 ms before one without voice, whose folds are apart). They let
+      // go the same way at the end of a last sound with voice
       const pz = segs.find((s) => quietAt(s) && time > s.t0 - 0.03 && time < s.t1 - (mute(segs[segs.indexOf(s) + 1]) ? 0.06 : 0.03));
-      if (pz) ps *= 0.08;
+      if (pz || (lastSeg && !endsMute && time > lastSeg.t1 - 0.03)) ps *= 0.08;
       // ... or pull, where a breath is taken
       const pull = inhaling(segAt(time), time);
       if (pull > 0) ps = ps * (1 - pull) - st.breath * pull;

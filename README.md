@@ -325,7 +325,17 @@ with eps ta = 1 - e^(-eps (1 - te)) and alpha such that the flow returns to
 zero. The single shape parameter Rd (Fant 1995) sets Ra = (-1 + 4.8 Rd)/100,
 Rk = (22.4 + 11.8 Rd)/100, Rg = Rk / (4 (0.11 Rd / (0.5 + 1.2 Rk) - Ra)),
 tp = 1/(2 Rg), te = tp (1 + Rk), ta = Ra. Rd 0.3-0.7 is pressed, about 1 modal,
-2-2.7 breathy. Advanced mode sets Oq, alpha_m and Ra directly. Cycle-to-cycle
+2-2.7 breathy. Advanced mode sets Oq, alpha_m and Ra directly. The return
+phase can be scaled apart from Rd (a voice's closure of the folds, 1 =
+Fant's): his regression ties it to the opening as in an average voice, and
+a voice whose folds open as wide may close faster, its upper harmonics
+stronger. On the middles of the vowels of five sentences, the woman and the
+man had H1-A2 and H1-A3 (the first harmonic over the strongest one near F2
+and F3, Hanson 1997) 0.7-6.5 and 3.6-5.2 dB higher than the recordings of
+neural text-to-speech voices of their kind, with H1-H2 1.5-1.8 dB lower: a
+duller voice. A return phase of 0.7 brings H1-A3 within 1.1 dB and H1-A2
+within 3.6, at a cost of 0.7-1.2 dB of H1-H2; raising Rd to give that back
+gives back most of the upper harmonics too. Cycle-to-cycle
 jitter, shimmer and alternate-cycle diplophonia, a posterior chink (incomplete
 closure) and vibrato complete the source. The thickness of the folds sets
 the register (Hollien 1974): 1 is the chest voice, body and cover vibrating
@@ -785,7 +795,20 @@ Flanagan & Cherry 1969; Shadle 1985):
   said with the jaw a little lower, between two open vowels) lets its jet
   out at the teeth. Looked for past them, the way out was found at the lips,
   and a sibilant in a sentence lost its teeth whenever the slit was less
-  than twice its channel.
+  than twice its channel. The teeth are an obstacle only to a jet aimed at
+  them, out of a narrow channel close behind them (Shadle 1985); out of a
+  wide passage, or one far back, the jet spreads along the palate first and
+  makes its noise on the walls. The share that hits fades from 1 to 0 as
+  the passage widens from 0.32 to 0.45 cm² and as its exit moves from 2.0
+  to 2.6 cm behind the incisors (chosen, not measured): past the sibilants
+  (up to about 0.23 cm², 0.6 cm) and a tip of the tongue letting go of the
+  ridge (0.1-0.37 cm², 1.4-1.8 cm), toward the tongue of an [h] (0.55 cm²)
+  and of an r-coloured vowel (2.3-2.6 cm). Without it the teeth hissed in
+  [h] about 15 dB below an /s/, and in an [ɪ] after it; heard by ear in a
+  copy where only the sibilants kept the teeth, the shrill noises between
+  the sibilants were gone. Now the teeth are silent in [h], 21 dB quieter in
+  that [ɪ] and 25-30 dB in [ɚ ɝ]; the sibilants and the bursts of the stops
+  are as they were.
 - **Aspiration**: turbulence of the glottal jet, from the glottal Reynolds
   number, pulsed by the glottal flow (as in real voices) or steady. The jet
   of the glottis is wide and slow, and its corner is near 2 kHz. Above the
@@ -1159,7 +1182,13 @@ sibilants. The teeth panel draws the front and side views with the live jet.
     11 dB below the vowels (17 dB now, its hiss above 3 kHz 20 dB lower),
     and the next word began with another (its last 60 ms 28 dB below the
     vowels, 43 now; the eight pauses of five sentences, said by the woman
-    and by the man).
+    and by the man). A last sound with voice ends the same way: the lungs
+    let go from 30 ms before its end, and the relaxed pressure of the end of
+    the phrase holds after it. The relaxation used to stop with the last
+    sound, and for the 50 ms the score goes on the lungs pushed again as
+    hard as before through the parted folds: a breathy tail of some 100 ms,
+    6-15 dB below the vowels, heard as a breath after a question. The voice
+    now dies away within 40 ms (34 dB down).
   - *Coarticulation*: consonants only set the articulators they need; the
     others are interpolated from the neighbouring vowels (Öhman 1966), so lips
     round ahead of /u/ and the tongue glides through /p/. After a consonant,
@@ -1273,7 +1302,7 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   At a full stop a breath is taken. The lungs, which hold back in any
   pause, pull instead (3 cmH2O unless the voice says otherwise), the folds
   part wide, and the air is heard going in: the hiss of the glottis with
-  the flow the other way, 27 dB below the loudest vowel of the sentence. It
+  the flow the other way, 39 dB below the loudest vowel of the sentence. It
   starts once the last sound has died away and is over in time for the
   folds to come together again, so in the 0.3 s of the usual pause it is a
   quick one, about 160 ms of air going in at up to 1.1 l/s; a longer pause
@@ -1375,7 +1404,9 @@ score of a voice saying something: one turn of a dialogue.
   the medians of H1-H2 (the peaks near f0 and 2 f0), of the cepstral peak
   (cepstrum of the dB spectrum, peak at 2-17 ms over its regression line
   at 1-20 ms) and of LPC formants (order 12 on a copy at about 11 kHz,
-  bandwidths under 500 Hz, frames within 12 dB of the loudest), and the
+  bandwidths under 500 Hz, frames within 12 dB of the loudest), of
+  H1-A1, H1-A2 and H1-A3 on the same frames (the peak within 10 % of f0
+  over the strongest within 10, 8 and 6 % of each formant), and the
   voiced power in five bands from 50 Hz to 8 kHz against all of it; on
   unvoiced frames the hiss in 2-4, 4-8 and 8-10.5 kHz against the mean
   voiced frame. Pace: time speaking, syllable nuclei per second (peaks of
@@ -1388,8 +1419,12 @@ score of a voice saying something: one turn of a dialogue.
   square of the gaps between the two prints, each divided by about what
   the ear tells apart (0.3 semitone of pitch, 3-5 % of a formant, 1.5 dB
   of a band); a stage is judged on its own measures (the melody on the
-  range of the pitch, the body on the formants and the bands), the last
-  pass on all of them. The usual pitch is set by the ratio of the medians
+  range of the pitch, the body on the formants and the bands, the folds
+  on H1-H2, the cepstral peak, H1-A1, H1-A2, H1-A3 and the bands), the last
+  pass on all of them. The bands alone could be matched with more breath
+  as well as with a sharper closure; the harmonics at the formants tell
+  the two apart, and the return phase is one of the fields of the folds.
+  The usual pitch is set by the ratio of the medians
   at the start and after the melody and the last pass. With the
   recording's text the voice says the same words, else a passage of two
   or three sentences. The rendering is at 24 kHz or the recording's rate,
@@ -1397,16 +1432,23 @@ score of a voice saying something: one turn of a dialogue.
   system trained on recordings (two American women, an American man, an
   Italian woman and an Italian man, each saying sentences of its language
   for 10-12 s, with their texts): the distance from the nearest starting
-  voice, 2.3-2.8, fell to 1.15-1.65 in 96-108 renderings, 3-5 minutes in
-  the container; the Sky-like voice, fitted by hand to one of them, stands
-  at 2.14 from it, the fit at 1.46. The range of the pitch below and
-  above its median comes within 1.2 semitones (but for the widest melody,
-  2.4 short below its median), the formants within 5 %
-  but for two (the first of the American man and the fourth of the
-  Italian man, 6-9 % low), the time speaking within 8 %. What stays: the
-  folds of the simulator are more regular (cepstral peak 0.2-0.5 dB
-  higher) with a smaller H1-H2 (0.3-3.7 dB), and the band at 0.5-1 kHz
-  is 2-3.5 dB off in four of the five.
+  voice, 2.25-2.75, fell to 1.00-1.55 in 99-110 renderings, 3.5-6 minutes
+  in the container (five at once); the Sky-like voice, fitted by hand to
+  one of them, stands at 2.14 from it. The range of the pitch below and
+  above its median comes within 1 semitone (but for the widest melody,
+  2.3 short below its median), the formants within 5 % but for five (the
+  first of three voices, 7 % high; the third of the Italian man and the
+  fourth of the Italian woman, 6 %), the time speaking within 4 %. The
+  starting voices were duller than the recordings, H1-A3 1.5-4.4 dB
+  higher; fitted, H1-A2 is within 1 dB and H1-A3 within 2.3 but for the
+  American man (2.5 dB lower and 4.7 higher: brighter in the middle,
+  duller above), with return phases of 0.7-1.1. What stays: the folds of
+  the simulator are more regular (cepstral peak 0.3-0.6 dB higher) with a
+  smaller H1-H2 (0-4.9 dB), and the band at 0.5-1 kHz is 2-3.7 dB off in
+  four of the five. The fit raises the glottal hiss by 8 dB in all five,
+  and the chink: they are what makes the voice less periodic (a jitter of
+  1.5 % and a shimmer of 5 % lower the cepstral peak by 0.08 dB), so it
+  buys the cepstral peak with breath.
 - Copy synthesis (`src/dsp/voice/copy.ts`, `scripts/copy-test.ts`): a
   recording's timing, melody and loudness put on a voice of the simulator
   saying the same text, to hear how much of a voice that sounds alive is
@@ -1465,11 +1507,16 @@ score of a voice saying something: one turn of a dialogue.
   affricate (20 %), and our copy in a small room (a tail of dark noise
   dying by 60 dB in 0.3 s, 25 dB below the voice: chosen, not measured, so
   that the quietest 20 ms of a closure fall to the recordings', 38 dB below
-  the vowels against 40) next. The page now plays those two and our copy
-  with the jet on the teeth heard only in the sibilants (s z ʃ ʒ and the
-  affricates; elsewhere the same score rendered without that source,
-  crossfaded over 10 ms), to hear whether the hiss between them is the
-  teeth's.
+  the vowels against 40) next. Our copy with the jet on the teeth heard
+  only in the sibilants (s z ʃ ʒ and the affricates; elsewhere the same
+  score rendered without that source) was clearly better again: the
+  shrill noises between them were the teeth's, and the model now aims the
+  jet (see the obstacle source). The page now plays the best column of
+  the time before (`--before`, its files kept), our copy with the model as
+  it is, the same with a sharper closure of the folds (return phase 0.55)
+  and with the glottal hiss at its default level (the fit raises it by
+  8 dB), and their envelope only in the passages of the nasals, liquids
+  and fricatives.
 - Envelope report (`scripts/envelope-report.ts`): on the voiced frames
   where a copy and its recording are both loud, the formants and their
   LPC bandwidths, the balance of five bands and how fast the envelope
@@ -1511,7 +1558,17 @@ score of a voice saying something: one turn of a dialogue.
   with the noise sources one at a time switched off, it is the jet on the
   teeth: heard only in the sibilants, the share falls to 14 % of the vowel
   frames and 23 % of the edges, and /ɝ/ to the recordings' level (0 dB,
-  median), /h/ to 12 dB louder.
+  median), /h/ to 12 dB louder. With the jet aimed (see the obstacle
+  source) and the voices fitted again, the vowels' hiss is 2 dB below the
+  recordings' (median) and 18 % of their frames are more than 6 dB louder,
+  /ɝ/ at their level; what stays louder is the edge of a /t/ or a /d/
+  (12-15 dB in English, 6-15 in Italian, median, against 4-7 with the
+  teeth heard only in the sibilants): the teeth still catch the jet of a
+  tip of the tongue letting go of the ridge, as the measured hiss of an
+  English /t/ asks, and catch more of it than the recordings show. The
+  same holds where a stop or a tap ends a word before a pause ("heard,"):
+  its closure, made before the lungs let go, bursts on the teeth into the
+  silence.
 
 ## Main parameters
 
@@ -1586,7 +1643,7 @@ in brackets are the adult male targets described under Speech.
 | No clicks in running speech | "la luna e le stelle", with the piriform junction moving twice: loudest transient inside a vowel or sonorant, above 6 kHz, against the 40 ms around it +16 dB (+41 when a move zeroed the branch). Millisecond by millisecond, "la luna è piena stanotte." has 8 ms that stand 15 dB out of the 20 ms around them and "where did you put the keys?" 5 (the closures of the folds, which come back a period before and a period after, are the voice and are not counted): all at the edges of the stops, none inside a vowel, none sharp inside a closure (before: +41 dB inside the closure of a /d/, +28 dB between /u/ and /n/, +21 dB inside the /ɪ/ of "did") |
 | Stops on time | the mouth shut against the plan, and for how long: "la luna è piena stanotte." p +16 ms (56 of 89 ms), t -3 (63 of 79), t +16 (127 of 157); "where did you put the keys?" d +4 (50 of 68), d +12 (43 of 65), p -6 (80 of 93), k +19 (47 of 140, the rest its aspiration); no breath before the closure of a voiceless stop (the tongue after an open vowel shut some 45 ms late before) |
 | Edges of a word | as the studio plays it, against the loudest of the word: "tonight" -49 dB before its first sound, the folds at 0.12 of their swing after its last, -42 dB 60 ms on; "this" -52 dB, 0.03, -26 dB; "stop" -43 dB, 0.14, -43 dB (before: 45 ms of full voice ahead of the first /t/ of "tonight", and a breathy vowel of 100 ms and more after its last) |
-| Breath at a full stop | "la luna è piena. Stanotte la vedo.", a pause of 300 ms: the lungs pull down to -2.8 cmH2O and 1098 cm³/s go in, for 161 ms; its hiss 27 dB below the loudest vowel of the sentence before (68 dB below with no breath taken); the loudest millisecond of the pause 10 dB above its median one; no air goes in at a comma |
+| Breath at a full stop | "la luna è piena. Stanotte la vedo.", a pause of 300 ms: the lungs pull down to -2.8 cmH2O and 1098 cm³/s go in, for 161 ms; its hiss 39 dB below the loudest vowel of the sentence before (83 dB below with no breath taken; 27 dB while the air going in hissed on the teeth too, which it cannot); the loudest millisecond of the pause 20 dB above its median one and 30 dB below that vowel; no air goes in at a comma |
 | Airways below a wide glottis | the flow is the airways' (1.5 cmH2O per l/s) below 1.21 cmH2O with the glottis wide open (0.56 cm²), 0.35 cmH2O at 0.3 cm², 0.010 cmH2O for the glottis of a voice (0.05 cm²) |
 | Sibilant in a sentence | the /s/ of "stanotte": narrower than 0.2 cm² 5 ms into its sound, the teeth sounding through 75 % of it; the releases of the two /t/ 2.1 and 3.6 dB below its hiss |
 | Bursts | RMS of 10 ms at the burst less 30 ms at the start of the vowel, as Nicolaidis et al. (2019) measured Greek /p t k/ (theirs in brackets): "la pata" -15.3 dB (-11.2), "la pita" -11.7 (-11.0), "la tata" -15.3 (-10.7), "la tita" -14.1 (-13.0), "la cata" -19.1 (-5.9), "la chita" -17.2 (-11.1); the voice starts after 10, 5, 19, 16, 27 and 25 ms (16, 14, 12, 23, 30, 63); without the pop of the air let out the burst of /p/ loses 2.0 dB, that of /t/ 0.9 dB: it is mostly a hiss |
@@ -1928,6 +1985,7 @@ in brackets are the adult male targets described under Speech.
 - Lulich, S. M., Morton, J. R., Arsikere, H., Sommers, M. S., Leung, G. K. F. & Alwan, A. (2012). Subglottal resonances of adult male and female native speakers of American English. JASA 132(4).
 - Lulich, S. M. (2025). Subglottal resonances in older adults. Beszédtudomány - Speech Science 2025/1.
 - Florens, M., Sapoval, B. & Filoche, M. (2011). An anatomical and functional model of the human tracheobronchial tree. J. Appl. Physiol. 110.
+- Hanson, H. M. (1997). Glottal characteristics of female speakers: Acoustic correlates. J. Acoust. Soc. Am. 101, 466-481.
 - Hanson, H. M. & Stevens, K. N. (2000). Modeling stop-consonant releases for synthesis. Poster, 139th Meeting of the Acoustical Society of America, Atlanta.
 - Monson, B. B., Lotto, A. J. & Story, B. H. (2012). Analysis of high-frequency energy in long-term average spectra of singing, speech, and voiceless fricatives. J. Acoust. Soc. Am. 132(3).
 - Nicolaidis, K., Sfakianaki, A., Vlahavas, G. & Kafentzis, G. (2019). An acoustic study of Greek voiceless stops. Proceedings of the 19th ICPhS, Melbourne.
