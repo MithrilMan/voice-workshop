@@ -1381,6 +1381,20 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // apart, with a breathy pulse shape, for the first part of the vowel
   const murmur = segs.filter((s) => s.part === 'release' && s.ph.voiced && units[s.unit].ph.phonation === 'breathy')
     .map((s) => ({ t0: s.t0, t1: s.t0 + 0.07 }));
+  // By the habit of the voice the folds start to part before a voiceless fricative that follows a voiced sound,
+  // and take a while to come together after it: the voice thins out over the end of the sound before, and comes
+  // back breathy on the one after. A stop keeps its own timing: its voice ends with its closure, and its
+  // release has its own short lag. Never over more than half of the voiced sound it takes from
+  const spread: { t0: number; t1: number; abd: number }[] = [];
+  if (st.voicelessLead > 0 || st.voicelessLag > 0) {
+    const sounds = (s?: Seg): s is Seg => !!s && s.ph.voiced && s.ph.manner !== 'silence' && s.ph.manner !== 'glottalStop';
+    segs.forEach((s, k) => {
+      if (!mute(s) || s.ph.manner !== 'fricative') return;
+      const before = segs[k - 1], after = segs[k + 1];
+      if (st.voicelessLead > 0 && sounds(before)) spread.push({ t0: s.t0 - Math.min(st.voicelessLead, 0.5 * (before.t1 - before.t0)), t1: s.t0, abd: s.ph.abduction });
+      if (st.voicelessLag > 0 && sounds(after)) spread.push({ t0: s.t1, t1: s.t1 + Math.min(st.voicelessLag, 0.5 * (after.t1 - after.t0)), abd: s.ph.abduction });
+    });
+  }
   // an ejective holds the glottis shut through its closure and burst, and a
   // moment after, as does a voiceless implosive, whose larynx draws the air in
   // (a stop, a fricative, an affricate: from its first part to the end of its last)
@@ -1462,6 +1476,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       } else if (m === 'stop') abd = unit.ph.airstream === 'implosive' ? 0 : en && unit.p.wordStart ? 0.12 : 0.02;
       else abd = sg.ph.abduction;
     }
+    for (const w of spread) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) abd = Math.max(abd, w.abd);
     if (wait) abd = abdWas;
     else abdWas = abd;
     let stiff = 0;

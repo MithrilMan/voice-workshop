@@ -74,6 +74,26 @@ describe('a way of speaking', () => {
     // one sentence: the fall takes all of it, as before
     expect(left('la luna e le stelle', (sc) => sc.duration - 0.1)).toBeLessThan(1 - 0.9 * DEFAULT_STYLE.declination);
   });
+
+  it('the folds part before a voiceless hiss and come together late after it, a stop keeps its own timing', () => {
+    const text = 'la sera';
+    const base = say(text), early = say(text, { voicelessLead: 0.03 }), late = say(text, { voicelessLag: 0.03 });
+    const s = base.phones.find((p) => p.ipa === 's')!;
+    // the planner's frames look 10 ms ahead: 20 ms before the hiss the folds are still together, with a lead they part
+    expect(at(base, s.t0 - 0.02).abduction).toBeLessThan(0.05);
+    expect(at(early, s.t0 - 0.02).abduction).toBeGreaterThan(0.3);
+    expect(at(early, s.t0 - 0.05).abduction).toBeLessThan(0.05);
+    expect(at(early, s.t1 + 0.01).abduction).toBeCloseTo(at(base, s.t1 + 0.01).abduction, 9);
+    // 10 ms into the vowel after it the folds are together, with a lag they are still apart
+    expect(at(base, s.t1 + 0.01).abduction).toBeLessThan(0.05);
+    expect(at(late, s.t1 + 0.01).abduction).toBeGreaterThan(0.3);
+    expect(at(late, s.t1 + 0.04).abduction).toBeLessThan(0.05);
+    // nothing but the folds moves, and no sound changes its times
+    expect(JSON.stringify(early.phones)).toBe(JSON.stringify(base.phones));
+    expect(JSON.stringify(early.frames.map((f) => f.art))).toBe(JSON.stringify(base.frames.map((f) => f.art)));
+    // a sentence with no voiceless hiss is as it was
+    expect(JSON.stringify(say('la tela', { voicelessLead: 0.04, voicelessLag: 0.04 }).frames)).toBe(JSON.stringify(say('la tela').frames));
+  });
 });
 
 describe('creak', () => {

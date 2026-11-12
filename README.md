@@ -1394,6 +1394,23 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   it is meant when its sound is due, by the same means: coming from an open
   vowel its channel was still closing through most of it, and a sibilant
   twice as wide as it is held has no hiss to speak of.
+  By the habit of a voice the folds part before a voiceless fricative that
+  follows a voiced sound, and come together late after it (two fields of
+  the style, `voicelessLead` and `voicelessLag`, both 0 by default: the
+  folds part as the fricative starts and are together as it ends). The
+  voice then thins out over the end of the vowel before, and the vowel
+  after starts breathy. Before a voiceless fricative the folds open early:
+  the open quotient rises over the end of the vowel in Russian and in
+  English (Matsui & Kochetov 2019), and the vowel passes into the
+  fricative through a long breathy stretch in French, Italian and Swedish
+  (Ní Chasaide & Gobl 1997). Before a stop the timing depends on the
+  language (the same two studies), and a stop here keeps its own. Neither
+  study gives a time in milliseconds, so how long is left to the voice. In
+  twelve sentences of one Italian neural voice the voice was last within
+  6 dB of the vowel 20 ms before a fricative started, and was back there
+  20 ms after its end (medians of 13 and of 8 passages); in our copy of
+  them 2 ms after it started and 13 ms after its end, and with a lead of
+  0.04 s and a lag of 0.01 s 15 ms before and 20 ms after.
   An utterance has edges. The lungs wait for the first sound (they start
   some 30 ms before it, the time the pressure takes to rise; before a first
   stop without voice, once the mouth is shut): pushing from the start,
@@ -2269,6 +2286,8 @@ in brackets are the adult male targets described under Speech.
 - Hanson, H. M. & Stevens, K. N. (2000). Modeling stop-consonant releases for synthesis. Poster, 139th Meeting of the Acoustical Society of America, Atlanta.
 - Monson, B. B., Lotto, A. J. & Story, B. H. (2012). Analysis of high-frequency energy in long-term average spectra of singing, speech, and voiceless fricatives. J. Acoust. Soc. Am. 132(3).
 - Nicolaidis, K., Sfakianaki, A., Vlahavas, G. & Kafentzis, G. (2019). An acoustic study of Greek voiceless stops. Proceedings of the 19th ICPhS, Melbourne.
+- Matsui, M. & Kochetov, A. (2019). Laryngeal coarticulation in two types of devoicing: an electroglottographic study of Russian and English. Proceedings of the 19th ICPhS, Melbourne, 162-166.
+- Ní Chasaide, A. & Gobl, C. (1997). Voice offset characteristics for voiceless fricatives and stops. Abstract 3aSCb3, 134th Meeting of the Acoustical Society of America, San Diego.
 - Titze, I. R., Palaparthi, A. & Smith, S. L. (2014). Benchmarks for time-domain simulation of sound propagation in soft-walled airways: steady configurations. JASA 136(6).
 - Recasens, D. (1991). On the production characteristics of apicoalveolar taps and trills. J. Phonetics 19.
 - Elovitz, H. S., Johnson, R., McHugh, A. & Shore, J. E. (1976). Automatic translation of English text to phonetics by means of letter-to-sound rules. NRL Report 7948.

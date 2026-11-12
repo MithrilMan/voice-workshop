@@ -69,6 +69,16 @@ export interface ProsodyStyle {
   /** the breath taken in at a full stop: how hard the lungs pull, cmH2O (0 = a silent pause) */
   breath: number;
   /**
+   * how long before a voiceless fricative that follows a voiced sound the folds start to part, s: the voice
+   * thins out over the end of the sound before (0 = they part as the fricative starts)
+   */
+  voicelessLead: number;
+  /**
+   * how long after a voiceless fricative the folds take to come together again, s: the sound after it starts
+   * breathy (0 = they are together as the fricative ends)
+   */
+  voicelessLag: number;
+  /**
    * how much a living speaker varies, from one syllable to the next and from
    * one saying to the next: the length of the syllables and pauses, the
    * height of the accents, the push and tension of the stressed syllables,
@@ -107,6 +117,8 @@ export const DEFAULT_STYLE: Readonly<ProsodyStyle> = Object.freeze({
   endRd: 0.55,
   endCreak: 0,
   breath: 3,
+  voicelessLead: 0,
+  voicelessLag: 0,
   variation: 1,
 });
 

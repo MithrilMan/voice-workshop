@@ -163,6 +163,7 @@ const G = {
   ends: { it: 'Fine della frase', en: 'End of the phrase' },
   pace: { it: 'Tempo', en: 'Pace' },
   push: { it: 'Spinta', en: 'Push' },
+  voiceless: { it: 'Voce e soffi sordi', en: 'Voice and voiceless hisses' },
 };
 
 export const VOICE_FIELDS: Field[] = [
@@ -336,6 +337,10 @@ export const VOICE_FIELDS: Field[] = [
     { it: 'Quanto cala la pressione alla fine di ogni frase.', en: 'How much the pressure falls at the end of each phrase.' }, 0, 0.5, 0.01),
   n('speaking.style.endRd', 'rhythm', G.ends, { it: 'Fine soffiata', en: 'Breathy end' },
     { it: 'Quanto diventa soffiata la voce alla fine della frase.', en: 'How breathy the voice gets at the end of a phrase.' }, 0, 1.5, 0.01),
+  n('speaking.style.voicelessLead', 'rhythm', G.voiceless, { it: 'Voce che esce prima', en: 'Voice out early' },
+    { it: 'Quanto prima di una f, s, ʃ, dopo un suono con la voce, le corde cominciano ad aprirsi: la voce si assottiglia già sulla fine della vocale. 0 = si aprono quando la consonante comincia.', en: 'How long before an f, s, ʃ, after a voiced sound, the folds start to part: the voice thins out over the end of the vowel. 0 = they part as the consonant starts.' }, 0, 0.06, 0.005, 's'),
+  n('speaking.style.voicelessLag', 'rhythm', G.voiceless, { it: 'Voce che torna dopo', en: 'Voice back late' },
+    { it: 'Quanto ci mettono le corde a richiudersi dopo una f, s, ʃ: il suono dopo comincia soffiato. 0 = sono chiuse quando la consonante finisce.', en: 'How long the folds take to come together again after an f, s, ʃ: the sound after it starts breathy. 0 = they are together as the consonant ends.' }, 0, 0.06, 0.005, 's'),
 ];
 
 // ------------------------------------------------------------- reading
