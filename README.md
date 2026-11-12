@@ -1411,6 +1411,40 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   20 ms after its end (medians of 13 and of 8 passages); in our copy of
   them 2 ms after it started and 13 ms after its end, and with a lead of
   0.04 s and a lag of 0.01 s 15 ms before and 20 ms after.
+  By the same habit a voice goes out in breath before a pause, or at the
+  end, and comes in breathy after one (two more fields of the style,
+  `pauseLead` and `pauseLag`, both 0 by default: the folds part as the
+  last sound ends, the lungs having let go 30 ms before, and are together
+  before the first sound starts). With a lead the folds part little by
+  little over the end of the last sound, by its end as far as they stand
+  in the pause, and the lungs push to the end of it: the voice thins into
+  breath, and the breath dies away as the lungs let go. With a lag the
+  folds are still apart as the first sound starts, and come together over
+  its start. Only a sound that lets the air through goes out and comes in
+  so (a vowel, a nasal, a liquid, a glide): an obstruent keeps its own
+  voice. A speaker ends phonation this way at the end of a breath: from
+  where the level starts its last fall to the end of phonation the area of
+  the glottis grows fourfold (median), to some 10-14 mm², while the
+  pressure in the lungs falls by only 1.2-2.6 cmH2O (Slifka 2006); and
+  the last syllables of an utterance tend to be breathier (Klatt & Klatt
+  1990). How far the folds part, and over how long, is chosen against one
+  voice, not measured on a larynx. In twelve sentences of one Italian
+  neural voice the level of a vowel that ends a sentence, or stands
+  before a pause, was 11 dB below its middle as it ended, and 15, 20, 27
+  and 44 dB below it 10, 30, 50 and 80 ms later (medians of 14 vowels,
+  12 of them the last of a sentence); in our copy of them 8 dB as it
+  ended, then 13, 36, 50 and 59 dB: cut off; and with a lead of 0.06 s
+  10 dB, then 13, 22, 29 and 45 dB. Over the first 20 to 50 ms of a vowel
+  that starts a sentence, or follows a pause, the band over 3 kHz held
+  -18, -19, -22 and -24 dB of the level in that voice (medians of 6
+  vowels, 4 of them the first of a sentence), -31 to -29 dB in our copy,
+  and -17, -19, -22 and -25 dB with a lag of 0.05 s. The two pauses
+  inside those sentences last 75 ms, less than the 0.1 s of silence that
+  counts as a pause here, and the vowels around them are as they were.
+  The breath of our tail is not that voice's yet: it comes later (as the
+  vowel ends the band over 3 kHz holds -24 dB of the level, against
+  -12 dB) and is brighter once the voice is gone (-7 and -4 dB 30 and
+  50 ms later, against -13 and -14 dB).
   An utterance has edges. The lungs wait for the first sound (they start
   some 30 ms before it, the time the pressure takes to rise; before a first
   stop without voice, once the mouth is shut): pushing from the start,
@@ -2300,6 +2334,7 @@ in brackets are the adult male targets described under Speech.
 - Lindblom, B. (1963). Spectrographic study of vowel reduction. JASA 35.
 - Farnetani, E. & Vayra, M. (1991). Word- and phrase-level aspects of vowel reduction in Italian. Proc. XIIth ICPhS, Aix-en-Provence, vol. 2.
 - Klatt, D. H. & Klatt, L. C. (1990). Analysis, synthesis, and perception of voice quality variations among female and male talkers. JASA 87.
+- Slifka, J. (2006). Some physiological correlates to regular and irregular phonation at the end of an utterance. Journal of Voice 20(2).
 - Lisker, L. & Abramson, A. S. (1964). A cross-language study of voicing in initial stops: acoustical measurements. Word 20.
 - Dauer, R. M. (1983). Stress-timing and syllable-timing reanalyzed. J. Phonetics 11.
 - Ramus, F., Nespor, M. & Mehler, J. (1999). Correlates of linguistic rhythm in the speech signal. Cognition 73.

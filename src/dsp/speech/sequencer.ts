@@ -226,6 +226,15 @@ const SHORT_LAG: Partial<Record<Place, number>> = {
 /** the folds of such a stop: how long before the release they come together again (s), and how far apart they stay */
 const STIFF_LEAD = 0.045;
 /**
+ * A voice that goes out in breath before a pause and comes in breathy after one (the style's pauseLead and
+ * pauseLag): how far apart the folds are by the end of the last sound, and how far apart they still are as the
+ * first one starts. By the end they are as far apart as in the pause itself, and after a last sound they stay
+ * there. Chosen against one recorded voice, not measured on a larynx.
+ */
+const PAUSE_ABD = { out: 0.6, in: 0.5 };
+/** the sounds that go out and come in so: those that let the air through. An obstruent keeps its own voice */
+const PAUSE_MANNERS = ['vowel', 'nasal', 'approximant', 'lateral', 'trill', 'tap'];
+/**
  * How far the walls are let go behind a voiced stop (1: as an implosive's).
  * They are let go as the mouth shuts, `early` before the closure is due, and
  * held out until it has opened, `late` after the release (s).
@@ -1385,14 +1394,28 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // and take a while to come together after it: the voice thins out over the end of the sound before, and comes
   // back breathy on the one after. A stop keeps its own timing: its voice ends with its closure, and its
   // release has its own short lag. Never over more than half of the voiced sound it takes from
-  const spread: { t0: number; t1: number; abd: number }[] = [];
+  const spread: { t0: number; t1: number; abd: number; rise?: boolean; fallFrom?: number }[] = [];
+  const sounds = (s?: Seg): s is Seg => !!s && s.ph.voiced && s.ph.manner !== 'silence' && s.ph.manner !== 'glottalStop';
   if (st.voicelessLead > 0 || st.voicelessLag > 0) {
-    const sounds = (s?: Seg): s is Seg => !!s && s.ph.voiced && s.ph.manner !== 'silence' && s.ph.manner !== 'glottalStop';
     segs.forEach((s, k) => {
       if (!mute(s) || s.ph.manner !== 'fricative') return;
       const before = segs[k - 1], after = segs[k + 1];
       if (st.voicelessLead > 0 && sounds(before)) spread.push({ t0: s.t0 - Math.min(st.voicelessLead, 0.5 * (before.t1 - before.t0)), t1: s.t0, abd: s.ph.abduction });
       if (st.voicelessLag > 0 && sounds(after)) spread.push({ t0: s.t1, t1: s.t1 + Math.min(st.voicelessLag, 0.5 * (after.t1 - after.t0)), abd: s.ph.abduction });
+    });
+  }
+  // By the same habit the voice goes out in breath before a pause, or at the end, and comes in breathy after a
+  // pause, or at the start: the folds part little by little over the end of the last sound, while the lungs are
+  // still pushing, and come together over the start of the first one instead of standing together before it.
+  // Never over more than half of that sound, and only a sound that lets the air through (a vowel, a nasal, a
+  // liquid, a glide): an obstruent keeps its own voice
+  const breathOut = new Set<Seg | undefined>();
+  if (st.pauseLead > 0 || st.pauseLag > 0) {
+    segs.forEach((s, k) => {
+      if (!sounds(s) || !PAUSE_MANNERS.includes(s.ph.manner)) return;
+      const half = 0.5 * (s.t1 - s.t0);
+      if (st.pauseLead > 0 && (s === lastSeg || quietAt(segs[k + 1]))) { spread.push({ t0: s.t1 - Math.min(st.pauseLead, half), t1: s.t1, abd: PAUSE_ABD.out, rise: true }); breathOut.add(s); }
+      if (st.pauseLag > 0 && (s === firstSeg || quietAt(segs[k - 1]))) spread.push({ t0: s.t0 - 0.03, t1: s.t0 + Math.min(st.pauseLag, half), abd: PAUSE_ABD.in, fallFrom: s.t0 });
     });
   }
   // an ejective holds the glottis shut through its closure and burst, and a
@@ -1450,7 +1473,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     // before the first sound the folds are already together, ready to vibrate
     // (no breathy [h] onset); after the last one they part a little while the
     // lungs stop pushing, so the voice ends without a hiss of escaping air
-    if (!sg) abd = time < (firstSeg?.t0 ?? 0.06) ? (startsMute ? (firstSeg.ph.manner === 'stop' ? 0.5 : Math.max(0.4, firstSeg.ph.abduction)) : 0.08) : endsMute ? 0.6 : 0.4;
+    if (!sg) abd = time < (firstSeg?.t0 ?? 0.06) ? (startsMute ? (firstSeg.ph.manner === 'stop' ? 0.5 : Math.max(0.4, firstSeg.ph.abduction)) : 0.08) : endsMute ? 0.6 : breathOut.has(lastSeg) ? PAUSE_ABD.out : 0.4;
     else {
       const m = sg.ph.manner;
       const unit = units[sg.unit];
@@ -1476,7 +1499,13 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       } else if (m === 'stop') abd = unit.ph.airstream === 'implosive' ? 0 : en && unit.p.wordStart ? 0.12 : 0.02;
       else abd = sg.ph.abduction;
     }
-    for (const w of spread) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) abd = Math.max(abd, w.abd);
+    for (const w of spread) {
+      const at = time + 0.01;
+      if (at < w.t0 || at >= w.t1) continue;
+      // (a window that rises takes its whole length to part the folds; one that falls holds them apart up to a time, then lets them come together)
+      const share = w.rise ? (at - w.t0) / (w.t1 - w.t0) : w.fallFrom !== undefined && at > w.fallFrom ? (w.t1 - at) / (w.t1 - w.fallFrom) : 1;
+      abd = Math.max(abd, w.abd * share);
+    }
     if (wait) abd = abdWas;
     else abdWas = abd;
     let stiff = 0;
@@ -1533,9 +1562,13 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       // parted folds for some 100 ms, 11 dB below the vowels), and push
       // again 30 ms before the sound after it, as before the first sound of
       // all (60 ms before one without voice, whose folds are apart). They let
-      // go the same way at the end of a last sound with voice
-      const pz = segs.find((s) => quietAt(s) && time > s.t0 - 0.03 && time < s.t1 - (mute(segs[segs.indexOf(s) + 1]) ? 0.06 : 0.03));
-      if (pz || (lastSeg && !endsMute && time > lastSeg.t1 - 0.03)) ps *= 0.08;
+      // go the same way at the end of a last sound with voice. Behind a sound
+      // that goes out in breath (the style's pauseLead) they push to its end:
+      // its folds, parting, end the voice, and what is left of the breath
+      // fades as the lungs let go (some 30 dB in 50 ms, as in the recording
+      // the opening was chosen against)
+      const pz = segs.find((s) => quietAt(s) && time > s.t0 - (breathOut.has(segs[segs.indexOf(s) - 1]) ? 0 : 0.03) && time < s.t1 - (mute(segs[segs.indexOf(s) + 1]) ? 0.06 : 0.03));
+      if (pz || (lastSeg && !endsMute && time > lastSeg.t1 - (breathOut.has(lastSeg) ? 0 : 0.03))) ps *= 0.08;
       // ... or pull, where a breath is taken
       const pull = inhaling(segAt(time), time);
       if (pull > 0) ps = ps * (1 - pull) - st.breath * pull;

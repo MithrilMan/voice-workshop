@@ -79,6 +79,17 @@ export interface ProsodyStyle {
    */
   voicelessLag: number;
   /**
+   * how long before a pause, or the end, the folds start to part, s: the voice of the last sound goes out in
+   * breath, and the lungs push to its end (0 = they part as it ends, and the lungs let go 30 ms before). Only
+   * a sound that lets the air through: a vowel, a nasal, a liquid, a glide
+   */
+  pauseLead: number;
+  /**
+   * how long after a pause, or at the start, the folds take to come together, s: the first sound comes in
+   * breathy (0 = they are together before it starts). The same sounds only
+   */
+  pauseLag: number;
+  /**
    * how much a living speaker varies, from one syllable to the next and from
    * one saying to the next: the length of the syllables and pauses, the
    * height of the accents, the push and tension of the stressed syllables,
@@ -119,6 +130,8 @@ export const DEFAULT_STYLE: Readonly<ProsodyStyle> = Object.freeze({
   breath: 3,
   voicelessLead: 0,
   voicelessLag: 0,
+  pauseLead: 0,
+  pauseLag: 0,
   variation: 1,
 });
 

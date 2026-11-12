@@ -94,6 +94,40 @@ describe('a way of speaking', () => {
     // a sentence with no voiceless hiss is as it was
     expect(JSON.stringify(say('la tela', { voicelessLead: 0.04, voicelessLag: 0.04 }).frames)).toBe(JSON.stringify(say('la tela').frames));
   });
+
+  it('the voice goes out in breath before a pause and at the end, and comes in breathy after a pause and at the start', () => {
+    const text = 'la luna, la sera';
+    const base = say(text), out = say(text, { pauseLead: 0.06 }), inn = say(text, { pauseLag: 0.05 });
+    const k = base.phones.findIndex((p) => p.ipa === '_');
+    const pause = base.phones[k], first = base.phones[0], after = base.phones[k + 1], end = base.phones[base.phones.length - 1].t1;
+    for (const t of [pause.t0, end]) {
+      // 20 ms before the end of the sound the folds are together, with a lead they are well apart; 70 ms before it they are not yet
+      expect(at(base, t - 0.02).abduction).toBeLessThan(0.05);
+      expect(at(out, t - 0.02).abduction).toBeGreaterThan(0.3);
+      expect(at(out, t - 0.07).abduction).toBeLessThan(0.05);
+      // the lungs have let go by then; behind a voice that goes out in breath they push to the end of the sound, and let go after it
+      expect(at(base, t - 0.01).ps).toBeLessThan(0.2 * at(base, t - 0.05).ps);
+      expect(at(out, t - 0.01).ps).toBeGreaterThan(0.9 * at(out, t - 0.05).ps);
+      expect(at(out, t - 0.05).ps).toBeCloseTo(at(base, t - 0.05).ps, 9);
+      expect(at(out, t + 0.02).ps).toBeCloseTo(at(base, t + 0.02).ps, 9);
+    }
+    // after the last sound the folds stay as far apart as they got
+    expect(at(base, end + 0.02).abduction).toBeCloseTo(0.4, 9);
+    expect(at(out, end + 0.02).abduction).toBeCloseTo(0.6, 9);
+    for (const p of [first, after]) {
+      // as the sound starts the folds are together, with a lag they are still apart; 40 ms into it they are together
+      expect(at(base, p.t0).abduction).toBeLessThan(0.1);
+      expect(at(inn, p.t0).abduction).toBeGreaterThan(0.25);
+      expect(at(inn, p.t0 + 0.04).abduction).toBeLessThan(0.05);
+    }
+    // nothing but the folds and the lungs moves, and no sound changes its times
+    for (const sc of [out, inn]) {
+      expect(JSON.stringify(sc.phones)).toBe(JSON.stringify(base.phones));
+      expect(JSON.stringify(sc.frames.map((f) => f.art))).toBe(JSON.stringify(base.frames.map((f) => f.art)));
+    }
+    // an obstruent keeps its voice: a stop at the start and a fricative at the end are as they were
+    expect(JSON.stringify(say('dov', { pauseLead: 0.06, pauseLag: 0.05 }).frames)).toBe(JSON.stringify(say('dov').frames));
+  });
 });
 
 describe('creak', () => {

@@ -164,6 +164,7 @@ const G = {
   pace: { it: 'Tempo', en: 'Pace' },
   push: { it: 'Spinta', en: 'Push' },
   voiceless: { it: 'Voce e soffi sordi', en: 'Voice and voiceless hisses' },
+  pauses: { it: 'Voce e pause', en: 'Voice and pauses' },
 };
 
 export const VOICE_FIELDS: Field[] = [
@@ -341,6 +342,10 @@ export const VOICE_FIELDS: Field[] = [
     { it: 'Quanto prima di una f, s, ʃ, dopo un suono con la voce, le corde cominciano ad aprirsi: la voce si assottiglia già sulla fine della vocale. 0 = si aprono quando la consonante comincia.', en: 'How long before an f, s, ʃ, after a voiced sound, the folds start to part: the voice thins out over the end of the vowel. 0 = they part as the consonant starts.' }, 0, 0.06, 0.005, 's'),
   n('speaking.style.voicelessLag', 'rhythm', G.voiceless, { it: 'Voce che torna dopo', en: 'Voice back late' },
     { it: 'Quanto ci mettono le corde a richiudersi dopo una f, s, ʃ: il suono dopo comincia soffiato. 0 = sono chiuse quando la consonante finisce.', en: 'How long the folds take to come together again after an f, s, ʃ: the sound after it starts breathy. 0 = they are together as the consonant ends.' }, 0, 0.06, 0.005, 's'),
+  n('speaking.style.pauseLead', 'rhythm', G.pauses, { it: 'Voce che si spegne nel fiato', en: 'Voice out in breath' },
+    { it: 'Quanto prima di una pausa, o della fine, le corde cominciano ad aprirsi: la voce dell’ultimo suono si spegne nel fiato. 0 = si aprono quando il suono finisce.', en: 'How long before a pause, or the end, the folds start to part: the voice of the last sound goes out in breath. 0 = they part as the sound ends.' }, 0, 0.12, 0.005, 's'),
+  n('speaking.style.pauseLag', 'rhythm', G.pauses, { it: 'Voce che entra soffiata', en: 'Voice in with breath' },
+    { it: 'Quanto ci mettono le corde a chiudersi dopo una pausa, o all’inizio: il primo suono entra soffiato. 0 = sono chiuse prima che cominci.', en: 'How long the folds take to come together after a pause, or at the start: the first sound comes in breathy. 0 = they are together before it starts.' }, 0, 0.12, 0.005, 's'),
 ];
 
 // ------------------------------------------------------------- reading
