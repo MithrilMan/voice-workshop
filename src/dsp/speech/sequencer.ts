@@ -1206,8 +1206,23 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       }
       // a question that rises on its last stress and falls after it
       const riseFall = yesNo && lp?.question === 'riseFall';
+      // ... by the language, or by the habit of the voice, which can do it by a share: that much of the final rise
+      // becomes a rise on the last stress and a fall after it
+      const rf = !yesNo ? 0 : riseFall ? 1 : st.questionRiseFall;
       const lastV = (() => { for (let j = i; j >= phraseStart; j--) if (units[j].vowel) return j; return -1; })();
       let height = o.accent * ST;
+      // the high of an accent that is not the last of its phrase, held past its stressed vowel toward the end of
+      // the next vowel of the phrase (not onto another accent, nor onto the one vowel between two accents, where
+      // the voice comes down before it rises again)
+      const held = (j: number, t2: number): number => {
+        if (st.peakDelay <= 0) return t2;
+        let k = j + 1;
+        while (k <= i && !units[k].vowel) k++;
+        let k2 = k + 1;
+        while (k2 <= i && !units[k2].vowel) k2++;
+        const nv = k <= i && !acc.includes(k) && !acc.includes(k2) ? vowelSeg(k) : undefined;
+        return nv ? t2 + st.peakDelay * Math.max(0, nv.t1 - 0.015 - t2) : t2;
+      };
       acc.forEach((j, n) => {
         const vs = vowelSeg(j);
         if (!vs) return;
@@ -1216,19 +1231,26 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
         while (resets.length && j >= resets[0]) { height = o.accent * ST; resets.shift(); }
         let a = height * vary(3, VARY.accent);
         // a yes/no question has a low nuclear accent before its final rise
-        if (nuclear && yesNo) a = riseFall ? a * 1.3 : 0;
-        if (en || lp?.peak === 'early' || riseFall && nuclear) {
+        if (nuclear && yesNo) a = rf > 0 ? a * 1.3 * rf : 0;
+        if (en || lp?.peak === 'early' || rf > 0 && nuclear) {
           // English H*: rise through the stressed syllable, peak inside its vowel
           const t2 = vs.t1 - 0.03;
-          if (a > 0) accentCmds.push({ t1: Math.min(sylStart(j) - 0.03, t2 - 0.17), t2, a, beta: betaAcc });
+          if (a > 0) accentCmds.push({ t1: Math.min(sylStart(j) - 0.03, t2 - 0.17), t2: nuclear ? t2 : held(j, t2), a, beta: betaAcc });
         } else if (nuclear && !yesNo && boundary !== 'comma') {
-          // Italian statement nucleus H+L*: high on the syllable before, falling onto the stressed one
-          accentCmds.push({ t1: vs.t0 - 0.24, t2: vs.t0 + 0.02, a: a * 1.1, beta: betaAcc });
+          // Italian statement nucleus H+L*: high on the syllable before, falling onto the stressed one; or, by the
+          // habit of the voice, on top of the stressed vowel like the accents before it (not where that vowel is
+          // the last of the phrase, and the final fall is on it)
+          const s = j === lastV ? 0 : st.nuclearPeak;
+          const t1 = vs.t0 - 0.24, t2 = vs.t0 + 0.02;
+          if (s > 0) {
+            const T2 = vs.t1 - 0.015, T1 = Math.min(vs.t0 - 0.03, T2 - 0.13);
+            accentCmds.push({ t1: t1 + (T1 - t1) * s, t2: t2 + (T2 - t2) * s, a: a * 1.1, beta: betaAcc });
+          } else accentCmds.push({ t1, t2, a: a * 1.1, beta: betaAcc });
         } else if (a > 0) {
           // Italian L+H*: the rise starts with the stressed vowel and peaks late,
           // still inside it (a peak on the next voiceless consonant is not heard)
           const t2 = vs.t1 - 0.015;
-          accentCmds.push({ t1: Math.min(vs.t0 - 0.03, t2 - 0.13), t2, a, beta: betaAcc });
+          accentCmds.push({ t1: Math.min(vs.t0 - 0.03, t2 - 0.13), t2: nuclear ? t2 : held(j, t2), a, beta: betaAcc });
         }
         // downstep: each accent a little lower than the one before, never below 60 %
         height = Math.max(st.downstepFloor * o.accent * ST, height * st.downstep);
@@ -1238,10 +1260,15 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       const endT = segs.filter((s) => s.unit <= i).reduce((m, s) => Math.max(m, s.t1), 0);
       if (lv) {
         const bv = vary(5, VARY.boundary);
-        if (riseFall) accentCmds.push({ t1: lv.t0 + 0.02, t2: endT + 0.2, a: -st.finalFall * ST * bv, beta: 12 });
-        else if (yesNo) accentCmds.push({ t1: lv.t0 - 0.1, t2: endT + 0.2, a: st.questionRise * ST * bv, beta: 16 });
-        else if (boundary === 'comma') accentCmds.push({ t1: lv.t0, t2: endT + 0.1, a: st.continuation * ST * bv, beta: 16 });
-        else accentCmds.push({ t1: lv.t0 - 0.02, t2: endT + 0.2, a: -st.finalFall * ST * bv, beta: 12 }); // final lowering
+        if (yesNo) {
+          if (rf > 0) accentCmds.push({ t1: lv.t0 + 0.02, t2: endT + 0.2, a: -st.finalFall * ST * bv * rf, beta: 12 });
+          if (rf < 1) accentCmds.push({ t1: lv.t0 - 0.1, t2: endT + 0.2, a: st.questionRise * ST * bv * (1 - rf), beta: 16 });
+        } else if (boundary === 'comma') {
+          // a small rise on the last vowel, held into the pause; or, by the habit of the voice, a fall, which
+          // starts where the last stress of the phrase ends, is down by the last vowel and ends with the phrase
+          const fall = st.continuation < 0, ls = fall && acc.length ? vowelSeg(acc[acc.length - 1]) : undefined;
+          accentCmds.push({ t1: ls ? Math.min(lv.t0, ls.t1 - 0.02) : lv.t0, t2: fall ? endT : endT + 0.1, a: st.continuation * ST * bv, beta: 16 });
+        } else accentCmds.push({ t1: lv.t0 - 0.02, t2: endT + 0.2, a: -st.finalFall * ST * bv, beta: 12 }); // final lowering
       }
       phraseStart = i + 1;
     }

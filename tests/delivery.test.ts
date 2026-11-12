@@ -53,6 +53,13 @@ describe('the delivery of a voice', () => {
     const tail = of({ 'speaking.style.lastStressLengthening': 0.5 });
     expect(tail.lastStressLength / base.lastStressLength).toBeGreaterThan(1.4);
     expect(tail.lastLength).toBeCloseTo(base.lastLength, 6);
+    // an accent that is held keeps the vowel after it up; the last accent of a statement on top stands over the vowel before it
+    const heldUp = of({ 'speaking.style.peakDelay': 1 }), top = of({ 'speaking.style.nuclearPeak': 1 });
+    expect(heldUp.afterAccent).toBeGreaterThan(base.afterAccent + 1);
+    expect(top.lastAccent).toBeGreaterThan(base.lastAccent + 1);
+    // a question that rises on its last stress and falls ends low, and so does a comma with a fall
+    expect(of({ 'speaking.style.questionRiseFall': 1 }).endQuestion).toBeLessThan(base.endQuestion - 4);
+    expect(of({ 'speaking.style.continuation': -4 }).endComma).toBeLessThan(base.endComma - 1);
     expect(pause.pauseComma).toBeGreaterThan(base.pauseComma + 0.1);
     expect(fast.rate / base.rate).toBeGreaterThan(1.12);
     expect(high.pitch / base.pitch).toBeGreaterThan(1.2);

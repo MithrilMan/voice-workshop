@@ -65,6 +65,8 @@ const FIGURES: [keyof Delivery, string, string, number][] = [
   ['low', 'vocali basse sotto la mediana', 'st', 1],
   ['accent', 'vocale accentata sopra le vicine', 'st', 1],
   ['step', 'da una vocale alla successiva (rms)', 'st', 1],
+  ['afterAccent', 'vocale dopo un accento non ultimo, contro l’accentata', 'st', 1],
+  ['lastAccent', 'ultimo accento di una frase, contro la vocale prima', 'st', 1],
   ['top', 'vocale più alta della frase sopra la mediana', 'st', 1],
   ['slope', 'andamento lungo la frase', 'st/s', 1],
   ['late', 'vocali oltre 1,5 s in una frase lunga, contro le prime', 'st', 1],
@@ -118,7 +120,7 @@ for (const listPath of lists) {
   console.log(`   ${'figure'.padEnd(14)} ${'recording'.padStart(10)} ${'before'.padStart(8)} ${'after'.padStart(8)}`);
   for (const [k, label, unit, d] of FIGURES) {
     const plain = k === 'stressLevel' || k === 'endLevel';
-    console.log(`   ${k.padEnd(14)} ${num(target[k], d).padStart(10)} ${(plain ? '' : num(fit.start[k], d)).padStart(8)} ${(plain ? '' : num(fit.end[k], d)).padStart(8)} ${unit}`);
+    console.log(`   ${k.padEnd(17)} ${num(target[k], d).padStart(10)} ${(plain ? '' : num(fit.start[k], d)).padStart(8)} ${(plain ? '' : num(fit.end[k], d)).padStart(8)} ${unit}`);
     rows.push(`<tr><td>${label}</td><td>${num(target[k], d)}</td><td>${plain ? '' : num(fit.start[k], d)}</td><td>${plain ? '' : num(fit.end[k], d)}</td><td>${unit}</td></tr>`);
   }
   const short = (path: string) => path.slice(path.lastIndexOf('.') + 1);
@@ -161,7 +163,7 @@ for (const listPath of lists) {
     const a = gapBetween(heardNow.before, heardNow.theirs), b = gapBetween(heardNow.after, heardNow.theirs);
     const da = deliveryOf(heardNow.before), db = deliveryOf(heardNow.after), dt = deliveryOf(heardNow.theirs);
     console.log(`   as heard (${chosen.length} rendered): pitch of the vowels ${a.pitch.toFixed(2)} -> ${b.pitch.toFixed(2)} st rms (together ${a.together.toFixed(2)} -> ${b.together.toFixed(2)}), figures ${deliveryDistance(da, dt).toFixed(2)} -> ${deliveryDistance(db, dt).toFixed(2)}`);
-    for (const [k, , unit, d] of FIGURES) console.log(`   heard ${k.padEnd(14)} ${num(dt[k], d).padStart(10)} ${num(da[k], d).padStart(8)} ${num(db[k], d).padStart(8)} ${unit}`);
+    for (const [k, , unit, d] of FIGURES) console.log(`   heard ${k.padEnd(17)} ${num(dt[k], d).padStart(10)} ${num(da[k], d).padStart(8)} ${num(db[k], d).padStart(8)} ${unit}`);
     check = `<p>Misurato sull’audio delle ${chosen.length} frasi qui sotto (non sul piano): altezza delle vocali ${a.pitch.toFixed(2)} → ${b.pitch.toFixed(2)} st di scarto dalla registrazione, andamento insieme ${a.together.toFixed(2)} → ${b.together.toFixed(2)}; volume: vocale accentata sopra le altre ${num(dt.stressLevel, 1)} dB nella registrazione, ${num(db.stressLevel, 1)} dB la nostra; ultima vocale ${num(dt.endLevel, 1)} dB, la nostra ${num(db.endLevel, 1)} dB (il volume è solo misurato, non ancora stimato).</p>`;
   }
   sections.push(`<h2>${name}</h2>

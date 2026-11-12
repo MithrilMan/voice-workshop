@@ -36,6 +36,24 @@ describe('a way of speaking', () => {
     expect(len(slow, 'l', 3) / len(base, 'l', 3)).toBeGreaterThan(1.2);
     expect(len(slow, 'u', 0)).toBeCloseTo(len(base, 'u', 0), 9);
     expect(len(slow, 'e', 3)).toBeCloseTo(len(base, 'e', 3), 9);
+    // an accent that is held: the voice stays up on the «na» of «luna», and only there
+    const mid = (sc: Score, ipa: string, n: number) => { const v = sc.phones.filter((p) => p.ipa === ipa)[n]; return at(sc, 0.5 * (v.t0 + v.t1)).f0; };
+    const heldUp = say(text, { peakDelay: 1 });
+    expect(mid(heldUp, 'a', 1) / mid(heldUp, 'u', 0)).toBeGreaterThan(0.93);
+    expect(mid(base, 'a', 1) / mid(base, 'u', 0)).toBeLessThan(0.8);
+    expect(mid(heldUp, 'e', 3)).toBeCloseTo(mid(base, 'e', 3), 6);
+    // the last accent of a statement on top of its stressed vowel: «le» low before it, «stel» still high at its end
+    const top = say(text, { nuclearPeak: 1 });
+    const endOf = (sc: Score, ipa: string, n: number) => { const v = sc.phones.filter((p) => p.ipa === ipa)[n]; return at(sc, v.t1 - 0.01).f0; };
+    expect(endOf(top, 'e', 2) / endOf(top, 'e', 1)).toBeGreaterThan(endOf(base, 'e', 2) / endOf(base, 'e', 1) * 1.2);
+    expect(mid(top, 'u', 0)).toBeCloseTo(mid(base, 'u', 0), 6);
+    // a question that rises on its last stress and falls: the «o» of «oggi» high, the end low
+    const rf = say(q, { questionRiseFall: 1 }), plainQ = say(q);
+    expect(mid(rf, 'o', 1)).toBeGreaterThan(mid(plainQ, 'o', 1) * 1.2);
+    expect(at(rf, rf.duration - 0.06).f0).toBeLessThan(at(plainQ, plainQ.duration - 0.06).f0 * 0.8);
+    // a comma where the voice falls
+    const c = 'la luna, le stelle';
+    expect(endOf(say(c, { continuation: -4 }), 'a', 1)).toBeLessThan(endOf(say(c), 'a', 1) * 0.92);
     // longer pauses: a longer utterance
     expect(say('ciao, come stai?', { pauseShort: 0.4 }).duration).toBeGreaterThan(say('ciao, come stai?').duration + 0.2);
     // no declination: more pressure at the end

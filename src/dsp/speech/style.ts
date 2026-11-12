@@ -22,8 +22,24 @@ export interface ProsodyStyle {
   finalFall: number;
   /** final rise of a yes/no question, semitones */
   questionRise: number;
-  /** small rise before a comma (continuation), semitones */
+  /** small rise before a comma (continuation), semitones; below zero the voice falls there */
   continuation: number;
+  /**
+   * how far the high of an accent that is not the last of its phrase is held past its stressed vowel, toward the
+   * end of the next vowel of the phrase (0 = it ends with the stressed vowel, 1 = with the next one); not onto
+   * the one vowel between two accents, where the voice comes down before it rises again
+   */
+  peakDelay: number;
+  /**
+   * where the last accent of a statement stands (Italian): 0 = high before the stressed syllable and falling
+   * onto it, 1 = rising on the stressed vowel like the accents before it, and falling after it
+   */
+  nuclearPeak: number;
+  /**
+   * how much of the final rise of a yes/no question is a rise on its last stress and a fall after it instead
+   * (0 = the question rises at its end, 1 = it rises on its last stress and falls)
+   */
+  questionRiseFall: number;
   /** microprosody: the intrinsic pitch of vowels and the push of the consonant before (1 = usual) */
   micro: number;
   /** slow random wander of the pitch (Klatt's flutter, 0..100) */
@@ -74,6 +90,9 @@ export const DEFAULT_STYLE: Readonly<ProsodyStyle> = Object.freeze({
   finalFall: 0.13 / ST,
   questionRise: 0.5 / ST,
   continuation: 0.13 / ST,
+  peakDelay: 0,
+  nuclearPeak: 0,
+  questionRiseFall: 0,
   micro: 1,
   flutter: 25,
   pauseLong: 0.3,

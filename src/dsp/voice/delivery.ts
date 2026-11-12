@@ -141,6 +141,10 @@ export interface Delivery {
   accent: number;
   /** from a vowel to the next one of its phrase, rms, st: how much the melody moves */
   step: number;
+  /** the vowel after an accented vowel that is not the last accent of its phrase, against it, st (near 0: the voice stays up after an accent) */
+  afterAccent: number;
+  /** the last accented vowel of a phrase that ends a sentence, where it is not its last vowel, against the unaccented vowel before it, st */
+  lastAccent: number;
   /** the highest vowel of a phrase over the median of its vowels, st */
   top: number;
   /** how the pitch of the vowels runs through a phrase, its last vowel left out, st/s */
@@ -180,7 +184,7 @@ export function deliveryOf(sayings: Saying[]): Delivery {
   const pitched = vowels.filter((s) => Number.isFinite(s.pitch)).map((s) => s.pitch);
   const mid = median(pitched);
   // accents: over the nearest unaccented vowels of the phrase, on either side (not the last one, which carries how the phrase ends)
-  const acc: number[] = [], steps: number[] = [], tops: number[] = [], late: number[] = [];
+  const acc: number[] = [], steps: number[] = [], tops: number[] = [], late: number[] = [], after: number[] = [], lastAcc: number[] = [];
   // the run of the pitch through a phrase: one slope for all, each phrase about its own mean
   let sxy = 0, sxx = 0;
   const ends: Record<Edge, number[]> = { stop: [], wh: [], question: [], comma: [] };
@@ -201,6 +205,11 @@ export function deliveryOf(sayings: Saying[]): Delivery {
         for (let j = i + 1; j < body.length; j++) if (!accented(body[j])) { near.push(body[j].pitch); break; }
         if (near.length) acc.push(s.pitch - mean(near));
       });
+      // what follows an accent that is not the last of its phrase, and how the last one of a sentence stands over the vowel before it
+      let la = -1;
+      for (let q = v.length - 1; q >= 0; q--) if (accented(v[q])) { la = q; break; }
+      for (let q = 0; q < la; q++) if (accented(v[q]) && !accented(v[q + 1])) after.push(v[q + 1].pitch - v[q].pitch);
+      if (la > 0 && !v[la].last && !accented(v[la - 1]) && (v[la].edge === 'stop' || v[la].edge === 'wh')) lastAcc.push(v[la].pitch - v[la - 1].pitch);
       if (body.length >= 3) {
         const tm = mean(body.map((s) => 0.5 * (s.t0 + s.t1))), pm = mean(body.map((s) => s.pitch));
         for (const s of body) { const dt = 0.5 * (s.t0 + s.t1) - tm; sxy += dt * (s.pitch - pm); sxx += dt * dt; }
@@ -236,6 +245,8 @@ export function deliveryOf(sayings: Saying[]): Delivery {
     low: mid - quantile(pitched, 0.1),
     accent: mean(acc),
     step: Math.sqrt(mean(steps)),
+    afterAccent: mean(after),
+    lastAccent: mean(lastAcc),
     top: mean(tops),
     slope: sxx > 0 ? sxy / sxx : NaN,
     late: mean(late),
@@ -293,6 +304,8 @@ const TERMS: { key: keyof Delivery; scale: number; log?: boolean }[] = [
   { key: 'low', scale: 1 },
   { key: 'accent', scale: 0.7 },
   { key: 'step', scale: 0.7 },
+  { key: 'afterAccent', scale: 0.7 },
+  { key: 'lastAccent', scale: 1 },
   { key: 'top', scale: 1 },
   { key: 'slope', scale: 1 },
   { key: 'late', scale: 1 },
@@ -325,11 +338,14 @@ export function deliveryDistance(ours: Delivery, target: Delivery): number {
  */
 const KNOBS: [string, number, (keyof Delivery)?, boolean?][] = [
   ['speaking.accent', 2],
+  ['speaking.style.peakDelay', 0.4, 'afterAccent'],
+  ['speaking.style.nuclearPeak', 0.5, 'lastAccent'],
   ['speaking.style.phrase', 0.4],
   // (at 0 the habit is off, and a small span is not a small change: from 0 it is tried at its whole first step in every round)
   ['speaking.style.phraseSpan', 2, 'late', true],
   ['speaking.style.finalFall', 1.5, 'endStop'],
   ['speaking.style.questionRise', 2, 'endQuestion'],
+  ['speaking.style.questionRiseFall', 0.5, 'endQuestion'],
   ['speaking.style.continuation', 1.5, 'endComma'],
   ['speaking.style.floor', 1.5],
   ['speaking.style.downstep', 0.05],

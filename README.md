@@ -1192,11 +1192,40 @@ sibilants. The teeth panel draws the front and side views with the live jet.
     stressed syllable and peak inside its vowel; Italian prenuclear accents
     peak late (L+H*), at the end of the vowel rather than on the next
     consonant, where a voiceless sound would hide them; the statement nucleus
-    falls onto the stressed syllable (H+L*). The engine follows this curve
+    falls onto the stressed syllable (H+L*). A style can change each of
+    these by the habit of a voice (three fields, off by default; how far
+    each one goes is chosen, not measured). `peakDelay` holds the high
+    of an accent that is not the last of its phrase past its stressed
+    vowel, up to the end of the next vowel (not where that vowel is the
+    only one before the next accent: there the recordings we measured
+    come down before they rise again): the accents before the last
+    one peak later than it, and their peak can fall in the syllable
+    after the stressed one (Silverman & Pierrehumbert 1990 for English;
+    just after the start of the next vowel in Greek, Arvaniti et al.
+    1998; for Italian we found it described only for Salerno and
+    Naples, in Cataldo & Crocco 2026). `nuclearPeak` puts the last
+    accent of a statement on top of its stressed vowel, like the ones
+    before it, and the fall after it: H+L* is the accent of a plain
+    statement across the varieties of Grice et al. 2005, but Pisa has a
+    peak in the stressed syllable there (Gili Fivela 2002).
+    `questionRiseFall` turns the final rise of a yes/no question, by a
+    share, into a rise on its last stress and a fall after it: in
+    spontaneous speech from fifteen Italian cities the rise on the
+    accent prevails, and a rise at the very end is the regular tune in
+    a few of them only (Savino 2009, 2012). (Silverman & Pierrehumbert
+    and Grice et al. are read here through the papers that cite them.)
+    The engine follows this curve
     with only a 6 ms smoothing (a slider gets 25 ms), so the accents keep
     their height. Statements end with a final
     lowering, yes/no questions rise, questions with a question word fall, a
-    comma leaves a small continuation rise.
+    comma leaves a small continuation rise. `continuation` can go below
+    zero: the voice then falls from the end of the last stress of the
+    phrase and is down by its last vowel, and the fall ends with the
+    phrase. The studies we found describe rises or high plateaus before
+    such a boundary and low endings as rare (two Neapolitan speakers
+    ended 98.7 % of 233 read phrases high: Frota et al. 2007), so a
+    comma that falls is the habit of a voice (we measured it on one
+    neural voice), not the rule.
   - *Micro-variation*: intrinsic F0 of vowels (+0.7 st for i u, -0.5 st for
     a), the push of the previous consonant on the vowel onset (+1.3 st after a
     voiceless obstruent, -0.8 st after a voiced one, decaying in 35 ms), and
@@ -1684,7 +1713,9 @@ score of a voice saying something: one turn of a dialogue.
   how far apart the vowels are (10th to 90th percentile); how high a
   vowel that our rules accent (the stressed vowel of a content word)
   stands over the unaccented ones next to it; how far the pitch moves
-  from a vowel to the next (rms); the highest vowel of a phrase over the
+  from a vowel to the next (rms); what the vowel after an accent that is
+  not the last of its phrase does against it, and how the last accent of
+  a sentence stands over the vowel before it; the highest vowel of a phrase over the
   median of its vowels, and the slope of the pitch through the phrase;
   where the melody stands late in a long phrase (its vowels more than
   1.5 s after its start against the earlier ones);
@@ -1698,13 +1729,16 @@ score of a voice saying something: one turn of a dialogue.
   simulator saying the same sentences by its rules, off the plan (no
   sound is made: seven sentences take 0.2 s), and `fitDelivery` moves
   the fields of the voice's melody and rhythm until the two agree: the
-  pitch and the pace outright, then the accent, the arc of the phrase,
+  pitch and the pace outright, then the accent, how long its high is
+  held and where the last one of a statement stands, the arc of the phrase,
   the stretch after which the melody starts again, the final fall, the
-  rise of the questions, the continuation, the bottom of the voice, the
+  rise of the questions and the share of it that is a rise and a fall
+  instead, the continuation (down to a fall), the bottom of the voice, the
   downstep, the final lengthening, the lengthening of the last stress
   and the two pauses, each tried a step
   up and a step down and followed while it helps, the step halved over
-  four rounds (about a hundred plans, 8-24 s). A melody that starts
+  four rounds (100-160 plans; 8-24 s on four to seven sentences, 131 s
+  on 24). A melody that starts
   again is a habit that is on or off, and the other fields have to
   follow it (it stays up, and the range it had from sinking has to come
   from its arcs): where the search leaves it off, it is run again from
@@ -1765,6 +1799,33 @@ score of a voice saying something: one turn of a dialogue.
   says how long each kind of sound is. And the level is only measured:
   over the rendered sentences the recordings' last vowel is 7-12 dB
   below the others, ours 3-8 dB.
+  With more sentences, and with the fields added for what they showed
+  (one Italian neural voice, 36 sentences, 24 fitted and 12 kept out,
+  starting from its fit on seven): in the recordings the vowel after an
+  accent that is not the last of its phrase stands 0.6 st under it,
+  ours 2.5 st; the last accent of a sentence stands 1.0 st over the
+  vowel before it, ours 1.0 st under; the last vowel before a comma is
+  3.9 st under the median of its phrase, ours 0.9 st; a question to
+  answer yes or no ends 6.3 st down, ours 3.0 st up; and the stressed
+  vowel of the last word of a phrase is 1.46 times the other stressed
+  ones, ours 0.97. Fitted (the accents held 0.8 of the way to the end
+  of the next vowel, the last one halfway onto its own vowel,
+  questions that rise on their last stress and fall, a comma that falls
+  4.3 st, the last stress lengthened), the distance of the figures goes
+  from 2.3 to 0.6. On the twelve sentences kept out the vowels come
+  from 1.68 to 1.39 st rms off the recordings' (going together 0.71 to
+  0.79), where the fit without these fields had left them at 1.78
+  (0.67), and the lengths sound by sound from 0.32 to 0.31. What is
+  left is mostly from one vowel to the next inside a phrase (1.3 st
+  rms; the phrases' own levels are 0.6 st off), with no place in the
+  phrase where ours stand off by more than a quarter of a semitone
+  but its start: the first three vowels of a phrase are 0.5-0.7 st
+  too low in ours, and the few before its first accent 2.0 st (17
+  vowels of 590). Two limits:
+  the fields were chosen looking at this voice, the sentences kept out
+  included (only their values come from the 24), and the other voices
+  have not been fitted with them; and these are plans, not yet judged
+  by ear.
 
 ## Main parameters
 
@@ -2227,6 +2288,14 @@ in brackets are the adult male targets described under Speech.
 - Liberman, M. Y. & Church, K. W. (1992). Text analysis and word pronunciation in text-to-speech synthesis. In S. Furui & M. M. Sondhi (eds.), Advances in Speech Signal Processing. Marcel Dekker.
 - Turk, A. E. & Shattuck-Hufnagel, S. (2007). Multiple targets of phrase-final lengthening in American English words. Journal of Phonetics 35(4).
 - Petrone, C., D’Imperio, M., Fuchs, S. & Lancia, L. (2014). The interplay between prosodic phrasing and accentual prominence on articulatory lengthening in Italian. Proc. Speech Prosody 2014.
+- Silverman, K. E. A. & Pierrehumbert, J. B. (1990). The timing of prenuclear high accents in English. In J. Kingston & M. E. Beckman (eds.), Papers in Laboratory Phonology I. Cambridge University Press.
+- Arvaniti, A., Ladd, D. R. & Mennen, I. (1998). Stability of tonal alignment: the case of Greek prenuclear accents. Journal of Phonetics 26(1).
+- Cataldo, V. & Crocco, C. (2026). Phonetic cues to diatopic variation in Campania Italian intonation. Italian Journal of Linguistics 38(1).
+- Grice, M., D’Imperio, M., Savino, M. & Avesani, C. (2005). Strategies for intonation labelling across varieties of Italian. In S.-A. Jun (ed.), Prosodic Typology: The Phonology of Intonation and Phrasing. Oxford University Press.
+- Gili Fivela, B. (2002). Tonal alignment in two Pisa Italian peak accents. Proc. Speech Prosody 2002, Aix-en-Provence.
+- Savino, M. (2009). Intonational features for identifying regional accents of Italian. Proc. Interspeech 2009, Brighton.
+- Savino, M. (2012). The intonation of polar questions in Italian: Where is the rise? Journal of the International Phonetic Association 42(1).
+- Frota, S., D’Imperio, M., Elordieta, G., Prieto, P. & Vigário, M. (2007). The phonetics and phonology of intonational phrasing in Romance. In P. Prieto, J. Mascaró & M.-J. Solé (eds.), Segmental and Prosodic Issues in Romance Phonology. John Benjamins.
 - Pike, K. L. (1945). The Intonation of American English. University of Michigan Press.
 - Perkell, J. S., Matthies, M. L., Svirsky, M. A. & Jordan, M. I. (1993). Trading relations between tongue-body raising and lip rounding in production of the vowel /u/: a pilot "motor equivalence" study. JASA 93.
 - Laver, J. (1980). The Phonetic Description of Voice Quality. Cambridge University Press.
