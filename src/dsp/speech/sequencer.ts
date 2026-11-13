@@ -8,7 +8,7 @@ import { IPA_CONSONANTS, IPA_VOWELS, Place } from './ipa';
 import { normalizeIpa } from './ipaReader';
 import { ProsodyStyle, styleOf, lengthen, ST } from './style';
 import { Setting, settingOf, isNeutral, adjust, nasalizable } from '../voice/setting';
-import { LanguageProsody, prosodyOf } from './languages';
+import { LanguageProsody, prosodyOf, Pronunciation, pronunciationOf, PLAIN_PRONUNCIATION } from './languages';
 import { Rng } from '../util/rng';
 
 /**
@@ -61,7 +61,7 @@ export interface ProsodyOptions {
   rate: number;
   /** lung pressure, cm H2O */
   ps: number;
-  /** language: durations, aspiration, accent alignment (rules for 'it' and 'en'; another language comes as literal phones) */
+  /** language: its pronunciation (durations, aspiration, accent alignment: `pronunciationOf`); one read by the phonemizer comes as literal phones */
   lang: Lang | string;
   /**
    * said as written, with no language's rules: durations from the sounds and
@@ -553,6 +553,11 @@ interface Command { t1: number; t2: number; a: number; beta: number }
 const RESTART = 0.26;
 const VARY = { tempo: 0.08, drift: 0.7, pause: 0.2, accent: 0.2, phrase: 0.15, boundary: 0.15, push: 0.3, end: 0.2 };
 
+/** the timing a pronunciation names */
+const TIMING: Record<Pronunciation['timing'], (u: Unit, next: Unit | undefined, prev: Unit | undefined, st: ProsodyStyle, lp?: LanguageProsody) => number> = {
+  italian: italianDuration, english: englishDuration, even: neutralDuration,
+};
+
 // ---------------------------------------------------------------- the score
 
 export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
@@ -572,7 +577,8 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   const vary = (stream: number, sd: number): number => (live ? Math.exp(live * sd * draw(stream)) : 1);
   const rate = Math.max(0.3, o.rate);
   const literal = o.literal ?? (phones.length > 0 && phones.every((p) => p.literal));
-  const en = !literal && o.lang === 'en';
+  // how the language says its sounds; a transcription belongs to none
+  const pr: Pronunciation = literal ? PLAIN_PRONUNCIATION : pronunciationOf(o.lang);
   // a language read by the phonemizer: its rhythm, accents and questions
   const lp = literal ? prosodyOf(o.lang) : undefined;
   // the shape of the speaker's mouth, if it is not the drawing's: the sounds are aimed for it
@@ -584,7 +590,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   for (let i = 0; i < units.length; i++) {
     const u = units[i];
     u.floor = 0;
-    if (nat.timing) u.dur = (literal ? neutralDuration : en ? englishDuration : italianDuration)(u, units[i + 1], units[i - 1], st, lp);
+    if (nat.timing) u.dur = TIMING[pr.timing](u, units[i + 1], units[i - 1], st, lp);
     else u.dur = u.ph.dur * (u.p.long && !u.vowel ? 1.9 : 1);
     if (nat.timing && u.tail > 0 && st.lastStressLengthening > 0) u.dur *= 1 + st.lastStressLengthening * u.tail;
     const hard = u.dur > 0 ? Math.min(1, u.floor / u.dur) : 0;
@@ -661,17 +667,17 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       const dur = u.dur * frac;
       if (q.manner === 'stop') {
         const rel = Math.min(0.015, dur * 0.35);
-        // aspiration where it is written (ʰ); English voiceless stops are also
-        // aspirated at the start of a stressed syllable (not after s)
+        // aspiration where it is written (ʰ); in a language that aspirates (English) voiceless
+        // stops are also aspirated at the start of a syllable (not after s)
         const nx = units[i + 1];
         const afterS = units[i - 1]?.p.ipa === 's' && units[i - 1].word === u.word;
         const written = !!q.aspirated && !q.voiced && ph.manner === 'stop' && !ph.airstream;
-        const aspirates = written || (en && !q.voiced && ph.manner === 'stop' && !!nx?.vowel && !u.coda && !afterS);
-        // English lets the tip of the tongue go slowly: what follows the burst
+        const aspirates = written || (pr.aspirated && !q.voiced && ph.manner === 'stop' && !!nx?.vowel && !u.coda && !afterS);
+        // Such a language may let the tip of the tongue go slowly (English): what follows the burst
         // of /t/ is a short hiss at the ridge, a [s], more than a breath of the
         // glottis, and it ends in the voice as a fricative does. The closure is
         // made where the hiss will be, so that it opens into its channel
-        const hiss = aspirates && en && !written && placeOf(q) === 'alveolar' ? phonemeFor('s', shape) : null;
+        const hiss = aspirates && pr.fricatedTip && !written && placeOf(q) === 'alveolar' ? phonemeFor('s', shape) : null;
         if (hiss?.art.tipX !== undefined && hiss.art.tipY !== undefined) q = { ...q, art: { ...q.art, tipX: hiss.art.tipX, tipY: hiss.art.tipY + FRICATED_PRESS } };
         segs.push({ ipa, ph: q, t0: t, t1: t + dur - rel, unit: i, part: 'closure', label: label(u) });
         t += dur - rel;
@@ -685,7 +691,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
           t += asp;
           // the aspiration takes over the start of the vowel (Klatt)
           if (nx?.vowel) nx.dur = Math.max(0.04, nx.dur - 0.5 * asp);
-        } else if (en && !q.voiced && ph.manner === 'stop' && !ph.airstream && !u.coda && !afterS && !u.p.glottalized
+        } else if (pr.aspirated && !q.voiced && ph.manner === 'stop' && !ph.airstream && !u.coda && !afterS && !u.p.glottalized
           && nx && nx.word === u.word && !nx.vowel && !nx.coda && nx.ph.voiced && (nx.ph.manner === 'approximant' || nx.ph.manner === 'lateral') && units[i + 2]?.vowel) {
           // before l r w j of the same onset ("play", "tree", "queen") the
           // aspiration falls on that sound instead: the folds stay apart through
@@ -780,7 +786,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
         // it from the start of a vowel before a nasal (Cohn 1990), and the
         // nasalized vowel is part of the word
         const prev = anchors[k][anchors[k].length - 1];
-        const own = PROTECTED.has(k) && !(en && k === 'velum');
+        const own = PROTECTED.has(k) && !(pr.earlyNasal && k === 'velum');
         const core = own && prev && !prev.cons && prev.mid !== undefined ? prev.mid - CORE * tau(k) : -Infinity;
         // the larynx of an ejective or an implosive stays where it was until
         // the mouth is shut (a piston needs a closed cylinder), then moves
@@ -1167,7 +1173,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   const accentCmds: Command[] = [];
   // accent commands must last long enough for the step response to get near
   // its top (1 - (1 + βt) e^(-βt) is 0.8 at βt = 3), or short syllables lose their accent
-  const betaAcc = en ? 26 : 28;
+  const betaAcc = pr.accentRate;
   {
     // phrases
     let phraseStart = 0;
@@ -1241,7 +1247,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
         let a = height * vary(3, VARY.accent);
         // a yes/no question has a low nuclear accent before its final rise
         if (nuclear && yesNo) a = rf > 0 ? a * 1.3 * rf : 0;
-        if (en || lp?.peak === 'early' || rf > 0 && nuclear) {
+        if (pr.earlyPeak || lp?.peak === 'early' || rf > 0 && nuclear) {
           // English H*: rise through the stressed syllable, peak inside its vowel
           const t2 = vs.t1 - 0.03;
           if (a > 0) accentCmds.push({ t1: Math.min(sylStart(j) - 0.03, t2 - 0.17), t2: nuclear ? t2 : held(j, t2), a, beta: betaAcc });
@@ -1496,7 +1502,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
           // the folds part as the mouth shuts, not before
           wait = time + 0.01 < (shutAt.get(sg) ?? -Infinity);
         }
-      } else if (m === 'stop') abd = unit.ph.airstream === 'implosive' ? 0 : en && unit.p.wordStart ? 0.12 : 0.02;
+      } else if (m === 'stop') abd = unit.ph.airstream === 'implosive' ? 0 : unit.p.wordStart ? pr.initialVoicedStop : 0.02;
       else abd = sg.ph.abduction;
     }
     for (const w of spread) {

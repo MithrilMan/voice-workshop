@@ -1041,6 +1041,19 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   length is a phoneme (Finnish, Estonian, Hungarian, Japanese). The voice
   keeps its own body, habits and style in every language; the language
   brings its rhythm and its tunes.
+- **Each language's pronunciation** (src/dsp/speech/languages.ts,
+  Pronunciation): where two languages make the same sound with a different
+  gesture, the difference is data, and no rule of the sequencer names a
+  language. An entry says which table of durations the timing follows;
+  whether voiceless stops at the start of a syllable are let go with the
+  folds apart, and whether one made with the tongue tip then opens slowly,
+  through the channel of a hiss; whether the velum comes down from the
+  start of a vowel before a nasal; whether accents peak early and how fast
+  they rise; how far apart the folds are in a voiced stop at the start of
+  a word. Italian and English have an entry each (English: aspiration and
+  the slow tip, Klatt 1975; the nasalized vowel, Cohn 1990); a
+  transcription, which belongs to no language, gets plain stops and even
+  timing. Teaching the model a new language of its own is a new entry.
 - **IPA** (src/dsp/speech/ipaReader.ts): every symbol of the IPA chart
   (2020), pulmonic and non-pulmonic, with its diacritics and modifier
   letters (voicing, aspiration, breathy and creaky voice, secondary

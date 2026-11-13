@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { textToPhones } from '../src/dsp/speech/g2p';
 import { buildScore } from '../src/dsp/speech/sequencer';
-import { prosodyOf, SPEECH_LANGUAGES } from '../src/dsp/speech/languages';
+import { prosodyOf, pronunciationOf, PLAIN_PRONUNCIATION, SPEECH_LANGUAGES } from '../src/dsp/speech/languages';
 import type { Score } from '../src/dsp/engine/params';
 import { note } from './helpers';
 
@@ -78,5 +79,30 @@ describe('each language with its own prosody', () => {
       expect(q.end).toBeLessThan(q.peak * 0.9);
       expect(q.peak).toBeGreaterThan(es.peak);
     }
+  });
+});
+
+describe('the pronunciation of a language is data', () => {
+  it('English aspirates and lets the tip go slowly, Italian does neither; a language without an entry is said as Italian', () => {
+    const en = pronunciationOf('en'), italian = pronunciationOf('it');
+    expect(en).toMatchObject({ timing: 'english', aspirated: true, fricatedTip: true, earlyNasal: true, earlyPeak: true });
+    expect(en.initialVoicedStop).toBeGreaterThan(italian.initialVoicedStop);
+    expect(italian).toEqual({ ...PLAIN_PRONUNCIATION, timing: 'italian' });
+    expect(pronunciationOf('xx')).toEqual(italian);
+  });
+
+  it('a stop is aspirated because its language says so: the folds are apart after the release of an English /t/, not of an Italian one', () => {
+    const apartAfter = (lang: string) => {
+      const sc = buildScore(textToPhones('/ˈtata/', lang), { lang, f0: 120, natural: { micro: false } });
+      const t = sc.phones.find((p) => p.ipa === 't')!;
+      return Math.max(...sc.frames.filter((fr) => fr.t >= t.t1 - 0.03 && fr.t <= t.t1 + 0.01).map((fr) => fr.abduction));
+    };
+    note('pronunciation', `folds apart around the release of /t/: English ${apartAfter('en').toFixed(2)}, Italian ${apartAfter('it').toFixed(2)}`);
+    expect(apartAfter('en')).toBeGreaterThan(apartAfter('it') + 0.1);
+  });
+
+  it('no rule of the sequencer names a language', () => {
+    const src = readFileSync('src/dsp/speech/sequencer.ts', 'utf8');
+    expect(src).not.toMatch(/lang\s*[!=]==|[!=]==\s*'(en|it)'/);
   });
 });

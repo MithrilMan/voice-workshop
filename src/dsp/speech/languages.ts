@@ -87,6 +87,44 @@ export function prosodyOf(code: string): LanguageProsody | undefined {
 }
 
 /**
+ * How a language says its sounds, where languages differ in the gesture and not in the symbol: the sequencer reads
+ * these as data, so that none of its rules names a language. A new language is a new entry here.
+ */
+export interface Pronunciation {
+  /** the table of durations, and of the contexts that stretch and shorten them, that the timing follows */
+  timing: 'italian' | 'english' | 'even';
+  /**
+   * voiceless stops at the start of a syllable, before a vowel and not after s, are let go with the folds apart;
+   * before l r w j of the same onset the breath falls on that sound instead
+   */
+  aspirated: boolean;
+  /** an aspirated stop of the tongue tip opens slowly, through the channel of a hiss */
+  fricatedTip: boolean;
+  /** the velum comes down from the start of a vowel before a nasal (the vowel is nasalized), not from about its middle */
+  earlyNasal: boolean;
+  /** accents peak early, inside the stressed vowel */
+  earlyPeak: boolean;
+  /** how fast an accent rises (1/s) */
+  accentRate: number;
+  /** how far apart the folds are in a voiced stop at the start of a word (0.02: fully voiced; more: partly unvoiced) */
+  initialVoicedStop: number;
+}
+
+/** a language with no entry of its own, and any transcription: even timing, plain stops, peaks where its prosody puts them */
+export const PLAIN_PRONUNCIATION: Pronunciation = { timing: 'even', aspirated: false, fricatedTip: false, earlyNasal: false, earlyPeak: false, accentRate: 28, initialVoicedStop: 0.02 };
+
+const PRONUNCIATIONS: Record<string, Partial<Pronunciation>> = {
+  it: { timing: 'italian' },
+  // aspiration and the slow tip (Klatt 1975), the vowel nasalized before a nasal (Cohn 1990), b d g partly unvoiced at the start of a word
+  en: { timing: 'english', aspirated: true, fricatedTip: true, earlyNasal: true, earlyPeak: true, accentRate: 26, initialVoicedStop: 0.12 },
+};
+
+/** The pronunciation of a language read by our own rules (text or /phonemic/ input); one without an entry is said as Italian. */
+export function pronunciationOf(code: string): Pronunciation {
+  return { ...PLAIN_PRONUNCIATION, ...(PRONUNCIATIONS[code] ?? PRONUNCIATIONS.it) };
+}
+
+/**
  * The words of a language that lean on the word after them and carry no
  * accent of their own: articles, short prepositions, conjunctions and clitic
  * pronouns, only those that are unstressed as a rule (the Spanish "un" and
