@@ -2,6 +2,8 @@ import { VoiceEngine } from '../src/dsp/engine/engine';
 import { defaultParams } from '../src/dsp/engine/params';
 import { textToPhones, Lang } from '../src/dsp/speech/g2p';
 import { buildScore } from '../src/dsp/speech/sequencer';
+import { phonemeFor } from '../src/dsp/speech/derive';
+import { pronunciationOf } from '../src/dsp/speech/languages';
 import { PHONEMES } from '../src/dsp/speech/phonemes';
 import { computeGeometry } from '../src/dsp/tract/geometry';
 import { sectionsFromGeometry } from '../src/dsp/tract/areaFunction';
@@ -62,13 +64,16 @@ function oral(a: Articulators): { f: number[]; b: number[] } {
   return { f: fm.map((x) => x.f), b: fm.map((x) => x.bw) };
 }
 
-/** The formants of a posture held still (the vowel on its own). */
+/** The posture of a vowel as its language says it (the posture the language gives it, or the tables' one). */
+const postureOf = (ipa: string, lang: Lang) => phonemeFor(ipa, undefined, pronunciationOf(lang).postures)!.art;
+
+/** The formants of a posture held still (the vowel on its own, as its language says it). */
 const heldCache = new Map<string, number[]>();
-function held(ipa: string): number[] {
-  let f = heldCache.get(ipa);
+function held(ipa: string, lang: Lang): number[] {
+  let f = heldCache.get(lang + ipa);
   if (f) return f;
-  f = oral({ ...DEFAULT_ARTICULATORS, ...PHONEMES[ipa].art }).f;
-  heldCache.set(ipa, f);
+  f = oral({ ...DEFAULT_ARTICULATORS, ...postureOf(ipa, lang) }).f;
+  heldCache.set(lang + ipa, f);
   return f;
 }
 
@@ -102,11 +107,11 @@ export function measure(text: string, lang: Lang, fs = 48000): Token[] {
       const tel = e.telemetry();
       const a = tel.articulators;
       const fm = oral(a);
-      const target = { ...DEFAULT_ARTICULATORS, ...PHONEMES[m.ipa].art } as unknown as Record<string, number>;
+      const target = { ...DEFAULT_ARTICULATORS, ...postureOf(m.ipa, lang) } as unknown as Record<string, number>;
       const now = a as unknown as Record<string, number>;
       tokens.push({
         ipa: m.ipa, lang, text, ctx: m.ctx, dur: m.dur,
-        f: fm.f, b: fm.b, held: held(m.ipa),
+        f: fm.f, b: fm.b, held: held(m.ipa, lang),
         port: portArea(a.velum, p.anatomy.nasalLeak, p.anatomy.scale), nose: tel.uNose, nearNasal: m.nearNasal,
         art: Object.fromEntries(ARTICULATOR_KEYS.map((q) => [q, now[q]])),
         miss: Object.fromEntries(ARTICULATOR_KEYS.map((q) => [q, now[q] - target[q]])),

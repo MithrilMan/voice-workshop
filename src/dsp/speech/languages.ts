@@ -4,6 +4,9 @@
  * phonemizer (phonemizer.ts): a pronunciation dictionary where there is one
  * with an open license, and a neural model for the words it does not have.
  */
+import type { Postures } from './derive';
+import { ITALIAN_CLOSURE_SHARE, ITALIAN_POSTURES } from './italianPostures';
+
 export interface SpeechLanguage {
   /** BCP 47 code, also used to split the text into words */
   code: string;
@@ -108,13 +111,18 @@ export interface Pronunciation {
   accentRate: number;
   /** how far apart the folds are in a voiced stop at the start of a word (0.02: fully voiced; more: partly unvoiced) */
   initialVoicedStop: number;
+  /** the postures the language gives its sounds, over those of the tables and the chart (none: the chart's) */
+  postures: Postures;
+  /** the share of an affricate's time its closure takes, by symbol (0.45 where none is given) */
+  closureShare: Readonly<Record<string, number>>;
 }
 
 /** a language with no entry of its own, and any transcription: even timing, plain stops, peaks where its prosody puts them */
-export const PLAIN_PRONUNCIATION: Pronunciation = { timing: 'even', aspirated: false, fricatedTip: false, earlyNasal: false, earlyPeak: false, accentRate: 28, initialVoicedStop: 0.02 };
+export const PLAIN_PRONUNCIATION: Pronunciation = { timing: 'even', aspirated: false, fricatedTip: false, earlyNasal: false, earlyPeak: false, accentRate: 28, initialVoicedStop: 0.02, postures: {}, closureShare: {} };
 
 const PRONUNCIATIONS: Record<string, Partial<Pronunciation>> = {
-  it: { timing: 'italian' },
+  // its sounds as a listener hears them best from our mouth (learnt: see italianPostures.ts)
+  it: { timing: 'italian', postures: ITALIAN_POSTURES, closureShare: ITALIAN_CLOSURE_SHARE },
   // aspiration and the slow tip (Klatt 1975), the vowel nasalized before a nasal (Cohn 1990), b d g partly unvoiced at the start of a word
   en: { timing: 'english', aspirated: true, fricatedTip: true, earlyNasal: true, earlyPeak: true, accentRate: 26, initialVoicedStop: 0.12 },
 };

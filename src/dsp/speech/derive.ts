@@ -646,16 +646,28 @@ function fromSegment(sym: string, seg: Segment): Phoneme | null {
 }
 
 /**
+ * The postures a language gives some of its sounds, over those of the tables
+ * and the chart: for each symbol, the articulators it sets ("x:0", "x:1" are
+ * the two parts of the affricate x).
+ */
+export type Postures = Readonly<Record<string, Partial<Articulators>>>;
+
+/** the symbol under which a part of an affricate is looked up: its own, if the language gives that part a posture */
+export const partSymbol = (whole: string, i: number, part: string, own?: Postures): string => (own?.[`${whole}:${i}`] ? `${whole}:${i}` : part);
+
+/**
  * The phoneme of a written sound: a fitted one where it exists, otherwise
- * derived from the IPA chart and the diacritics (cached). Undefined for
+ * derived from the IPA chart and the diacritics (cached), with the posture a
+ * language gives it (`own`) in place of those articulators. Undefined for
  * symbols that are not IPA.
  */
-export function phonemeFor(symbol: string, head?: Head): Phoneme | undefined {
-  const base = canonPhoneme(symbol);
+export function phonemeFor(symbol: string, head?: Head, own?: Postures): Phoneme | undefined {
+  const mine = own?.[symbol] ? own : undefined;
+  const base = mine ? ownPhoneme(symbol, mine) : canonPhoneme(symbol);
   if (!base || !head) return base;
   const shape = shapeOf(head);
   if (!shape) return base;
-  const key = shapeKey(shape);
+  const key = mine ? `${shapeKey(shape)}|${postureId(mine)}` : shapeKey(shape);
   let heads = adapted.get(key);
   if (!heads) {
     // a few heads at a time: the voice that speaks, the one being edited
@@ -665,6 +677,26 @@ export function phonemeFor(symbol: string, head?: Head): Phoneme | undefined {
   }
   let ph = heads.get(symbol);
   if (!ph) { ph = adapt(base, shape); heads.set(symbol, ph); }
+  return ph;
+}
+
+const postureIds = new WeakMap<Postures, number>();
+let nextPostureId = 1;
+const ownBuilt = new WeakMap<Postures, Map<string, Phoneme | undefined>>();
+const postureId = (own: Postures): number => {
+  let id = postureIds.get(own);
+  if (id === undefined) { id = nextPostureId++; postureIds.set(own, id); }
+  return id;
+};
+/** a sound with the posture a language gives it (a part of an affricate, "x:i", starts from that part) */
+function ownPhoneme(symbol: string, own: Postures): Phoneme | undefined {
+  let built = ownBuilt.get(own);
+  if (!built) { built = new Map(); ownBuilt.set(own, built); }
+  if (built.has(symbol)) return built.get(symbol);
+  const at = symbol.indexOf(':');
+  const base = at > 0 ? canonPhoneme(canonPhoneme(symbol.slice(0, at))?.parts?.[Number(symbol.slice(at + 1))] ?? '') : canonPhoneme(symbol);
+  const ph = base ? { ...base, art: { ...base.art, ...own[symbol] } } : undefined;
+  built.set(symbol, ph);
   return ph;
 }
 
@@ -937,12 +969,14 @@ const VENT_TIP = 6;
  * them can widen is left as it is. `said` is the whole posture with the
  * habits, `head` the shape of the speaker's head and `size` its scale.
  */
-export function vented(symbol: string, said: Articulators, head: Head | undefined, size = 1): Articulators {
-  let own = vowelPassages.get(symbol);
+export function vented(symbol: string, said: Articulators, head: Head | undefined, size = 1, postures?: Postures): Articulators {
+  const mine = postures?.[symbol] ? postures : undefined;
+  const id = mine ? `${symbol}|${postureId(mine)}` : symbol;
+  let own = vowelPassages.get(id);
   if (own === undefined) {
-    const canon = phonemeFor(symbol);
+    const canon = phonemeFor(symbol, undefined, mine);
     own = canon && canon.manner === 'vowel' ? measure(baseArt(canon.art)).min : 0;
-    vowelPassages.set(symbol, own);
+    vowelPassages.set(id, own);
   }
   if (!own) return said;
   const key = `${shapeKey(head)}|${size.toFixed(3)}|${symbol}|${ARTICULATOR_KEYS.map((k) => said[k].toFixed(4)).join(',')}`;

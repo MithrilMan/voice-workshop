@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import { textToPhones } from '../src/dsp/speech/g2p';
 import { buildScore } from '../src/dsp/speech/sequencer';
 import { prosodyOf, pronunciationOf, PLAIN_PRONUNCIATION, SPEECH_LANGUAGES } from '../src/dsp/speech/languages';
+import { phonemeFor } from '../src/dsp/speech/derive';
+import { ITALIAN_CLOSURE_SHARE, ITALIAN_POSTURES } from '../src/dsp/speech/italianPostures';
 import type { Score } from '../src/dsp/engine/params';
 import { note } from './helpers';
 
@@ -87,7 +89,7 @@ describe('the pronunciation of a language is data', () => {
     const en = pronunciationOf('en'), italian = pronunciationOf('it');
     expect(en).toMatchObject({ timing: 'english', aspirated: true, fricatedTip: true, earlyNasal: true, earlyPeak: true });
     expect(en.initialVoicedStop).toBeGreaterThan(italian.initialVoicedStop);
-    expect(italian).toEqual({ ...PLAIN_PRONUNCIATION, timing: 'italian' });
+    expect(italian).toEqual({ ...PLAIN_PRONUNCIATION, timing: 'italian', postures: ITALIAN_POSTURES, closureShare: ITALIAN_CLOSURE_SHARE });
     expect(pronunciationOf('xx')).toEqual(italian);
   });
 
@@ -99,6 +101,26 @@ describe('the pronunciation of a language is data', () => {
     };
     note('pronunciation', `folds apart around the release of /t/: English ${apartAfter('en').toFixed(2)}, Italian ${apartAfter('it').toFixed(2)}`);
     expect(apartAfter('en')).toBeGreaterThan(apartAfter('it') + 0.1);
+  });
+
+  it('Italian says its sounds with the postures it learnt: an m with the jaw shut, the chart elsewhere and in a transcription', () => {
+    const own = pronunciationOf('it').postures;
+    const chart = phonemeFor('m')!, italian = phonemeFor('m', undefined, own)!;
+    note('postures', `jaw of /m/: chart ${chart.art.jaw!.toFixed(2)}, Italian ${italian.art.jaw!.toFixed(2)}`);
+    // the jaw further up; the rest of the sound as the chart has it
+    expect(italian.art.jaw!).toBeLessThan(chart.art.jaw! - 0.1);
+    expect({ ...italian, art: undefined }).toEqual({ ...chart, art: undefined });
+    // a part of an affricate has its own posture, and the sound without one is the chart's
+    expect(phonemeFor('tʃ:0', undefined, own)!.art.tipX).toBe(ITALIAN_POSTURES['tʃ:0'].tipX);
+    expect(phonemeFor('a', undefined, own)).toBe(phonemeFor('a'));
+    expect(pronunciationOf('en').postures).toEqual({});
+    // the score: an Italian /m/ is said with it, a transcription with the chart's
+    const jawAt = (text: string, lang: string) => {
+      const sc = buildScore(textToPhones(text, lang), { lang, f0: 120, natural: { micro: false } });
+      const m = sc.phones.find((p) => p.ipa === 'm')!;
+      return sc.frames[Math.round((0.5 * (m.t0 + m.t1)) / 0.005)].art!.jaw;
+    };
+    expect(jawAt('la mamma', 'it')).toBeLessThan(jawAt('[la ˈmamma]', 'it') - 0.1);
   });
 
   it('no rule of the sequencer names a language', () => {

@@ -3,7 +3,7 @@ import { PHONEMES, Phoneme, FlickKey } from './phonemes';
 import { Phone, Lang } from './g2p';
 import { Score, ScoreFrame, ScorePhone } from '../engine/params';
 import { TamChannel, TAM_TAU } from './tam';
-import { phonemeFor, constrictionOf, contactPoint, passageIn, closingKey, CLOSED_AREA, Head, shapeOf, shapeKey, vented } from './derive';
+import { phonemeFor, constrictionOf, contactPoint, passageIn, closingKey, CLOSED_AREA, Head, shapeOf, shapeKey, vented, partSymbol, Postures } from './derive';
 import { IPA_CONSONANTS, IPA_VOWELS, Place } from './ipa';
 import { normalizeIpa } from './ipaReader';
 import { ProsodyStyle, styleOf, lengthen, ST } from './style';
@@ -299,12 +299,12 @@ function onsetStart(onset: Unit[], literal: boolean): number {
   return Math.max(0, first);
 }
 
-function analyse(phones: Phone[], literal = false, shape?: Head): Unit[] {
+function analyse(phones: Phone[], literal = false, shape?: Head, own?: Postures): Unit[] {
   const units: Unit[] = [];
   let word = 0;
   for (let i = 0; i < phones.length; i++) {
     const p = phones[i];
-    const ph = phonemeFor(p.ipa, shape);
+    const ph = phonemeFor(p.ipa, shape, own);
     if (!ph) continue;
     const prevU = units[units.length - 1];
     if (p.wordStart && prevU && !prevU.p.wordEnd && !prevU.p.pause) word++;
@@ -584,7 +584,9 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // the shape of the speaker's mouth, if it is not the drawing's: the sounds are aimed for it
   const shape = shapeOf(o.head);
   const size = o.head?.anatomy.scale ?? 1;
-  const units = analyse(phones, literal, shape);
+  // the postures the language gives its sounds
+  const own = pr.postures;
+  const units = analyse(phones, literal, shape, own);
 
   // durations
   for (let i = 0; i < units.length; i++) {
@@ -659,9 +661,10 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   for (let i = 0; i < units.length; i++) {
     const u = units[i];
     const ph = u.ph;
-    const parts: [string, number][] = ph.manner === 'affricate' && ph.parts ? [[ph.parts[0], 0.45], [ph.parts[1], 0.55]] : [[u.p.ipa, 1]];
-    for (const [ipa, frac] of parts) {
-      let q = ipa === u.p.ipa ? ph : phonemeFor(ipa, shape)!;
+    const share = pr.closureShare[u.p.ipa];
+    const parts: [string, number][] = ph.manner === 'affricate' && ph.parts ? [[ph.parts[0], share ?? 0.45], [ph.parts[1], share === undefined ? 0.55 : 1 - share]] : [[u.p.ipa, 1]];
+    for (const [k, [ipa, frac]] of parts.entries()) {
+      let q = ipa === u.p.ipa ? ph : phonemeFor(partSymbol(u.p.ipa, k, ipa, own), shape, own)!;
       // the parts of an ejective affricate share its larynx and its glottis
       if (q !== ph && ph.airstream) q = { ...q, airstream: ph.airstream, voiced: ph.voiced, abduction: ph.abduction, art: { ...q.art, larynx: ph.art.larynx } };
       const dur = u.dur * frac;
@@ -677,7 +680,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
         // of /t/ is a short hiss at the ridge, a [s], more than a breath of the
         // glottis, and it ends in the voice as a fricative does. The closure is
         // made where the hiss will be, so that it opens into its channel
-        const hiss = aspirates && pr.fricatedTip && !written && placeOf(q) === 'alveolar' ? phonemeFor('s', shape) : null;
+        const hiss = aspirates && pr.fricatedTip && !written && placeOf(q) === 'alveolar' ? phonemeFor('s', shape, own) : null;
         if (hiss?.art.tipX !== undefined && hiss.art.tipY !== undefined) q = { ...q, art: { ...q.art, tipX: hiss.art.tipX, tipY: hiss.art.tipY + FRICATED_PRESS } };
         segs.push({ ipa, ph: q, t0: t, t1: t + dur - rel, unit: i, part: 'closure', label: label(u) });
         t += dur - rel;
@@ -739,7 +742,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     let keys = m === 'vowel' || !nat.coarticulation ? ARTICULATOR_KEYS : (Object.keys(art) as (keyof Articulators)[]);
     // a nasal voice still shuts the port for an obstruent, which needs its air
     if (habit && setting.velum > 0 && !nasalizable(s.ph) && !keys.includes('velum')) keys = [...keys, 'velum'];
-    const off = s.ph.offglide ? phonemeFor(s.ph.offglide, shape)?.art ?? null : null;
+    const off = s.ph.offglide ? phonemeFor(s.ph.offglide, shape, own)?.art ?? null : null;
     // precision: a vowel falls in toward schwa (slack: unstressed ones most) or spreads out from it (crisp)
     const strong = !!(units[s.unit].p.stress || units[s.unit].p.stress2);
     const r = m !== 'vowel' || !prec ? 0 : prec < 0 ? -prec * (strong ? 0.15 : 0.5) : -prec * (strong ? 0.05 : 0.15);
@@ -753,11 +756,11 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     if (m === 'vowel') {
       const whole = {} as Articulators;
       for (const k of ARTICULATOR_KEYS) whole[k] = plain(k);
-      said = vented(s.ph.ipa, whole, shape, size);
+      said = vented(s.ph.ipa, whole, shape, size, own);
       if (off) {
         const to = { ...whole };
         for (const k of ARTICULATOR_KEYS) if (off[k] !== undefined) to[k] = habitual(k, toward(k, off[k]!), s.ph, true);
-        glide = vented(s.ph.offglide!, to, shape, size);
+        glide = vented(s.ph.offglide!, to, shape, size, own);
       }
     }
     for (const k of keys) {
