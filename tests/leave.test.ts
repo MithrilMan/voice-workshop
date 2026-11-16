@@ -52,4 +52,41 @@ describe('a tip that leaves its closure', () => {
       expect(p20).toBeLessThan(0.12);
     }
   });
+
+  it('only right after its own release: a stop shut after a trill lets the air out by its own passage', () => {
+    // while the body of the tongue closes for the first /k/ after an /r/ (from the start of the /k/ to its shut), how
+    // much wider than the narrowest passage of the tract the passage given to the air is (it glides to each measure of
+    // the shape, so while the tract shuts fast it is a few times wider): a dorsal seal is not left across, and the
+    // trill's contacts are parted by its spring
+    const widest = (voice: string, text: string) => {
+      const u = utterance(builtinVoice(voice)!.design, textToPhones(text, 'it'), 'it');
+      const ph = u.score.phones, r = ph.findIndex((q) => q.ipa.startsWith('r'));
+      const k = ph.find((q, i) => i > r && q.ipa.startsWith('k'))!;
+      const e = new VoiceEngine(fs, u.params);
+      e.snapArticulators(); e.snapPressure(); e.playScore(u.score);
+      const out = new Float32Array(48);
+      let most = 0;
+      for (let i = 0; i < Math.round((k.t1 + 0.02) * 1000); i++) {
+        e.process(out, 48);
+        const tel = e.telemetry();
+        if (i < Math.round(k.t0 * 1000)) continue;
+        if (tel.constrictionArea < 0.004) break;
+        if (tel.constrictionArea < 0.3) most = Math.max(most, tel.airPassage / tel.constrictionArea);
+      }
+      return most;
+    };
+    const rows: string[] = [], got: number[] = [];
+    for (const voice of ['man', 'woman']) {
+      for (const text of ['la rocca', 'Il nonno racconta sempre la stessa storia.', '[la ˈrɔkka]', '[il ˈnɔnno rakˈkonta]']) {
+        const w = widest(voice, text);
+        rows.push(`${voice} "${text}" ${w.toFixed(2)}`);
+        got.push(w);
+      }
+    }
+    note('a closure after a trill', `passage of the air against the narrowest of the tract, at most, while the /k/ shuts: ${rows.join('; ')}`);
+    // (when the time since the last contact of the trill ran only while a leave applied, the tip that trilled was taken
+    // to leave its seal 100 ms later, while the /k/ shut: the air was given a passage up to 8 times wider, and at the shut
+    // it was cut off at once, a click; 10 to 20 times the narrowest passage where it happened, 3.5 to 6 since)
+    for (const w of got) expect(w).toBeLessThan(8);
+  });
 });

@@ -351,6 +351,8 @@ export interface Telemetry {
   clickPo: number;
   uClick: number;
   constrictionArea: number;
+  /** the passage the air leaves the mouth by (cm^2): the narrowest one, or wider while a seal that has just broken is parted or left across */
+  airPassage: number;
   jet: JetInfo;
   glottalRe: number;
   slit: { height: number; width: number; area: number; vertical: number };
@@ -423,6 +425,8 @@ export class VoiceEngine {
   private parted = 0;
   /** time since the closure of that seal opened (s) */
   private leftFor = Infinity;
+  /** the passage the air model is given (see Telemetry.airPassage) */
+  private airPassage = 0;
 
   // geometry
   geom: TractGeometry | null = null;
@@ -1035,7 +1039,8 @@ export class VoiceEngine {
     this.clickFrontArea = Math.max(0, on[5]);
     let oral = ps.area;
     if (oral < 0.004) {
-      this.sealed = true; this.parted = 0; this.leftFor = 0;
+      // a contact of a trill is parted by its spring, not left across the seal
+      this.sealed = true; this.parted = 0; this.leftFor = this.trillKey ? LEAVE.last : 0;
       const gm = this.geom, behind = gm ? gm.teethPos - this.fineMinS : Infinity;
       this.seal = behind <= 0 ? SEAL.lips : behind < SEAL.reach * scale ? SEAL.tip : SEAL.body;
     }
@@ -1047,8 +1052,11 @@ export class VoiceEngine {
       else oral = Math.max(oral, this.parted);
     }
     let leftW = 0;
+    // the time since the seal opened runs whatever the tongue does next: the leave belongs to that release only (counted
+    // only while it applied, the leave of a trilled tip waited for the trill to settle and came 100 ms later, inside the
+    // closure of the next stop: its passage grew as it shut, and the air was cut off at once, a click)
+    if (oral >= 0.004 && this.leftFor < LEAVE.last) this.leftFor += dt;
     if (oral >= 0.004 && this.seal.leave > 0 && !this.trillKey && this.leftFor < LEAVE.last) {
-      this.leftFor += dt;
       const share = (1 - smoothstep(LEAVE.low * scale, LEAVE.high * scale, ps.height)) * (1 - smoothstep(LEAVE.hold, LEAVE.last, this.leftFor)) * (1 - Math.min(1, Math.max(0, this.art.groove)));
       const wide = ps.width + Math.max(0, this.seal.leave * scale - ps.width) * smoothstep(0, LEAVE.spread, this.leftFor), flat = wide * ps.height;
       if (share > 0 && flat > oral) { oral += share * (flat - oral); leftW = ps.width + share * (wide - ps.width); }
@@ -1057,6 +1065,7 @@ export class VoiceEngine {
     // and each takes the share (A / A_k)^2 of the drop of pressure
     const a2 = this.second.area;
     const both = Number.isFinite(a2) && oral > 0 ? 1 / Math.sqrt(1 / (oral * oral) + 1 / (a2 * a2)) : oral;
+    this.airPassage = oral;
     // the change of volume of the cavity, spread over a geometry interval
     const want = this.dvRate * dt;
     const take = Math.abs(want) >= Math.abs(this.pendingDV) ? this.pendingDV : want;
@@ -1457,6 +1466,7 @@ export class VoiceEngine {
       clickPo: this.clickAero.po,
       uClick: this.clickAero.uMouth,
       constrictionArea: this.fineMinArea,
+      airPassage: this.airPassage,
       jet: { ...this.jet },
       glottalRe: this.glottalRe,
       slit: g ? { height: g.slit.height, width: g.slit.width, area: g.slit.area, vertical: g.slit.vertical } : { height: 0, width: 0, area: 0, vertical: 0 },
