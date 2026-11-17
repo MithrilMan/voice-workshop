@@ -89,7 +89,7 @@ export function App() {
       {ui.mode === 'lab' && <Lab />}
       {ui.mode === 'voices' && <Studio />}
       <footer className="app-footer">
-        <span>{L({ it: 'Modello fisico: sorgente LF o a due masse, tratto vocale a guida d’onda (Kelly-Lochbaum) con naso e seni, turbolenza da numero di Reynolds, ostacolo dei denti. Dettagli e riferimenti nel README.', en: 'Physical model: LF or two-mass source, waveguide vocal tract (Kelly-Lochbaum) with nose and sinuses, Reynolds-number turbulence, teeth obstacle. Details and references in the README.' })}</span>
+        <span>{L({ it: 'Modello fisico: sorgente LF, a due masse o ad aree delle corde, tratto vocale a guida d’onda (Kelly-Lochbaum) con naso e seni, turbolenza da numero di Reynolds, ostacolo dei denti. Dettagli e riferimenti nel README.', en: 'Physical model: LF, two-mass or fold-area source, waveguide vocal tract (Kelly-Lochbaum) with nose and sinuses, Reynolds-number turbulence, teeth obstacle. Details and references in the README.' })}</span>
       </footer>
     </div>
   );

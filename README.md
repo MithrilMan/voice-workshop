@@ -35,9 +35,10 @@ Firefox or Safari (AudioWorklet).
 ```bash
 npm install
 npm run dev        # http://localhost:5186
-npm test           # 223 automated tests (physics, speech, analysis, the voice controller, interface text)
+npm test           # 325 automated tests (physics, speech, analysis, the voice controller, interface text)
 npm run validate   # runs the tests and prints every validation number as a table
 npm run build      # type check + production build in dist/ (static files, relative paths)
+npm run build:lib  # the voices without the interface, as one ES module in dist-lib/ (see "The voices as a library")
 npm run preview    # serves dist/
 ```
 
@@ -1565,6 +1566,70 @@ the starting voices made by hand, 340 for the one fitted by measurement).
 The fragment never leaves the browser, so a shared
 voice needs no server. `utterance()` gives the engine parameters and the
 score of a voice saying something: one turn of a dialogue.
+
+### A delivery learnt from recordings
+
+The timing, pauses, melody and loudness of a sentence can come from the
+planner's rules or from a small network that learnt them from recorded
+Italian sentences of two speakers, a woman and a man
+(src/dsp/speech/deliveryNet.ts, src/dsp/voice/interpret.ts; the field
+"Way of saying" of a voice). It reads the sounds of a sentence as our
+reader gives them (each sound, its stress, the edges of its word and
+phrase, whether it asks, its place in the sentence, how long our rules
+make it and the pitch they give it) both ways along the sentence (two
+layers of gated recurrent units of 64 each way) and answers, for every
+sound, how long the speaker makes it, the pause after it, the pitch at
+20, 50 and 80 % of it in semitones from the speaker's median, and the
+swell of the loudness. 136 thousand weights, in half precision, come
+with the site (`public/delivery/it.json`, 366 KB) and the forward pass
+runs in the page (the same answers as the network that learnt them, to
+1.4e-4). The voice's usual pitch is the speaker's median, its rate
+divides the pace, and its range widens or narrows the melody (emotions
+act on it too); the gestures are planned whole for the new timing.
+
+On 12 sentences of each speaker never used in learning, against what
+our rules make of them: length of each sound off by 14 % instead of
+33 % (the woman) and 15 % instead of 30 % (the man); pitch off by
+0.8 instead of 2.1 semitones and 1.2 instead of 2.6; one pause in the
+wrong place instead of three. Sara-like and Nicola-like speak Italian
+with the delivery of the speaker they were learnt from; the other
+languages, and the copies of a recording, use the rules.
+
+### The voices as a library
+
+`src/library/index.ts` is everything above without the interface, for
+Node or the browser (`npm run build:lib` makes it one ES module of
+345 KB in `dist-lib/`):
+
+```ts
+import { createVoice, speak, dialogue, toWav, setDeliveryModel } from './src/library';
+setDeliveryModel(JSON.parse(readFileSync('public/delivery/it.json', 'utf-8'))); // in a page: await loadDeliveryModel()
+const v = createVoice('sara', { 'speaking.f0': 230 });                   // a built-in voice, a voice file, or knobs
+const s = speak(v, 'Buongiorno, come stai?', { emotion: 'joy' });       // text, [IPA] as written, /IPA/, or phones
+writeFileSync('hello.wav', toWav(s));
+```
+
+- `voiceList()`, `voiceKnobs()` (every field with its range, unit and
+  explanation), `createVoice(from, knobs)`, `knob(voice, path)`; voices
+  as JSON or links (`voiceToJson`, `voiceFromLink`, ...).
+- `speak(voice, text | phonemes, { lang, emotion, strength, fs, seed, peak })`:
+  samples, the sounds with their times, and whether a learnt delivery
+  said it. Italian and English by rules (English with its dictionary,
+  `setEnglishLexicon`), any language as IPA, and the other languages of
+  the phonemizer once `preparePhonemes(text, lang, sources)` has found
+  their words.
+- Emotions (src/dsp/voice/emotion.ts: neutral, joy, sadness, anger,
+  fear, tenderness) are rules from the literature (the directions of
+  Murray & Arnott 1993, Scherer 2003, Banse & Scherer 1996) on the
+  pitch, its range, the pace, the lung pressure, breathy or pressed
+  folds, jitter and care of articulation; their sizes are moderate
+  choices, not measured here.
+- `dialogue(turns)`: voices taking turns in one recording.
+- `analyse(clips)`: the measures of a voice over its recordings (pitch
+  and range, formants, spectral balance, folds, hiss, pace);
+  `voiceFromRecordings(clips, { lang, texts })`: a voice of the
+  simulator brought toward them by analysis by synthesis (slow; a voice
+  of the same kind, not a copy).
 
 ### Analysis
 

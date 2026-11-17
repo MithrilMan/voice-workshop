@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "build:lib": "vite build -c vite.lib.config.ts",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
