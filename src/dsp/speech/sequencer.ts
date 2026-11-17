@@ -267,6 +267,13 @@ const ONE_BEAT = { hold: 0.06, lift: 0.015 };
  * vibrates.
  */
 const TRILL_AIM = 0.1;
+/** where in the mouth a consonant of each place is made, cm from the lips on the drawing's head (its own window) */
+const PLACE_WINDOW: Record<string, [number, number]> = {
+  bilabial: [0, 2.4], labiodental: [0, 2.4], dental: [0.8, 5.5], alveolar: [0.8, 5.5], postalveolar: [1.5, 6], retroflex: [1.5, 6],
+  alveolopalatal: [2, 7.5], palatal: [2, 7.5], velar: [4.5, 12], uvular: [8, 14],
+};
+/** the narrowest passage (cm^2) a consonant may leave away from its own place: about a vowel's tightest */
+const STRAY_SAFE = 0.12;
 /** height of a vowel on the chart (its first symbol), for its intrinsic pitch */
 const vowelHeight = (ipa: string): number | undefined => IPA_VOWELS[normalizeIpa(ipa)[0]]?.height;
 
@@ -786,7 +793,18 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     if (m === 'silence' || ((m === 'glottal' || m === 'glottalStop') && nat.coarticulation)) continue;
     // at the release the closing articulator opens toward the next vowel: leave it free
     if (s.part === 'release' || s.part === 'aspiration') continue;
-    const art = s.ph.art;
+    let art = s.ph.art;
+    // a closure of the tongue tip brings the body of the tongue with it, part of the way from where the vowels around
+    // have it (Pronunciation.tipBody)
+    const tb = pr.tipBody;
+    if (tb.share > 0 && (m === 'stop' || m === 'nasal') && nat.coarticulation && (art.tipY ?? 0) >= 1 && art.tongueX === undefined) {
+      const si = segs.indexOf(s);
+      let pv: Seg | undefined, nx: Seg | undefined;
+      for (let j = si - 1; j >= 0 && !pv; j--) if (segs[j].ph.manner === 'vowel') pv = segs[j];
+      for (let j = si + 1; j < segs.length && !nx; j++) if (segs[j].ph.manner === 'vowel') nx = segs[j];
+      const around = (k: 'tongueX' | 'tongueY') => { const a = pv?.ph.art[k], b = nx?.ph.art[k]; return a !== undefined && b !== undefined ? 0.5 * (a + b) : a ?? b ?? neutral[k]; };
+      art = { ...art, tongueX: around('tongueX') + tb.share * (tb.x - around('tongueX')), tongueY: around('tongueY') + tb.share * (tb.y - around('tongueY')) };
+    }
     let keys = m === 'vowel' || !nat.coarticulation ? ARTICULATOR_KEYS : (Object.keys(art) as (keyof Articulators)[]);
     // a nasal voice still shuts the port for an obstruent, which needs its air
     if (habit && setting.velum > 0 && !nasalizable(s.ph) && !keys.includes('velum')) keys = [...keys, 'velum'];
@@ -927,6 +945,37 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       return a;
     };
   };
+  // A consonant narrows the mouth where it is made, and nowhere else. The jaw it brings lifts the tongue of the vowels
+  // around with it, and under a high tongue (an i) a jaw closed for a v shuts the mouth at the palate: a j is heard,
+  // and the voice stops. The engine's target dynamics are run here; where the passage away from the consonant's own
+  // place is narrower than a vowel's tightest, its jaw gives way toward the vowels' (the lips, the tip and the dorsum
+  // still make its own constriction, the closures below pushing them if they must)
+  const ownJaw = segs.filter((s) => s.ph.manner !== 'vowel' && s.ph.manner !== 'silence' && !s.ph.airstream && anchors.jaw.some((a) => a.seg === s));
+  const vowelJaw = (s: Seg): number => {
+    const si = segs.indexOf(s);
+    let pv: Seg | undefined, nx: Seg | undefined;
+    for (let j = si - 1; j >= 0 && !pv; j--) if (segs[j].ph.manner === 'vowel') pv = segs[j];
+    for (let j = si + 1; j < segs.length && !nx; j++) if (segs[j].ph.manner === 'vowel') nx = segs[j];
+    const v = [pv, nx].map((x) => (x ? anchors.jaw.find((a) => a.mid !== undefined && a.mid >= x.t0 - 1e-9 && a.mid <= x.t1 + 1e-9)?.v ?? x.ph.art.jaw : undefined)).filter((x): x is number => x !== undefined);
+    return v.length ? Math.max(...v) : neutral.jaw;
+  };
+  for (let iter = 0; iter < 5 && ownJaw.length; iter++) {
+    const artAt = moved();
+    let gave = false;
+    for (const s of ownJaw) {
+      const w = PLACE_WINDOW[placeOf(s.ph) ?? ''];
+      if (!w) continue;
+      let out = Infinity;
+      for (const q of [0.3, 0.5, 0.7]) { const a = artAt(s.t0 + q * (s.t1 - s.t0)); out = Math.min(out, passageIn(a, [0, w[0]], shape), passageIn(a, [w[1], 40], shape)); }
+      if (out >= STRAY_SAFE) continue;
+      const j = anchors.jaw.find((x) => x.seg === s)!;
+      const to = vowelJaw(s);
+      if (j.v >= to - 1e-3) continue;
+      j.v = Math.min(to, j.v + 0.08);
+      gave = true;
+    }
+    if (!gave) break;
+  }
   for (let iter = 0; iter < 5 && shutting.length; iter++) {
     const artAt = moved();
     let pushed = false;
@@ -1030,6 +1079,36 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       const at = Math.min(...[0, 0.25].map((q) => contactPoint({ ...artAt!(s.t0 + q * (s.t1 - s.t0)), tipY: 0 }, 'tipY', bound, shape)));
       if (at < bound) a.v = Math.min(a.v, at + TRILL_AIM);
     }
+  }
+  // Nor does a closure shut before its sound is due. A gesture aimed past the contact from a vowel that already has the
+  // tongue near it (the tip of an r after an i, under a tongue body already high) shuts the mouth long before its
+  // time, inside the vowel, and the sound heard is a stop before it ("venire" as "venidre"). Where the passage, coming
+  // from a vowel, is shut more than SHUT_EARLY before the sound, the gesture sets out that much later, the vowel
+  // keeping its own posture until then: trills, the closures of stops and nasals
+  for (let iter = 0; iter < 4; iter++) {
+    const artAt = moved();
+    let later = false;
+    for (const s of segs) {
+      const m = s.ph.manner;
+      if (s.ph.airstream || !(m === 'trill' || (m === 'stop' && s.part === 'closure') || m === 'nasal')) continue;
+      const before = segs[segs.indexOf(s) - 1];
+      if (!before || before.ph.manner !== 'vowel') continue;
+      let at = Math.max(before.t0, s.t0 - 0.1);
+      while (at < s.t0 - SHUT_EARLY && constrictionOf(artAt(at), shape).area >= CLOSED_AREA) at += FRAME;
+      const early = s.t0 - SHUT_EARLY - at;
+      if (early < FRAME) continue;
+      for (const k of ARTICULATOR_KEYS) {
+        const i = anchors[k].findIndex((x) => x.seg === s);
+        if (i < 0) continue;
+        const a = anchors[k][i], prev = anchors[k][i - 1];
+        const t0 = Math.min(a.t1 - FRAME, a.t0 + early);
+        if (t0 <= a.t0 + 1e-9) continue;
+        if (prev && !prev.cons && Math.abs(prev.t1 - a.t0) < 1e-6) prev.t1 = t0;
+        a.t0 = t0;
+        later = true;
+      }
+    }
+    if (!later) break;
   }
 
   // A fricated stop opens when its release is due. Its tip comes down from a

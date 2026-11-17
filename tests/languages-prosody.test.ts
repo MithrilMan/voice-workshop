@@ -89,7 +89,7 @@ describe('the pronunciation of a language is data', () => {
     const en = pronunciationOf('en'), italian = pronunciationOf('it');
     expect(en).toMatchObject({ timing: 'english', aspirated: true, fricatedTip: true, earlyNasal: true, earlyPeak: true });
     expect(en.initialVoicedStop).toBeGreaterThan(italian.initialVoicedStop);
-    expect(italian).toEqual({ ...PLAIN_PRONUNCIATION, timing: 'italian', postures: ITALIAN_POSTURES, closureShare: ITALIAN_CLOSURE_SHARE, nasalPlace: 'phrase', shortTrillBeats: 1 });
+    expect(italian).toEqual({ ...PLAIN_PRONUNCIATION, timing: 'italian', postures: ITALIAN_POSTURES, closureShare: ITALIAN_CLOSURE_SHARE, nasalPlace: 'phrase', shortTrillBeats: 1, tipBody: { share: 0.319, x: 0.472, y: 0.698 } });
     expect(pronunciationOf('xx')).toEqual(italian);
   });
 

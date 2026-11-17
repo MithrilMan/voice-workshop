@@ -127,14 +127,20 @@ export interface Pronunciation {
    * and leaves for the next sound, the walls slack behind it as for a tap
    */
   shortTrillBeats: number;
+  /**
+   * a closure of the tongue tip (a stop or a nasal) brings the body of the tongue with it, `share` of the way from
+   * where the vowels around have it toward (`x`, `y`) (tongueX, tongueY): learnt for the Italian dentals
+   */
+  tipBody: { share: number; x: number; y: number };
 }
 
 /** a language with no entry of its own, and any transcription: even timing, plain stops, peaks where its prosody puts them */
-export const PLAIN_PRONUNCIATION: Pronunciation = { timing: 'even', aspirated: false, fricatedTip: false, earlyNasal: false, earlyPeak: false, accentRate: 28, initialVoicedStop: 0.02, postures: {}, closureShare: {}, nasalPlace: 'none', shortTrillBeats: 0 };
+export const PLAIN_PRONUNCIATION: Pronunciation = { timing: 'even', aspirated: false, fricatedTip: false, earlyNasal: false, earlyPeak: false, accentRate: 28, initialVoicedStop: 0.02, postures: {}, closureShare: {}, nasalPlace: 'none', shortTrillBeats: 0, tipBody: { share: 0, x: 0, y: 0 } };
 
 const PRONUNCIATIONS: Record<string, Partial<Pronunciation>> = {
   // its sounds as a listener hears them best from our mouth (learnt: see italianPostures.ts)
-  it: { timing: 'italian', postures: ITALIAN_POSTURES, closureShare: ITALIAN_CLOSURE_SHARE, nasalPlace: 'phrase', shortTrillBeats: 1 },
+  it: { timing: 'italian', postures: ITALIAN_POSTURES, closureShare: ITALIAN_CLOSURE_SHARE, nasalPlace: 'phrase', shortTrillBeats: 1,
+    tipBody: { share: 0.319, x: 0.472, y: 0.698 } },
   // aspiration and the slow tip (Klatt 1975), the vowel nasalized before a nasal (Cohn 1990), b d g partly unvoiced at the start of a word
   en: { timing: 'english', aspirated: true, fricatedTip: true, earlyNasal: true, earlyPeak: true, accentRate: 26, initialVoicedStop: 0.12, nasalPlace: 'word' },
 };
