@@ -129,6 +129,12 @@ const TRILL: Record<TrillKey, { f: number; zeta: number; kp: number; press: numb
 /** stiffness of the tissue pressed against the other side, times the spring */
 const TRILL_CONTACT = 2;
 /**
+ * A trill of counted contacts (a single Italian r: one): a contact counts once it has lasted `touch` (s), and the
+ * articulator let go afterwards rests `letGo` (its units) on the open side of where the posture holds it, so that it
+ * does not hover just short of the contact, a narrow passage heard as a second, weaker r.
+ */
+const ONE_BEAT = { touch: 0.003, letGo: 0.5 };
+/**
  * The air between the two closures of a click: the compliance of its walls
  * (the tongue pulled taut against the palate, stiff: cm^5/dyn) and how much
  * the tongue body, drawn down and back, enlarges it (cm^3).
@@ -506,6 +512,9 @@ export class VoiceEngine {
   private trillV = 0;
   /** where the trilling articulator meets the other side, as the geometry shows it */
   private trillContact = 0;
+  /** the contacts made since the trill began, and how long the present one has lasted (s) */
+  private trillBeats = 0;
+  private trillTouch = 0;
   /**
    * a click: the cavity between its closures (pressure and inflow), how far
    * the tongue has rarefied it, its front passage and the air it holds
@@ -666,7 +675,7 @@ export class VoiceEngine {
     return atLips;
   }
 
-  private targetFrame(): { art: Articulators | null; abduction: number; f0: number; ps: number; tip: number; lips: number; dorsum: number; rd: number; gate: number; tense: number; room: number; creak: number; trill: number; trillKey?: TrillKey; trillAt: number; trillOpen: number; click: number; stiff: number } | null {
+  private targetFrame(): { art: Articulators | null; abduction: number; f0: number; ps: number; tip: number; lips: number; dorsum: number; rd: number; gate: number; tense: number; room: number; creak: number; trill: number; trillKey?: TrillKey; trillAt: number; trillOpen: number; trillBeats: number; trillStay: number; click: number; stiff: number } | null {
     const sc = this.score;
     if (!sc) return null;
     if (this.scoreTime > sc.duration + this.scoreHold) { this.score = null; this.restoreTau(); return null; }
@@ -684,7 +693,7 @@ export class VoiceEngine {
       art, abduction: mix(a.abduction, b.abduction), f0: mix(a.f0, b.f0), ps: mix(a.ps, b.ps),
       tip: mix(a.tip ?? 0, b.tip ?? 0), lips: mix(a.lips ?? 0, b.lips ?? 0), dorsum: mix(a.dorsum ?? 0, b.dorsum ?? 0),
       rd: mix(a.rd ?? 0, b.rd ?? 0), gate: mix(a.gate ?? 1, b.gate ?? 1), tense: mix(a.tense ?? 0, b.tense ?? 0), room: Math.max(a.room ?? 0, b.room ?? 0), creak: mix(a.creak ?? 0, b.creak ?? 0), stiff: mix(a.stiff ?? 0, b.stiff ?? 0),
-      trill: mix(a.trill ?? 0, b.trill ?? 0), trillKey: a.trillKey ?? b.trillKey, trillAt: a.trillAt ?? b.trillAt ?? 0, trillOpen: a.trillOpen ?? b.trillOpen ?? 0,
+      trill: mix(a.trill ?? 0, b.trill ?? 0), trillKey: a.trillKey ?? b.trillKey, trillAt: a.trillAt ?? b.trillAt ?? 0, trillOpen: a.trillOpen ?? b.trillOpen ?? 0, trillBeats: a.trillBeats ?? b.trillBeats ?? 0, trillStay: a.trillStay ?? b.trillStay ?? 0,
       click: mix(a.click ?? 0, b.click ?? 0),
     };
   }
@@ -780,15 +789,21 @@ export class VoiceEngine {
    * passage is too low (a trill said with weak lungs, or with the nose open,
    * dies into an approximant or a single contact).
    */
-  private trillStep(fr: { trill: number; trillKey?: TrillKey; trillAt: number; trillOpen: number } | null, tk: TrillKey | undefined, dt: number): void {
+  private trillStep(fr: { trill: number; trillKey?: TrillKey; trillAt: number; trillOpen: number; trillBeats: number; trillStay: number } | null, tk: TrillKey | undefined, dt: number): void {
+    if (!tk) { this.trillBeats = 0; this.trillTouch = 0; }
     if (tk && tk !== this.trillKey && fr) { this.trillKey = tk; this.trillY = 0; this.trillV = 0; this.trillContact = fr.trillAt; }
     const k = this.trillKey;
     if (!k) return;
     const P = TRILL[k];
     const w = 2 * Math.PI * P.f;
-    const on = tk && fr ? fr.trill : 0;
+    // a trill of counted contacts: once they are made the speaker lets the articulator go (or holds it at the contact
+    // for a consonant that follows), and the air no longer drives it
+    const counted = !!fr && fr.trillBeats > 0;
+    const spent = counted && this.trillBeats >= fr!.trillBeats;
+    const on = tk && fr && !spent ? fr.trill : 0;
     const base = this.art[k];
-    const rest = tk && fr ? this.trillContact + P.dir * P.press - base : 0;
+    const rest = spent ? (tk ? -P.dir * (fr!.trillStay ? 0 : ONE_BEAT.letGo) : 0)
+      : (counted ? on > 0 : tk && fr) ? this.trillContact + P.dir * P.press - base : 0;
     let acc = -w * w * (this.trillY - rest) - 2 * (on > 0 ? P.zeta : 1) * w * this.trillV;
     if (on > 0 && fr) {
       // the air behind the passage pushes it open (and a suction would pull it shut)
@@ -796,6 +811,9 @@ export class VoiceEngine {
       // pressed against the other side, the tissue is much stiffer
       const z = P.dir * (base + this.trillY - this.trillContact);
       if (z > 0) acc -= P.dir * TRILL_CONTACT * w * w * z + 2 * 0.3 * w * Math.sqrt(TRILL_CONTACT) * this.trillV;
+      // the contacts made: one that lasts counts as soon as it has lasted ONE_BEAT.touch, a shorter one when it parts
+      if (z > 0 && this.fineMinArea < 0.004) { this.trillTouch += dt; if (counted && this.trillTouch >= ONE_BEAT.touch) { this.trillBeats++; this.trillTouch = 0; } }
+      else if (z <= 0 || this.fineMinArea > 0.02) { if (this.trillTouch > 0.003) this.trillBeats++; this.trillTouch = 0; }
       // a fricative trill (ř): the body of the tongue, raised behind the
       // blade, lets it open only so far, into a narrow channel that hisses
       // (Ladefoged & Maddieson 1996: a trill and a fricative at once). The

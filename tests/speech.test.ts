@@ -201,9 +201,13 @@ describe('timing, melody and gestures of sequenced speech', () => {
       return n;
     };
     const carro = closures('carro'), caro = closures('caro');
-    note('trill', `tongue-tip closures: "carro" ${carro}, "caro" ${caro}`);
+    // a single r is one strike (Pronunciation.shortTrillBeats), also after a high vowel, where the tongue is already
+    // near the ridge and a tip aimed past it by a fixed target shut the mouth twice ("fiori", "venire" heard double)
+    const single = ['fiori', 'venire', 'frutta'].map((w) => [w, closures(w)] as const);
+    note('trill', `tongue-tip closures: "carro" ${carro}, "caro" ${caro}, ${single.map(([w, n]) => `"${w}" ${n}`).join(', ')}`);
     expect(carro).toBeGreaterThanOrEqual(3);
-    expect(caro).toBeGreaterThanOrEqual(1);
+    expect(caro).toBe(1);
+    for (const [w, n] of single) expect(n, w).toBe(1);
   });
 
   it('questions rise unless they start with a question word; commas leave the melody up', () => {

@@ -245,6 +245,10 @@ export interface ScoreFrame {
   trillAt?: number;
   /** how far from its contact the trilling articulator may open (its units): a fricative trill (ř) opens only into a narrow, hissing passage */
   trillOpen?: number;
+  /** how many contacts the trilling articulator makes before the speaker lets it go (absent: as many as the air allows) */
+  trillBeats?: number;
+  /** after those contacts it stays at the contact (1: a consonant follows) instead of letting go */
+  trillStay?: number;
   /** change of the LF shape parameter Rd (breathier phrase ends, tenser accents) */
   rd?: number;
   /** vocal-fold vibration and leak allowed (1) or folds pressed shut (0, glottal stop) */

@@ -254,6 +254,19 @@ const TAP_CONTACT = 0.012;
 /** the share of a flick's height at which the contact begins, for it to last TAP_CONTACT */
 const TAP_REACH = 0.5 * (1 + Math.cos((Math.PI * TAP_CONTACT) / TAP_FLICK));
 const STIFF_ABD = 0.12;
+/**
+ * A trill of counted contacts (Pronunciation.shortTrillBeats): it is given at least `hold` (s) to make them, and its
+ * posture ends `lift` (s) after the sound is due, so that the tip goes up, touches and leaves for the next sound
+ * instead of hovering just under the ridge for the rest of it (a narrow passage, heard as a second, weaker r).
+ */
+const ONE_BEAT = { hold: 0.06, lift: 0.015 };
+/**
+ * How far past the contact it finds a trill's tip is aimed (its units). Aimed past it by a fixed target, the tip
+ * shuts the mouth long before its time where the tongue is already high (after an i the contact is half the way up)
+ * and holds it shut until the air is gone; aimed just past the contact of the posture of the moment it touches and
+ * vibrates.
+ */
+const TRILL_AIM = 0.1;
 /** height of a vowel on the chart (its first symbol), for its intrinsic pitch */
 const vowelHeight = (ipa: string): number | undefined => IPA_VOWELS[normalizeIpa(ipa)[0]]?.height;
 
@@ -749,6 +762,9 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   }
   const duration = t + 0.05;
   const lead = o.lead;
+  // a single trill of a language that counts its contacts (Pronunciation.shortTrillBeats), and a sound with a consonant after it
+  const counted = (s: Seg): boolean => pr.shortTrillBeats > 0 && s.ph.manner === 'trill' && !units[s.unit].p.long;
+  const beforeConsonant = (s: Seg): boolean => { const nx = segs[segs.indexOf(s) + 1]; return !!nx && nx.ph.manner !== 'vowel' && nx.ph.manner !== 'silence'; };
   const prec = Math.max(-1, Math.min(1, o.precision ?? 0));
   const tauScale: Partial<Record<keyof Articulators, number>> = { ...(o.tauScale ?? {}) };
   if (prec) for (const k of SLOW_KEYS) tauScale[k] = (tauScale[k] ?? 1) * Math.pow(2, -0.6 * prec);
@@ -994,6 +1010,28 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     if (!earlier) break;
   }
 
+  // A trill of counted contacts is a strike: its posture ends soon after the sound is due, unless the tip stays at the
+  // contact for a consonant after it
+  for (const s of segs) {
+    if (!counted(s) || s.ph.airstream || beforeConsonant(s)) continue;
+    const a = anchors[s.ph.flick?.key ?? 'tipY'].find((x) => x.seg === s);
+    if (a) a.t1 = Math.max(a.t0 + FRAME, Math.min(a.t1, s.t0 + ONE_BEAT.lift));
+  }
+  // A trill's tip is aimed just past the contact it finds when its sound is due (the body of the tongue still coming
+  // from the vowel before; at its middle the body has left for the next vowel and the contact is higher)
+  {
+    let artAt: ((time: number) => Articulators) | undefined;
+    for (const s of segs) {
+      if (s.ph.manner !== 'trill' || s.ph.airstream || (s.ph.flick?.key ?? 'tipY') !== 'tipY') continue;
+      const a = anchors.tipY.find((x) => x.seg === s);
+      if (!a) continue;
+      artAt ??= moved();
+      const bound = s.ph.flick?.contact ?? 2.3;
+      const at = Math.min(...[0, 0.25].map((q) => contactPoint({ ...artAt!(s.t0 + q * (s.t1 - s.t0)), tipY: 0 }, 'tipY', bound, shape)));
+      if (at < bound) a.v = Math.min(a.v, at + TRILL_AIM);
+    }
+  }
+
   // A fricated stop opens when its release is due. Its tip comes down from a
   // closure pressed past the channel of the hiss, and how long that takes
   // depends on the jaw under it (with the jaw high the channel is nearly
@@ -1103,7 +1141,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   }
   const now = (key: FlickKey, time: number) => tracks[key][Math.max(0, Math.min(tracks[key].length - 1, Math.round(time / FRAME)))];
   const flicks: Record<FlickKey, { c: number; w: number; a: number }[]> = { tipY: [], lipOpen: [], tongueX: [] };
-  const trills: { t0: number; t1: number; key: FlickKey; at: number; open?: number }[] = [];
+  const trills: { t0: number; t1: number; key: FlickKey; at: number; open?: number; beats?: number; stay?: boolean }[] = [];
   let posture: ((time: number) => Articulators) | undefined;
   for (const s of segs) {
     if (s.ph.manner !== 'tap' && s.ph.manner !== 'trill') continue;
@@ -1132,7 +1170,8 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       flicks[key].push({ c, w: TAP_FLICK, a: up ? Math.min(far, a) : Math.max(far, a) });
     } else {
       const at = trillContact(s.ph, key, fl?.contact ?? 2.3, shape);
-      trills.push({ t0: s.t0 - lead * 0.3, t1: s.t1, key, at, ...(fl?.open ? { open: fl.open } : {}) });
+      const one = counted(s);
+      trills.push({ t0: s.t0 - lead * 0.3, t1: one ? Math.max(s.t1, s.t0 + ONE_BEAT.hold) : s.t1, key, at, ...(fl?.open ? { open: fl.open } : {}), ...(one ? { beats: pr.shortTrillBeats, ...(beforeConsonant(s) ? { stay: true } : {}) } : {}) });
     }
   }
   const flickAt = (key: FlickKey, time: number): number => {
@@ -1474,11 +1513,12 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // volume above the glottis), or the pressure would stop the voice within the closure
   const slack: { t0: number; t1: number; by: number; tap: boolean }[] = [];
   for (const s of segs) {
-    if ((s.part !== 'closure' && s.ph.manner !== 'tap') || units[s.unit].ph.airstream || !units[s.unit].ph.voiced) continue;
+    const struck = s.ph.manner === 'tap' || (s.ph.manner === 'trill' && counted(s));
+    if ((s.part !== 'closure' && !struck) || units[s.unit].ph.airstream || !units[s.unit].ph.voiced) continue;
     const last = slack[slack.length - 1];
     // two closures on end (a long consonant) are one closure
     if (last && Math.abs(last.t1 - s.t0) < 1e-6) last.t1 = s.t1;
-    else slack.push({ t0: s.t0, t1: s.t1, by: VOICED_SLACK.by, tap: s.ph.manner === 'tap' });
+    else slack.push({ t0: s.t0, t1: s.t1, by: VOICED_SLACK.by, tap: struck });
   }
   // the walls stay out until the mouth has opened: stiffened while it is still shut, they would give the air
   // they took back to the cavity, and the pressure would stop the voice right at the release
@@ -1618,7 +1658,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     const tr = trills.find((w) => time >= w.t0 && time < w.t1);
     frames.push({
       t: time, art, abduction: abd, f0: f0At(time) * (fry > 0 ? Math.pow(2, (-FRY_DROP * fry) / 12) : 1), ps, ...(Math.max(creak, fry) > 0 ? { creak: Math.max(creak, fry) } : {}), tip, ...(lips ? { lips } : {}), ...(dorsum ? { dorsum } : {}), rd, gate, ...(stiff ? { stiff } : {}), ...(tense ? { tense } : {}), ...(roomy ? { room: VOICED_ROOM } : {}),
-      ...(tr ? { trill: 1, trillKey: tr.key, trillAt: tr.at, ...(tr.open ? { trillOpen: tr.open } : {}) } : {}),
+      ...(tr ? { trill: 1, trillKey: tr.key, trillAt: tr.at, ...(tr.open ? { trillOpen: tr.open } : {}), ...(tr.beats ? { trillBeats: tr.beats } : {}), ...(tr.stay ? { trillStay: 1 } : {}) } : {}),
       ...(clickAt(time) > 0 ? { click: clickAt(time) } : {}),
     });
   }

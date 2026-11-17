@@ -121,14 +121,20 @@ export interface Pronunciation {
    * phrase
    */
   nasalPlace: 'none' | 'word' | 'phrase';
+  /**
+   * how many times the tip strikes in a single (not long) trill before the speaker lets it go, as in Italian, where a
+   * single r has one or two contacts and a long one three or more (0: as many as the air allows): the tip rises, touches
+   * and leaves for the next sound, the walls slack behind it as for a tap
+   */
+  shortTrillBeats: number;
 }
 
 /** a language with no entry of its own, and any transcription: even timing, plain stops, peaks where its prosody puts them */
-export const PLAIN_PRONUNCIATION: Pronunciation = { timing: 'even', aspirated: false, fricatedTip: false, earlyNasal: false, earlyPeak: false, accentRate: 28, initialVoicedStop: 0.02, postures: {}, closureShare: {}, nasalPlace: 'none' };
+export const PLAIN_PRONUNCIATION: Pronunciation = { timing: 'even', aspirated: false, fricatedTip: false, earlyNasal: false, earlyPeak: false, accentRate: 28, initialVoicedStop: 0.02, postures: {}, closureShare: {}, nasalPlace: 'none', shortTrillBeats: 0 };
 
 const PRONUNCIATIONS: Record<string, Partial<Pronunciation>> = {
   // its sounds as a listener hears them best from our mouth (learnt: see italianPostures.ts)
-  it: { timing: 'italian', postures: ITALIAN_POSTURES, closureShare: ITALIAN_CLOSURE_SHARE, nasalPlace: 'phrase' },
+  it: { timing: 'italian', postures: ITALIAN_POSTURES, closureShare: ITALIAN_CLOSURE_SHARE, nasalPlace: 'phrase', shortTrillBeats: 1 },
   // aspiration and the slow tip (Klatt 1975), the vowel nasalized before a nasal (Cohn 1990), b d g partly unvoiced at the start of a word
   en: { timing: 'english', aspirated: true, fricatedTip: true, earlyNasal: true, earlyPeak: true, accentRate: 26, initialVoicedStop: 0.12, nasalPlace: 'word' },
 };
