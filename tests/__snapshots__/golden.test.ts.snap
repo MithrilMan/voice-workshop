@@ -184,25 +184,25 @@ exports[`golden fingerprints of the speech planner > scores of sentences across 
     "duration": 1.437559,
     "frames": 339,
     "phones": "tʃ a o _ k o m e s t a i",
-    "score": "347f51b2c785f8b3",
+    "score": "5abb93b2767713bc",
   },
   "it la luna e le stelle": {
     "duration": 1.260089,
     "frames": 304,
     "phones": "l a l u n a e l e s t e l e",
-    "score": "b9d799215aa45d0c",
+    "score": "e6cbc8847a9776ff",
   },
   "it la terra è rossa": {
     "duration": 1.207665,
     "frames": 293,
     "phones": "l a t e r a ɛ r o s a",
-    "score": "69b989cfac6de506",
+    "score": "aee17cbdcda36a45",
   },
   "it piove in città oggi?": {
     "duration": 1.524336,
     "frames": 356,
     "phones": "p j o v e i n tʃ i t a o dʒ i",
-    "score": "f0a8918a15df8b70",
+    "score": "48d4812780c58db8",
   },
 }
 `;

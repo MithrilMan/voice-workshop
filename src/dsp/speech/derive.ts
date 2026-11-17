@@ -650,7 +650,8 @@ function fromSegment(sym: string, seg: Segment): Phoneme | null {
  * and the chart: for each symbol, the articulators it sets ("x:0", "x:1" are
  * the two parts of the affricate x).
  */
-export type Postures = Readonly<Record<string, Partial<Articulators>>>;
+/** the articulators a language gives a sound, and the opening of the folds it is said with, if not the chart's */
+export type Postures = Readonly<Record<string, Partial<Articulators> & { abduction?: number }>>;
 
 /** the symbol under which a part of an affricate is looked up: its own, if the language gives that part a posture */
 export const partSymbol = (whole: string, i: number, part: string, own?: Postures): string => (own?.[`${whole}:${i}`] ? `${whole}:${i}` : part);
@@ -695,7 +696,8 @@ function ownPhoneme(symbol: string, own: Postures): Phoneme | undefined {
   if (built.has(symbol)) return built.get(symbol);
   const at = symbol.indexOf(':');
   const base = at > 0 ? canonPhoneme(canonPhoneme(symbol.slice(0, at))?.parts?.[Number(symbol.slice(at + 1))] ?? '') : canonPhoneme(symbol);
-  const ph = base ? { ...base, art: { ...base.art, ...own[symbol] } } : undefined;
+  const { abduction, ...posture } = own[symbol];
+  const ph = base ? { ...base, art: { ...base.art, ...posture }, ...(abduction !== undefined ? { abduction } : {}) } : undefined;
   built.set(symbol, ph);
   return ph;
 }
