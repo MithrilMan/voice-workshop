@@ -1050,7 +1050,10 @@ sibilants. The teeth panel draws the front and side views with the live jet.
   through the channel of a hiss; whether the velum comes down from the
   start of a vowel before a nasal; whether accents peak early and how fast
   they rise; how far apart the folds are in a voiced stop at the start of
-  a word. Italian and English have an entry each (English: aspiration and
+  a word; how far a nasal takes the place of the closure after it, so that
+  the mouth shuts once and only the velum moves ("banco" [ŋk], "in piazza"
+  [mp]: inside a word in English, across the words of a phrase in
+  Italian). Italian and English have an entry each (English: aspiration and
   the slow tip, Klatt 1975; the nasalized vowel, Cohn 1990); a
   transcription, which belongs to no language, gets plain stops and even
   timing. Teaching the model a new language of its own is a new entry.

@@ -115,16 +115,22 @@ export interface Pronunciation {
   postures: Postures;
   /** the share of an affricate's time its closure takes, by symbol (0.45 where none is given) */
   closureShare: Readonly<Record<string, number>>;
+  /**
+   * how far a nasal takes the place of the closure after it (the mouth shuts once, where the next sound needs it, and
+   * only the velum moves: "banco" [ŋk], "in piazza" [mp]): not at all, inside a word, or also across the words of a
+   * phrase
+   */
+  nasalPlace: 'none' | 'word' | 'phrase';
 }
 
 /** a language with no entry of its own, and any transcription: even timing, plain stops, peaks where its prosody puts them */
-export const PLAIN_PRONUNCIATION: Pronunciation = { timing: 'even', aspirated: false, fricatedTip: false, earlyNasal: false, earlyPeak: false, accentRate: 28, initialVoicedStop: 0.02, postures: {}, closureShare: {} };
+export const PLAIN_PRONUNCIATION: Pronunciation = { timing: 'even', aspirated: false, fricatedTip: false, earlyNasal: false, earlyPeak: false, accentRate: 28, initialVoicedStop: 0.02, postures: {}, closureShare: {}, nasalPlace: 'none' };
 
 const PRONUNCIATIONS: Record<string, Partial<Pronunciation>> = {
   // its sounds as a listener hears them best from our mouth (learnt: see italianPostures.ts)
-  it: { timing: 'italian', postures: ITALIAN_POSTURES, closureShare: ITALIAN_CLOSURE_SHARE },
+  it: { timing: 'italian', postures: ITALIAN_POSTURES, closureShare: ITALIAN_CLOSURE_SHARE, nasalPlace: 'phrase' },
   // aspiration and the slow tip (Klatt 1975), the vowel nasalized before a nasal (Cohn 1990), b d g partly unvoiced at the start of a word
-  en: { timing: 'english', aspirated: true, fricatedTip: true, earlyNasal: true, earlyPeak: true, accentRate: 26, initialVoicedStop: 0.12 },
+  en: { timing: 'english', aspirated: true, fricatedTip: true, earlyNasal: true, earlyPeak: true, accentRate: 26, initialVoicedStop: 0.12, nasalPlace: 'word' },
 };
 
 /** The pronunciation of a language read by our own rules (text or /phonemic/ input); one without an entry is said as Italian. */

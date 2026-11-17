@@ -299,6 +299,37 @@ function onsetStart(onset: Unit[], literal: boolean): number {
   return Math.max(0, first);
 }
 
+/** the nasal made at the place of a fricative, which has no closure to share */
+const NASAL_AT: Partial<Record<Place, string>> = { bilabial: 'm', labiodental: 'ɱ', dental: 'n̪', alveolar: 'n', postalveolar: 'n', retroflex: 'ɳ', alveolopalatal: 'ɲ', palatal: 'ɲ', velar: 'ŋ', uvular: 'ɴ' };
+
+/**
+ * A nasal before another closure is made where that closure is: the mouth shuts once, at the place of the sound to
+ * come, and only the velum moves between the two ("banco" [ŋk], "in piazza" [mp], "in fondo" [ɱf], "vento" with the
+ * tip already where the t needs it). Said as two places, the tongue strikes for the nasal, lets go and closes again,
+ * and a listener hears the cluster spelt out ("n-e-c"). The nasal takes the closure of the next stop, nasal or
+ * affricate as it is, so nothing moves in the mouth; before a fricative, which has no closure to share, it is the
+ * nasal at the fricative's place. Inside a word, or also across the words of a phrase with no pause between them.
+ */
+function linkNasals(units: Unit[], acrossWords: boolean, shape?: Head, own?: Postures): void {
+  for (let i = 0; i + 1 < units.length; i++) {
+    const u = units[i], nx = units[i + 1];
+    if (u.vowel || u.ph.manner !== 'nasal' || u.p.pause || u.ph.airstream || nx.vowel || nx.ph.airstream) continue;
+    if (!acrossWords && nx.word !== u.word) continue;
+    const m = nx.ph.manner;
+    let to: Phoneme | undefined;
+    if (m === 'stop' || m === 'nasal') to = nx.ph;
+    else if (m === 'affricate' && nx.ph.parts) to = phonemeFor(partSymbol(nx.p.ipa, 0, nx.ph.parts[0], own), shape, own);
+    else if (m === 'fricative') {
+      const at = NASAL_AT[(nx.ph.place ?? IPA_CONSONANTS[nx.ph.ipa]?.place) as Place];
+      to = at && at !== u.ph.ipa ? phonemeFor(at, shape, own) : undefined;
+    }
+    if (!to) continue;
+    const place = to.place ?? IPA_CONSONANTS[to.ipa]?.place ?? (m === 'affricate' && nx.ph.parts ? IPA_CONSONANTS[nx.ph.parts[0]]?.place : undefined);
+    if (!place) continue;
+    u.ph = { ...u.ph, art: { ...to.art, velum: u.ph.art.velum ?? PHONEMES.n.art.velum }, place, dorsal: !!to.dorsal || place === 'velar' || place === 'uvular' };
+  }
+}
+
 function analyse(phones: Phone[], literal = false, shape?: Head, own?: Postures): Unit[] {
   const units: Unit[] = [];
   let word = 0;
@@ -587,6 +618,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   // the postures the language gives its sounds
   const own = pr.postures;
   const units = analyse(phones, literal, shape, own);
+  if (pr.nasalPlace !== 'none') linkNasals(units, pr.nasalPlace === 'phrase', shape, own);
 
   // durations
   for (let i = 0; i < units.length; i++) {
