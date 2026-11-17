@@ -1,7 +1,9 @@
 import { Anatomy, Articulators, Teeth, DEFAULT_ANATOMY, DEFAULT_ARTICULATORS, DEFAULT_TEETH } from '../tract/types';
 import { colourCurve, NOISE_CURVE_POINTS } from '../noise/noise';
 
-export type SourceModel = 'lf' | 'twomass';
+/** LF: the pulse is drawn; two-mass: the folds vibrate by themselves; areas: the folds open and shut along their length
+ *  on the LF clock, and the flow through them is solved against the tubes (see FoldAreas) */
+export type SourceModel = 'lf' | 'twomass' | 'areas';
 
 export interface SourceParams {
   model: SourceModel;
@@ -46,6 +48,22 @@ export interface SourceParams {
   asym: number;
   /** rest (pre-phonatory) area of each mass, cm^2 */
   restArea: number;
+  // fold areas (model 'areas'; see FoldAreas)
+  /** rest half-width of the lower and the upper edge at the vocal processes, cm */
+  gapLow: number;
+  gapHigh: number;
+  /** how late the upper edge follows the lower one, degrees of a period */
+  edgeLag: number;
+  /** skew of the opening against the closing, -1..1 */
+  areaSkew: number;
+  /** every second pulse smaller by half of this, 0..1 */
+  alternate: number;
+  /** length (cm) and thickness (cm) of the vibrating folds at their natural pitch (Hz) */
+  vibLength: number;
+  vibDepth: number;
+  naturalPitch: number;
+  /** scale of the swing of the folds (1: 1 mm at 800 Pa across them) */
+  swing: number;
 }
 
 export type NoiseLocation = 'glottis' | 'constriction' | 'teeth' | 'lips' | 'custom';
@@ -138,6 +156,15 @@ export const DEFAULT_SOURCE: SourceParams = {
   q: 1,
   asym: 0,
   restArea: 0.03,
+  gapLow: 0.06,
+  gapHigh: 0.06,
+  edgeLag: 50,
+  areaSkew: 0.2,
+  alternate: 0.05,
+  vibLength: 1.2,
+  vibDepth: 0.4,
+  naturalPitch: 200,
+  swing: 1,
 };
 
 export const DEFAULT_USER_NOISE: UserNoiseParams = {

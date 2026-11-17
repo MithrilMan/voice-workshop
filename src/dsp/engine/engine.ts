@@ -1,6 +1,7 @@
 import { RHO, C_SOUND, CMH2O, NU, AREA_CLOSED } from '../constants';
 import { LFSource, rdToTiming, timingFromQuotients, LFTiming } from '../glottis/lf';
 import { TwoMassGlottis } from '../glottis/twoMass';
+import { FoldAreas } from '../glottis/foldAreas';
 import { Waveguide } from '../tract/waveguide';
 import { SubglottalTract } from '../tract/subglottal';
 import { computeGeometry, lowerPharynxLength, TractGeometry, EPILARYNX_PASSAGE } from '../tract/geometry';
@@ -377,6 +378,13 @@ export class VoiceEngine {
   private wg: Waveguide;
   private lf = new LFSource();
   private tm = new TwoMassGlottis();
+  private folds = new FoldAreas();
+  /** how much the fold areas swing, the pressure left out (it is in the model): together, under enough pressure, not held stiff */
+  private foldRel = 0;
+  private rFoldRel = new Ramp(0);
+  /** the mean of their smaller area, for the aerodynamics, and the amplitude of the period, glided (shimmer, diplophonia) */
+  private foldMean = 0;
+  private foldAmp = 1;
   /** the trachea and the bronchi, joined to the tract through the glottis */
   private sub = new SubglottalTract();
   private aero = new Aero();
@@ -593,8 +601,16 @@ export class VoiceEngine {
     this.nasal = buildNasal(this.af.dx, 1, AREA_CLOSED, 18);
     this.wg = new Waveguide(N_SECTIONS, this.nasal.areas.length, this.nasal.coupling);
     this.tm.reset();
+    this.syncFolds();
     this.updateGeometry(true);
     this.lf.periodF0 = this.f0;
+  }
+
+  /** the fold areas take the voice's numbers (degrees of the lag to radians) */
+  private syncFolds(): void {
+    const s = this.params.source, q = this.folds.params;
+    q.gapLow = s.gapLow; q.gapHigh = s.gapHigh; q.lag = (s.edgeLag * Math.PI) / 180; q.skew = s.areaSkew; q.alternate = s.alternate;
+    q.length = s.vibLength; q.depth = s.vibDepth; q.pitch = s.naturalPitch; q.swing = s.swing;
   }
 
   setParams(p: EngineParams): void { this.params = p; }
@@ -719,6 +735,8 @@ export class VoiceEngine {
     this.updateAero(dt);
     this.time += dt;
     this.rVoicing.set(this.voicingAmp);
+    this.rFoldRel.set(this.foldRel);
+    if (p.source.model === 'areas') this.syncFolds();
     this.rGate.set(this.gate);
     this.rAbd.set(Math.max(0, this.abduction));
     this.rPs.set(this.psCur);
@@ -915,8 +933,9 @@ export class VoiceEngine {
     const shutAt = Math.min(n - 1, Math.max(0, Math.floor(this.fineMinS / af.dx)));
     if (port > 2e-3 && this.fineMinArea < 0.004 && shutAt <= coupling) coupling = Math.max(2, shutAt - 1);
     this.nasal = buildNasal(af.dx, scale, port, coupling, this.nasal.dx === af.dx ? this.nasal : undefined, noseOf(p.anatomy));
-    this.wg.lossParams.base = 70 * p.losses;
-    this.wg.lossParams.narrow = 45 * p.losses;
+    const losses = p.losses * (p.anatomy.wallLoss ?? 1);
+    this.wg.lossParams.base = 70 * losses;
+    this.wg.lossParams.narrow = 45 * losses;
     this.wg.setGeometry(af, this.nasal, this.fsT, force ? 1 : this.geomSteps());
     this.tractBehind = !force;
     // constriction and noise injection points
@@ -1015,6 +1034,7 @@ export class VoiceEngine {
     // the glottis: its areas scale with the size of the head and the length of the folds
     const s2 = p.anatomy.scale * p.anatomy.scale * (p.anatomy.foldLength ?? 1);
     const abd = 0.55 * s2 * Math.max(0, this.abduction);
+    if (p.source.model === 'areas') return this.foldMean + abd;
     let vib = 0;
     if (p.voicing) {
       if (p.source.model === 'lf') vib = 0.45 * p.source.peakArea * (1 - THIN.swing * thinness(p.source)) * s2 * this.voicingAmp;
@@ -1117,6 +1137,8 @@ export class VoiceEngine {
     const pressureGate = smoothstep(1.2, 3.5, dp);
     const drive = dp < 8 ? Math.pow(dp / 8, 0.9) : Math.sqrt(Math.min(dp, 30) / 8);
     this.voicingAmp = p.voicing ? adduction * pressureGate * drive * (1 - this.stiff) : 0;
+    // (the fold areas take the pressure themselves: the swing grows with its root)
+    this.foldRel = p.voicing ? adduction * pressureGate * (1 - this.stiff) : 0;
 
     // jet and turbulence sources
     const share1 = oral > 0 ? (both / oral) ** 2 : 1;
@@ -1203,7 +1225,27 @@ export class VoiceEngine {
     wg.subUp = subOn ? sub.up : 0;
     let u = 0; // total glottal flow (cm^3/s)
     let ag = steadyArea;
-    if (p.source.model === 'lf') {
+    if (p.source.model === 'areas') {
+      // the clock of the periods (pitch, jitter, shimmer) is the drawn pulse's; its shape is not used
+      this.lf.step(fs, this.nextPeriod);
+      const folds = this.folds;
+      const rel = this.rFoldRel.at(ph) * gate;
+      this.foldAmp += (this.periodAmp - this.foldAmp) * this.pulseMeanCoef;
+      folds.shape(this.lf.phase + (this.lf.periodIndex & 1), this.lf.periodF0, ps - po, rel * this.foldAmp, gate, gapOf(p.source) * s2 * gate);
+      // the opening between the cartilages of a glottis drawn apart: beside the folds, under the same pressure
+      const beside = 0.55 * s2 * abduction;
+      folds.step(ps, po, wg.pMinus, z0, this.uMean, wg.subUp, wg.subZ, beside);
+      u = folds.flow + folds.leak;
+      ag = Math.max(0, folds.amin) + beside;
+      // the sound of it: the flow less its steady part, as for the two-mass folds
+      const uAc = folds.flow - this.uMean + folds.leak - folds.still;
+      this.uMean = this.uMeanCoef * this.uMean + (1 - this.uMeanCoef) * folds.flow;
+      this.foldMean += (Math.max(0, folds.amin) - this.foldMean) * (1 - this.uMeanCoef);
+      wg.rg = 1;
+      wg.glottalInjection = z0 * uAc;
+      wg.glottalZ = Infinity;
+      wg.glottalSource = uAc;
+    } else if (p.source.model === 'lf') {
       this.lf.step(fs, this.nextPeriod);
       const amp = p.voicing ? p.source.peakArea * (1 - THIN.swing * thinness(p.source)) * s2 * voicingAmp * this.periodAmp * gate : 0;
       const avib = amp * this.lf.flow;
@@ -1445,7 +1487,7 @@ export class VoiceEngine {
       nasalPort: portArea(this.art.velum, this.params.anatomy.nasalLeak, this.params.anatomy.scale),
       pRms: pR,
       uRms: uR,
-      f0: s.model === 'lf' ? (this.voicingAmp > 0.05 ? this.lf.periodF0 : 0) : this.measuredF0,
+      f0: s.model !== 'twomass' ? (this.voicingAmp > 0.05 ? this.lf.periodF0 : 0) : this.measuredF0,
       f0Target: this.f0,
       phase: this.lf.phase,
       openQuotient: timing.te,

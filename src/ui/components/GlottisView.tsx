@@ -184,7 +184,7 @@ export function GlottisView() {
     <div className="view-panel">
       <canvas ref={ref} className="fill" />
       <div className="overlay-top right">
-        <span className="mini">{p.source.model === 'lf' ? 'Liljencrants–Fant' : L({ it: 'due masse', en: 'two-mass' })}</span>
+        <span className="mini">{p.source.model === 'lf' ? 'Liljencrants–Fant' : p.source.model === 'areas' ? L({ it: 'aree delle corde', en: 'fold areas' }) : L({ it: 'due masse', en: 'two-mass' })}</span>
         <label className="mini">{L({ it: 'rallentatore', en: 'slow motion' })}<input type="range" min={0.1} max={2} step={0.05} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} /></label>
       </div>
     </div>

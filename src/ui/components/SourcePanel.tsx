@@ -52,7 +52,17 @@ export function SourcePanel() {
           it: 'Liljencrants-Fant (LF): la forma dello sbuffo è descritta da pochi numeri. Rd va da voce pressata (0,3) a soffiata (2,7): con Rd alto la chiusura è più dolce e le armoniche acute calano. «Due masse»: le corde sono simulate come due masse elastiche per lato che oscillano da sole spinte dall’aria; la nota nasce dalla tensione.',
           en: 'Liljencrants-Fant (LF): the shape of each puff is described by a few numbers. Rd goes from pressed (0.3) to breathy (2.7) voice: with a high Rd the closure is gentler and the high harmonics drop. “Two-mass”: each fold is two elastic masses that oscillate on their own, driven by the air; the pitch comes from the tension.',
         })}>
-        <Seg value={s.model} control="quality" options={[['lf', 'LF (Fant 1985)'], ['twomass', L({ it: 'Due masse (auto-oscillanti)', en: 'Two-mass (self-oscillating)' })]]} onChange={(v) => set((x) => { x.source.model = v; })} />
+        <Seg value={s.model} control="quality" options={[['lf', 'LF (Fant 1985)'], ['twomass', L({ it: 'Due masse (auto-oscillanti)', en: 'Two-mass (self-oscillating)' })], ['areas', L({ it: 'Aree (Titze 1984)', en: 'Areas (Titze 1984)' })]]} onChange={(v) => set((x) => { x.source.model = v; })} />
+        {s.model === 'areas' && <>
+          <Slider label={L({ it: 'Apertura a riposo, sotto', en: 'Rest gap, lower edge' })} value={s.gapLow} control="quality" min={0} max={0.2} step={0.001} onChange={(v) => set((x) => { x.source.gapLow = v; })} format={(v) => `${(v * 10).toFixed(2)} mm`}
+            hint={L({ it: 'Le corde, prima di vibrare, restano aperte dietro: più aperte chiudono meno, la voce è più morbida e soffiata.', en: 'Before they vibrate the folds stay apart at the back: wider, they close less, the voice is softer and breathier.' })} />
+          <Slider label={L({ it: 'Apertura a riposo, sopra', en: 'Rest gap, upper edge' })} value={s.gapHigh} control="quality" min={0} max={0.2} step={0.001} onChange={(v) => set((x) => { x.source.gapHigh = v; })} format={(v) => `${(v * 10).toFixed(2)} mm`} />
+          <Slider label={L({ it: 'Ritardo del bordo di sopra', en: 'Lag of the upper edge' })} value={s.edgeLag} control="quality" min={0} max={120} step={1} onChange={(v) => set((x) => { x.source.edgeLag = v; })} format={(v) => `${v.toFixed(0)}°`}
+            hint={L({ it: 'Il bordo di sopra segue quello di sotto come un’onda: più ritardo, chiusura più rapida e più armoniche.', en: 'The upper edge follows the lower one like a wave: more lag, a faster closing and more harmonics.' })} />
+          <Slider label={L({ it: 'Apertura lenta, chiusura rapida', en: 'Slow opening, fast closing' })} value={s.areaSkew} control="quality" min={-0.8} max={0.8} step={0.01} onChange={(v) => set((x) => { x.source.areaSkew = v; })} />
+          <Slider label={L({ it: 'Ampiezza del movimento', en: 'Size of the swing' })} value={s.swing} control="quality" min={0.3} max={2} step={0.01} onChange={(v) => set((x) => { x.source.swing = v; })} />
+          <Slider label={L({ it: 'Lunghezza che vibra', en: 'Vibrating length' })} value={s.vibLength} control="quality" min={0.6} max={2} step={0.01} onChange={(v) => set((x) => { x.source.vibLength = v; })} format={(v) => `${v.toFixed(2)} cm`} />
+        </>}
         {s.model === 'lf' ? <>
           <Toggle label={L({ it: 'Parametri separati (Oq, αm, Ra)', en: 'Separate parameters (Oq, αm, Ra)' })} value={s.advanced} control="quality" onChange={(v) => set((x) => { x.source.advanced = v; })} />
           {!s.advanced ? (
@@ -64,7 +74,7 @@ export function SourcePanel() {
           </>}
           <Slider label={L({ it: 'Apertura massima', en: 'Peak opening' })} value={s.peakArea} control="quality" min={0.02} max={0.3} step={0.005} onChange={(v) => set((x) => { x.source.peakArea = v; })} format={(v) => `${v.toFixed(3)} cm²`} />
           <Slider label={L({ it: 'Interazione sorgente-tratto', en: 'Source-tract interaction' })} value={s.interaction} control="quality" min={0} max={1} onChange={(v) => set((x) => { x.source.interaction = v; })} />
-        </> : <>
+        </> : s.model === 'twomass' && <>
           <Toggle label={L({ it: 'Tensione automatica (segue la nota)', en: 'Automatic tension (follows the pitch)' })} value={s.tensionAuto} control="quality" onChange={(v) => set((x) => { x.source.tensionAuto = v; })} />
           {!s.tensionAuto && <Slider label={L({ it: 'Tensione Q', en: 'Tension Q' })} value={s.q} control="quality" min={0.4} max={4} onChange={(v) => set((x) => { x.source.q = v; })} />}
           <Slider label={L({ it: 'Asimmetria sinistra/destra', en: 'Left/right asymmetry' })} value={s.asym} control="quality" min={0} max={0.8} onChange={(v) => set((x) => { x.source.asym = v; })} />

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { defaultParams, EngineParams, DEFAULT_SOURCE, DEFAULT_NOISE } from '../src/dsp/engine/params';
 import { DEFAULT_ANATOMY } from '../src/dsp/tract/types';
-import { VOICE_FIELDS, VOICE_V1_BASE, VoiceDesign, cloneVoice, sanitizeVoice, speechOptions, withField, fieldValue } from '../src/dsp/voice/design';
+import { VOICE_FIELDS, VOICE_V1_BASE, VoiceDesign, cloneVoice, sanitizeVoice, speechOptions, withField, fieldValue, applyDesign } from '../src/dsp/voice/design';
 import { BUILTIN_VOICES, builtinVoice } from '../src/dsp/voice/builtin';
 import { voiceToJson, voiceFromJson, voiceToLink, voiceFromLink, voiceFileName } from '../src/dsp/voice/codec';
 import { VOICE_PRESETS } from '../src/ui/presets';
@@ -70,6 +70,22 @@ describe('a voice as data', () => {
     expect(withField(d, 'habits.larynx', -9).habits.larynx).toBe(-1.2);
   });
 
+  it('the fold areas and the walls are voice fields that reach the engine, and a voice saved before them keeps its sound', () => {
+    const old = JSON.parse(voiceToJson(builtinVoice('man')!.design as VoiceDesign));
+    for (const k of ['gapLow', 'gapHigh', 'edgeLag', 'areaSkew', 'alternate', 'vibLength', 'vibDepth', 'naturalPitch', 'swing']) delete old.phonation[k];
+    delete old.body.anatomy.wallLoss;
+    const d = sanitizeVoice(old)!;
+    expect(d).toEqual(builtinVoice('man')!.design);
+    expect(d.body.anatomy.wallLoss).toBe(1);
+    const v = withField(withField(withField(d, 'phonation.model', 'areas'), 'phonation.edgeLag', 60), 'body.anatomy.wallLoss', 0.5);
+    const p = defaultParams();
+    applyDesign(p, v);
+    expect(p.source.model).toBe('areas');
+    expect(p.source.edgeLag).toBe(60);
+    expect(p.source.gapLow).toBe(DEFAULT_SOURCE.gapLow);
+    expect(p.anatomy.wallLoss).toBe(0.5);
+  });
+
   it('goes to a file and back', () => {
     for (const v of BUILTIN_VOICES) expect(voiceFromJson(voiceToJson(v.design as VoiceDesign))).toEqual(v.design);
     expect(voiceFromJson('not json')).toBeNull();
@@ -92,7 +108,8 @@ describe('a voice as data', () => {
     // (a starting voice changes a few fields; the one fitted to a reference voice, eighteen)
     expect(Math.max(...lengths.filter((_, i) => BUILTIN_VOICES[i].id !== 'sky'))).toBeLessThan(200);
     expect(Math.max(...lengths)).toBeLessThan(400);
-    expect(big.length).toBeLessThan(1200);
+    // (about ten characters a field: 1296 with the fold areas and the walls)
+    expect(big.length).toBeLessThan(1400);
     for (const bad of ['', '#voice=', '#voice=v9.abc', '#voice=v1.!!!', '#voice=v1.AAAA', `#voice=v1u.${btoa('[1,2]')}`, `#voice=v1u.${'A'.repeat(40000)}`]) expect(await voiceFromLink(bad), bad).toBeNull();
   });
 

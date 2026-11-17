@@ -272,3 +272,104 @@ describe('what the pressure does to the LF source', () => {
     expect(Math.abs(m)).toBeLessThan(0.012);
   });
 });
+
+describe('the folds as two areas that open and shut along their length', () => {
+  function held(o: { ps?: number; f0?: number; abduction?: number; gap?: number; wallLoss?: number; model?: 'lf' | 'areas' } = {}) {
+    const p = defaultParams();
+    p.articulators = { ...p.articulators, ...VOWELS.a.art };
+    p.phonate = true;
+    p.source.model = o.model ?? 'areas';
+    if (o.ps !== undefined) p.source.ps = o.ps;
+    if (o.f0 !== undefined) p.source.f0 = o.f0;
+    if (o.abduction !== undefined) p.abduction = o.abduction;
+    if (o.gap !== undefined) { p.source.gapLow = o.gap; p.source.gapHigh = o.gap; }
+    if (o.wallLoss !== undefined) p.anatomy.wallLoss = o.wallLoss;
+    const e = new VoiceEngine(48000, p);
+    e.snapArticulators(); e.snapPressure();
+    const out = new Float32Array(48000);
+    let shut = Infinity, open = 0;
+    for (let i = 0; i + 48 <= 48000; i += 48) {
+      e.process(out.subarray(i, i + 48), 48);
+      if (i < 24000) continue;
+      const a = (e as unknown as { folds: { amin: number } }).folds.amin;
+      shut = Math.min(shut, a); open = Math.max(open, a);
+    }
+    const seg = out.subarray(24000);
+    let s = 0;
+    for (const v of seg) s += v * v;
+    const db = (x: number) => 10 * Math.log10(x);
+    return {
+      db: db(s / seg.length), shut, open, f0: yin(seg.subarray(0, 4096), 48000, 70, 400).f0,
+      tilt: db(bandPower(seg, 48000, 2000, 4000)) - db(bandPower(seg, 48000, 80, 1000)),
+      low: db(bandPower(seg, 48000, 80, 600)), f1: db(bandPower(seg, 48000, 500, 1500)),
+    };
+  }
+
+  it('vibrate at the pitch they are given, and shut down to the chink in every period', () => {
+    for (const f0 of [120, 220]) {
+      const r = held({ f0 });
+      expect(Math.abs(r.f0 / f0 - 1)).toBeLessThan(0.01);
+      // the smaller of the two edges shuts down to the chink (0.01 cm²) and the little left open at the back,
+      // and opens to a tenth of a square centimetre or more
+      expect(r.shut).toBeLessThan(0.03);
+      expect(r.open).toBeGreaterThan(0.1);
+    }
+  });
+
+  it('louder, brighter and wider with the lung pressure, which they take themselves', () => {
+    const [soft, speaking, loud] = [4, 8, 16].map((ps) => held({ ps }));
+    note('fold areas and lung pressure', `4, 8, 16 cmH2O: level ${[soft, speaking, loud].map((x) => x.db.toFixed(1)).join(', ')} dB; 2-4 kHz against 0-1 kHz ${[soft, speaking, loud].map((x) => x.tilt.toFixed(1)).join(', ')} dB; widest ${[soft, speaking, loud].map((x) => x.open.toFixed(3)).join(', ')} cm²`);
+    for (const [a, b] of [[soft, speaking], [speaking, loud]]) {
+      expect(b.db - a.db).toBeGreaterThan(5);
+      expect(b.db - a.db).toBeLessThan(12);
+      expect(b.tilt).toBeGreaterThan(a.tilt);
+      expect(b.open).toBeGreaterThan(a.open);
+    }
+    expect(held({ ps: 0 }).db).toBeLessThan(-150);
+  });
+
+  it('a wider rest gap closes less: a softer, darker, breathier voice', () => {
+    const [tight, usual, wide] = [0.02, 0.06, 0.12].map((gap) => held({ gap }));
+    note('fold areas and their rest gap', `gap 0.2, 0.6, 1.2 mm: shut down to ${[tight, usual, wide].map((x) => x.shut.toFixed(3)).join(', ')} cm²; level ${[tight, usual, wide].map((x) => x.db.toFixed(1)).join(', ')} dB; 2-4 kHz against 0-1 kHz ${[tight, usual, wide].map((x) => x.tilt.toFixed(1)).join(', ')} dB`);
+    for (const [a, b] of [[tight, usual], [usual, wide]]) {
+      expect(b.shut).toBeGreaterThan(a.shut);
+      expect(b.db).toBeLessThan(a.db);
+      expect(b.tilt).toBeLessThan(a.tilt);
+    }
+  });
+
+  it('drawn apart they give breath, not voice, as the other sources do', () => {
+    const voice = held(), wide = held({ abduction: 1 }), lfWide = held({ abduction: 1, model: 'lf' });
+    expect(held({ abduction: 0.7 }).f0).toBe(0);
+    expect(wide.f0).toBe(0);
+    expect(wide.low).toBeLessThan(voice.low - 20);
+    expect(Math.abs(wide.db - lfWide.db)).toBeLessThan(6);
+  });
+
+  it('speaking, they are about as loud as the LF voice, and their air stops with the lungs', () => {
+    loadEnglishLexicon();
+    const say = (model: 'lf' | 'areas') => {
+      const u = utterance(builtinVoice('man')!.design, textToPhones('he has a house', 'en'), 'en');
+      u.params.source.model = model;
+      const e = new VoiceEngine(48000, u.params);
+      e.snapArticulators(); e.playScore(u.score);
+      const n = Math.round((u.score.duration + 0.2) * 48000), out = new Float32Array(n);
+      for (let i = 0; i + 48 <= n; i += 48) e.process(out.subarray(i, i + 48), 48);
+      let s = 0, peak = 0;
+      for (const v of out) { s += v * v; peak = Math.max(peak, Math.abs(v)); }
+      return { db: 10 * Math.log10(s / n), peak, left: (e as unknown as { glottalFlow: number }).glottalFlow };
+    };
+    const ar = say('areas'), lf = say('lf');
+    note('fold areas speaking', `"he has a house": ${ar.db.toFixed(1)} dB, peak ${ar.peak.toFixed(2)} (LF source ${lf.db.toFixed(1)} dB, ${lf.peak.toFixed(2)}); ${ar.left.toFixed(0)} cm³/s through the glottis 0.2 s after the end`);
+    expect(Math.abs(ar.db - lf.db)).toBeLessThan(5);
+    expect(ar.peak).toBeLessThan(2 * lf.peak);
+    expect(Math.abs(ar.left)).toBeLessThan(100);
+  });
+
+  it('walls that absorb less leave the resonances sharper and louder', () => {
+    const [less, usual, more] = [0.5, 1, 2].map((wallLoss) => held({ wallLoss }));
+    note('wall losses', `x0.5, x1, x2: first formant band ${[less, usual, more].map((x) => x.f1.toFixed(1)).join(', ')} dB`);
+    expect(less.f1).toBeGreaterThan(usual.f1 + 0.4);
+    expect(usual.f1).toBeGreaterThan(more.f1 + 0.4);
+  });
+});

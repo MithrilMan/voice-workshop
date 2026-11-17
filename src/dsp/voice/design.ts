@@ -34,6 +34,17 @@ export interface Phonation {
   vibratoDepth: number;
   asym: number;
   restArea: number;
+  /** the fold areas (model 'areas'): rest gaps of the two edges (cm), lag of the upper one (degrees), skew of the
+   *  pulse, alternation, length and thickness at the natural pitch (cm, Hz), scale of the swing */
+  gapLow: number;
+  gapHigh: number;
+  edgeLag: number;
+  areaSkew: number;
+  alternate: number;
+  vibLength: number;
+  vibDepth: number;
+  naturalPitch: number;
+  swing: number;
   /** the folds vibrate at all (false: a whisper) */
   voicing: boolean;
   /** the hiss of the air through the glottis, dB */
@@ -76,7 +87,8 @@ export interface VoiceDesign {
   language: string;
 }
 
-const PHONATION_KEYS = ['model', 'rd', 'returnPhase', 'peakArea', 'chink', 'thickness', 'jitter', 'shimmer', 'diplophonia', 'interaction', 'vibratoRate', 'vibratoDepth', 'asym', 'restArea'] as const;
+const PHONATION_KEYS = ['model', 'rd', 'returnPhase', 'peakArea', 'chink', 'thickness', 'jitter', 'shimmer', 'diplophonia', 'interaction', 'vibratoRate', 'vibratoDepth', 'asym', 'restArea',
+  'gapLow', 'gapHigh', 'edgeLag', 'areaSkew', 'alternate', 'vibLength', 'vibDepth', 'naturalPitch', 'swing'] as const;
 
 /**
  * The voice every other one is told apart from: the reference adult male of
@@ -94,7 +106,10 @@ export const VOICE_V1_BASE: Readonly<VoiceDesign> = deepFreeze({
     model: DEFAULT_SOURCE.model, rd: DEFAULT_SOURCE.rd, returnPhase: 1, peakArea: DEFAULT_SOURCE.peakArea, chink: DEFAULT_SOURCE.chink, thickness: DEFAULT_SOURCE.thickness,
     jitter: DEFAULT_SOURCE.jitter, shimmer: DEFAULT_SOURCE.shimmer, diplophonia: DEFAULT_SOURCE.diplophonia,
     interaction: DEFAULT_SOURCE.interaction, vibratoRate: DEFAULT_SOURCE.vibratoRate, vibratoDepth: DEFAULT_SOURCE.vibratoDepth,
-    asym: DEFAULT_SOURCE.asym, restArea: DEFAULT_SOURCE.restArea, voicing: true, aspiration: DEFAULT_NOISE.aspiration,
+    asym: DEFAULT_SOURCE.asym, restArea: DEFAULT_SOURCE.restArea,
+    gapLow: DEFAULT_SOURCE.gapLow, gapHigh: DEFAULT_SOURCE.gapHigh, edgeLag: DEFAULT_SOURCE.edgeLag, areaSkew: DEFAULT_SOURCE.areaSkew,
+    alternate: DEFAULT_SOURCE.alternate, vibLength: DEFAULT_SOURCE.vibLength, vibDepth: DEFAULT_SOURCE.vibDepth,
+    naturalPitch: DEFAULT_SOURCE.naturalPitch, swing: DEFAULT_SOURCE.swing, voicing: true, aspiration: DEFAULT_NOISE.aspiration,
     frication: DEFAULT_NOISE.frication, obstacle: DEFAULT_NOISE.obstacle,
   },
   habits: { ...NO_SETTING, precision: 0 },
@@ -150,6 +165,8 @@ const G = {
   nose: { it: 'Naso', en: 'Nose' },
   teeth: { it: 'Denti', en: 'Teeth' },
   folds: { it: 'Corde vocali', en: 'Vocal folds' },
+  areas: { it: 'Corde a aree', en: 'Fold areas' },
+  walls: { it: 'Pareti', en: 'Walls' },
   irregular: { it: 'Irregolarità', en: 'Irregularity' },
   breath: { it: 'Aria e soffio', en: 'Air and breath' },
   vibrato: { it: 'Vibrato', en: 'Vibrato' },
@@ -177,6 +194,8 @@ export const VOICE_FIELDS: Field[] = [
     { it: 'Ampia: suono cupo, cavo; stretta: chiaro, sottile.', en: 'Wide: a dark, hollow sound; narrow: bright and thin.' }, 0.55, 1.6, 0.01),
   n('body.anatomy.piriform', 'body', G.size, { it: 'Seni piriformi', en: 'Piriform fossae' },
     { it: 'Le due tasche d’aria ai lati della laringe: scavano una valle nello spettro intorno a 4-5 kHz (Dang & Honda 1997). 1 = vuote, come sempre.', en: 'The two air pockets beside the larynx: they cut a valley in the spectrum around 4-5 kHz (Dang & Honda 1997). 1 = empty, as always.' }, 0, 1, 0.01),
+  n('body.anatomy.wallLoss', 'body', G.walls, { it: 'Pareti che assorbono', en: 'Absorbing walls' },
+    { it: 'Quanto le pareti morbide della gola e della bocca assorbono il suono: 1 = quanto di solito. Meno, risonanze più strette che suonano più a lungo: una voce più squillante e chiara; più, risonanze larghe e smorzate: più ovattata.', en: 'How much the soft walls of the throat and mouth absorb the sound: 1 = the usual. Less, narrower resonances that ring longer: a more ringing, clearer voice; more, broad damped resonances: more muffled.' }, 0.2, 2, 0.01),
   n('body.anatomy.palateHeight', 'body', G.palate, { it: 'Volta del palato', en: 'Vault of the palate' },
     { it: 'Quanto sale la volta del palato tra la cresta dietro i denti e il velo: 1 = quella del disegno (circa 1 cm al colmo). Alta: le vocali anteriori un po’ più aperte e scure; bassa: più chiuse e chiare. Le consonanti vengono rifatte per questa bocca: la lingua va dove serve per avere la stessa stretta nello stesso punto.', en: 'How high the vault of the palate rises between the ridge behind the teeth and the velum: 1 = the drawing’s (about 1 cm at its top). High: the front vowels a little more open and darker; low: closer and brighter. The consonants are made again for this mouth: the tongue goes where it needs to for the same constriction in the same place.' }, 0.6, 1.45, 0.01),
   n('body.anatomy.archWidth', 'body', G.palate, { it: 'Larghezza dell’arcata', en: 'Width of the arch' },
@@ -214,8 +233,8 @@ export const VOICE_FIELDS: Field[] = [
   // -------------------------------------------------------- phonation
   {
     path: 'phonation.model', tab: 'phonation', group: G.folds, kind: 'enum', label: { it: 'Modello delle corde', en: 'Fold model' },
-    hint: { it: 'LF disegna l’impulso glottico (preciso, regolabile); due masse lascia vibrare le corde da sole (asimmetrie, voce rauca).', en: 'LF draws the glottal pulse (precise, adjustable); two-mass lets the folds vibrate by themselves (asymmetries, a raspy voice).' },
-    options: [{ value: 'lf', label: { it: 'LF', en: 'LF' } }, { value: 'twomass', label: { it: 'Due masse', en: 'Two-mass' } }],
+    hint: { it: 'LF disegna l’impulso glottico (preciso, regolabile); due masse lascia vibrare le corde da sole (asimmetrie, voce rauca); aree fa aprire e chiudere le corde lungo la loro lunghezza, come una cerniera, e l’aria che passa la trova la fisica contro la gola e la trachea a ogni campione (Titze 1984; Birkholz e altri 2019): la voce più umana delle tre.', en: 'LF draws the glottal pulse (precise, adjustable); two-mass lets the folds vibrate by themselves (asymmetries, a raspy voice); areas opens and shuts the folds along their length, like a zip, and the air through them is found by the physics against the throat and the windpipe at every sample (Titze 1984; Birkholz et al. 2019): the most human of the three.' },
+    options: [{ value: 'lf', label: { it: 'LF', en: 'LF' } }, { value: 'twomass', label: { it: 'Due masse', en: 'Two-mass' } }, { value: 'areas', label: { it: 'Aree', en: 'Areas' } }],
   },
   { path: 'phonation.voicing', tab: 'phonation', group: G.folds, kind: 'boolean', label: { it: 'Le corde vibrano', en: 'The folds vibrate' },
     hint: { it: 'Spento: un sussurro, solo fruscio (apri anche la glottide nelle Abitudini).', en: 'Off: a whisper, only hiss (open the glottis in the Habits too).' } },
@@ -249,6 +268,24 @@ export const VOICE_FIELDS: Field[] = [
     { it: 'Solo con due masse: corde diverse a sinistra e a destra, subarmoniche e raucedine.', en: 'Two-mass only: left and right folds unlike, subharmonics and hoarseness.' }, 0, 0.8, 0.01),
   n('phonation.restArea', 'phonation', G.folds, { it: 'Apertura a riposo', en: 'Rest opening' },
     { it: 'Solo con due masse: quanto sono aperte le corde prima di vibrare.', en: 'Two-mass only: how open the folds are before they vibrate.' }, 0, 0.12, 0.002, 'cm²'),
+  n('phonation.gapLow', 'phonation', G.areas, { it: 'Apertura a riposo, bordo di sotto', en: 'Rest gap, lower edge' },
+    { it: 'Solo con le aree: quanto restano aperte le corde dietro, tra le cartilagini, prima di vibrare, misurato sul bordo di sotto. Più aperte: chiudono meno e più tardi, una voce più morbida e soffiata; più chiuse: chiudono a lungo, una voce più netta.', en: 'Areas only: how far the folds stay apart at the back, between the cartilages, before they vibrate, measured on the lower edge. Wider: they close less and later, a softer, breathier voice; narrower: they stay shut longer, a crisper voice.' }, 0, 0.2, 0.001, 'cm'),
+  n('phonation.gapHigh', 'phonation', G.areas, { it: 'Apertura a riposo, bordo di sopra', en: 'Rest gap, upper edge' },
+    { it: 'Solo con le aree: lo stesso sul bordo di sopra. Più del bordo di sotto: corde che si aprono a V verso l’alto.', en: 'Areas only: the same on the upper edge. More than the lower edge: folds open in a V toward the top.' }, 0, 0.2, 0.001, 'cm'),
+  n('phonation.edgeLag', 'phonation', G.areas, { it: 'Ritardo del bordo di sopra', en: 'Lag of the upper edge' },
+    { it: 'Solo con le aree: il bordo di sopra segue quello di sotto come un’onda sulla mucosa (circa 50-60 gradi di un periodo, Titze 1984). Più ritardo, una chiusura più rapida e una voce più ricca di armoniche.', en: 'Areas only: the upper edge follows the lower one like a wave on the mucosa (about 50-60 degrees of a period, Titze 1984). More lag, a faster closing and a voice richer in harmonics.' }, 0, 120, 1, '°'),
+  n('phonation.areaSkew', 'phonation', G.areas, { it: 'Apertura lenta, chiusura rapida', en: 'Slow opening, fast closing' },
+    { it: 'Solo con le aree: quanto del periodo le corde passano ad aprirsi rispetto a chiudersi. Più alto, si aprono piano e si richiudono di colpo, come nelle voci reali: armoniche alte più forti.', en: 'Areas only: how much of the period the folds spend opening against closing. Higher, they open slowly and snap shut, as real voices do: stronger upper harmonics.' }, -0.8, 0.8, 0.01),
+  n('phonation.alternate', 'phonation', G.areas, { it: 'Impulsi alterni', en: 'Alternate pulses' },
+    { it: 'Solo con le aree: un impulso sì e uno no più piccolo, una voce che tende al doppio e al cricchiato.', en: 'Areas only: every second pulse smaller, a voice tending to the double and the creaky.' }, 0, 0.5, 0.005),
+  n('phonation.vibLength', 'phonation', G.areas, { it: 'Lunghezza che vibra', en: 'Vibrating length' },
+    { it: 'Solo con le aree: quanto sono lunghe le corde che vibrano alla loro altezza naturale. Si allungano salendo di nota (più tese) e si accorciano scendendo; più lunghe, impulsi più ampi e più aria.', en: 'Areas only: how long the vibrating folds are at their natural pitch. They lengthen as the pitch rises (more stretched) and shorten as it falls; longer, wider pulses and more air.' }, 0.6, 2, 0.01, 'cm'),
+  n('phonation.vibDepth', 'phonation', G.areas, { it: 'Spessore che vibra', en: 'Vibrating depth' },
+    { it: 'Solo con le aree: lo spessore dei bordi che si toccano. Più spessi, l’aria tra loro frena di più nelle fessure strette: chiusura più morbida.', en: 'Areas only: the depth of the edges that meet. Thicker, the air between them is braked more in narrow gaps: a softer closing.' }, 0.1, 0.8, 0.005, 'cm'),
+  n('phonation.naturalPitch', 'phonation', G.areas, { it: 'Altezza naturale', en: 'Natural pitch' },
+    { it: 'Solo con le aree: la nota alla quale le corde hanno la lunghezza scritta sopra; sopra di lei sono più tese e lunghe, sotto più corte.', en: 'Areas only: the pitch at which the folds have the length above; above it they are more stretched and longer, below it shorter.' }, 80, 400, 1, 'Hz'),
+  n('phonation.swing', 'phonation', G.areas, { it: 'Ampiezza del movimento', en: 'Size of the swing' },
+    { it: 'Solo con le aree: quanto si spostano le corde a ogni ciclo per la stessa pressione (1 = 1 mm a 8 cmH₂O). Più ampio, impulsi più grandi, una voce più forte e piena.', en: 'Areas only: how far the folds move in each cycle for the same pressure (1 = 1 mm at 8 cmH₂O). Wider, bigger pulses, a louder, fuller voice.' }, 0.3, 2, 0.01),
   n('phonation.vibratoRate', 'phonation', G.vibrato, { it: 'Velocità del vibrato', en: 'Vibrato rate' },
     { it: 'I cantanti stanno tra 5 e 7 Hz (Sundberg 1987).', en: 'Singers are between 5 and 7 Hz (Sundberg 1987).' }, 3, 8, 0.1, 'Hz'),
   n('phonation.vibratoDepth', 'phonation', G.vibrato, { it: 'Ampiezza del vibrato', en: 'Vibrato depth' },
