@@ -31,6 +31,8 @@ import { VoiceDesign, cloneVoice, applyDesign, settingOfVoice, speechOptions as 
 import { builtinVoice } from '../../dsp/voice/builtin';
 import { settle, isNeutral } from '../../dsp/voice/setting';
 import type { ScoreOptions } from '../../dsp/speech/sequencer';
+import type { Phone } from '../../dsp/speech/g2p';
+import { loadDeliveryModel, planSpeech } from '../../dsp/voice/interpret';
 import { ControlId, touched, cloneParams, DeepReadonly } from './controls';
 import { Bi, Filter, Lanes, Lock, lockOf, Performer } from './drivers';
 import type { VoiceSink, StreamBlock, EndReason } from './sink';
@@ -128,6 +130,19 @@ export class VoiceController {
       // a living voice: never the same saying twice
       seed: Math.floor(Math.random() * 2 ** 31),
     };
+  }
+  /**
+   * The score of a sentence said by the voice: by the delivery it learnt from
+   * a recorded speaker where it has one for the language (the model comes
+   * with the site and is fetched the first time), by its rules otherwise.
+   * `over` replaces some of its speech options (a panel's pace, say).
+   */
+  async plan(phones: Phone[], lang: string, over: ScoreOptions = {}): Promise<Score> {
+    const way = this._active.speaking;
+    if (way.delivery !== 'rules') {
+      try { await loadDeliveryModel(); } catch { /* not reachable: its rules */ }
+    }
+    return planSpeech(phones, { ...this.speechOptions(lang), ...over }, way);
   }
   get lanes(): Lanes { return this._lanes; }
   get running(): boolean { return !!this.sink?.running; }

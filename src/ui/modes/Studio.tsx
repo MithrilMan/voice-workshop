@@ -16,7 +16,7 @@ import { BUILTIN_VOICES } from '../../dsp/voice/builtin';
 import { voiceToJson, voiceFromJson, voiceToLink, voiceFileName } from '../../dsp/voice/codec';
 import { SPEECH_LANGUAGES, speechLanguage } from '../../dsp/speech/languages';
 import { textToPhones, ipaKind } from '../../dsp/speech/g2p';
-import { buildScore } from '../../dsp/speech/sequencer';
+import { loadDeliveryModel, planSpeech } from '../../dsp/voice/interpret';
 import type { ViewTab } from '../store';
 
 type Bi = { it: string; en: string };
@@ -41,11 +41,17 @@ const PATTERNS: Record<'it' | 'en', [Bi, string][]> = {
 function MelodyPreview({ d, text, lang }: { d: VoiceDesign; text: string; lang: string }) {
   const L = useL();
   const dd = useDeferredValue(d);
+  // a learnt delivery: its model, the first time it is needed
+  const [models, setModels] = useState(0);
+  const learnt = dd.speaking.delivery !== 'rules';
+  useEffect(() => {
+    if (learnt) void loadDeliveryModel().then(() => setModels((n) => n + 1), () => {});
+  }, [learnt]);
   const plot = useMemo(() => {
     let phones;
     try { phones = textToPhones(text, lang); } catch { return null; }
     if (!phones.length) return null;
-    const sc = buildScore(phones, speechOptions(dd, lang));
+    const sc = planSpeech(phones, speechOptions(dd, lang), dd.speaking);
     const pts = sc.frames.filter((f) => f.t <= sc.duration && f.ps > 0.5 && f.abduction < 0.3);
     if (pts.length < 2) return null;
     const st = (f: number) => 12 * Math.log2(f / dd.speaking.f0);
@@ -54,7 +60,7 @@ function MelodyPreview({ d, text, lang }: { d: VoiceDesign; text: string; lang: 
     let path = '', last = -2;
     for (const f of pts) { const i = Math.round(f.t / 0.005); path += `${path && i === last + 1 ? 'L' : 'M'}${x(f.t).toFixed(1)},${y(st(f.f0)).toFixed(1)}`; last = i; }
     return { W, H, path, base: y(0), phones: sc.phones.filter((p) => p.ipa !== '_').map((p) => ({ x: x(0.5 * (p.t0 + p.t1)), ipa: p.ipa })), range: [Math.round(lo), Math.round(hi)] };
-  }, [dd, text, lang]);
+  }, [dd, text, lang, models]);
   if (!plot) return <p className="muted small">{L({ it: 'Scrivi una frase per vederne la melodia.', en: 'Type a sentence to see its melody.' })}</p>;
   return (
     <figure className="melody-preview">
@@ -145,7 +151,7 @@ export function Studio() {
     if (speechLanguage(lang) && !ipaKind(text)) await store.ensurePhonemes(text, lang, true);
     const ph = textToPhones(text, lang);
     if (!ph.length) return;
-    await voice.speak(buildScore(ph, voice.speechOptions(lang)), { it: text, en: text });
+    await voice.speak(await voice.plan(ph, lang), { it: text, en: text });
     if (d !== draft) voice.useVoice(draft);
   };
 

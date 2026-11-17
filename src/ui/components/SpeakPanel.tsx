@@ -6,7 +6,7 @@ import { useL } from '../i18n';
 import { Slider, Section, Toggle } from './controls';
 import { C } from '../canvas';
 import { textToPhones, Phone, ipaKind } from '../../dsp/speech/g2p';
-import { buildScore, NaturalnessOptions, NATURAL_ALL } from '../../dsp/speech/sequencer';
+import { NaturalnessOptions, NATURAL_ALL } from '../../dsp/speech/sequencer';
 import { notesForIpa, SoundNote } from '../../dsp/speech/derive';
 import type { ApproxCode } from '../../dsp/speech/phonemes';
 import { SPEECH_LANGUAGES, speechLanguage, SpeechLanguage } from '../../dsp/speech/languages';
@@ -150,7 +150,7 @@ export function SpeakPanel() {
     const ph = textToPhones(t, lg);
     if (!ph.length) return;
     // the voice that speaks, with its habits and style; the panel's rate, accent and ingredients
-    const score = buildScore(ph, { ...voice.speechOptions(lg), rate, accent, natural });
+    const score = await voice.plan(ph, lg, { rate, accent, natural });
     void voice.speak(score, { it: t, en: t });
   };
   const setNatural = (n: Partial<NaturalnessOptions>) => store.setSpeech({ natural: { ...natural, ...n } });

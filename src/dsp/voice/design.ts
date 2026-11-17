@@ -67,6 +67,13 @@ export interface Speaking {
   accent: number;
   rate: number;
   style: ProsodyStyle;
+  /**
+   * where its timing, pauses, melody and swell come from: 'rules' (the planner's, with the style above), or a
+   * delivery learnt from a recorded speaker ('woman', 'man'), where a model for the language is loaded
+   */
+  delivery: string;
+  /** with a learnt delivery: how wide its melody swings around the usual pitch, against the speaker's own (1) */
+  range: number;
 }
 
 export const VOICE_FORMAT = 'voice-workshop.voice';
@@ -113,7 +120,7 @@ export const VOICE_V1_BASE: Readonly<VoiceDesign> = deepFreeze({
     frication: DEFAULT_NOISE.frication, obstacle: DEFAULT_NOISE.obstacle,
   },
   habits: { ...NO_SETTING, precision: 0 },
-  speaking: { f0: DEFAULT_SOURCE.f0, ps: DEFAULT_SOURCE.ps, accent: 5, rate: 1, style: { ...DEFAULT_STYLE } },
+  speaking: { f0: DEFAULT_SOURCE.f0, ps: DEFAULT_SOURCE.ps, accent: 5, rate: 1, style: { ...DEFAULT_STYLE }, delivery: 'rules', range: 1 },
   language: '',
 });
 
@@ -314,6 +321,13 @@ export const VOICE_FIELDS: Field[] = [
   n('habits.precision', 'habits', G.care, { it: 'Precisione', en: 'Precision' },
     { it: 'Quanto articola: −1 trascurata (vocali che scivolano verso lo schwa, movimenti lenti), +1 scandita (vocali piene, movimenti rapidi) (Lindblom 1990).', en: 'How carefully it articulates: −1 slack (vowels drifting toward schwa, slow movements), +1 crisp (full vowels, quick movements) (Lindblom 1990).' }, -1, 1, 0.05),
   // ----------------------------------------------------------- melody
+  {
+    path: 'speaking.delivery', tab: 'melody', group: G.voice, kind: 'enum', label: { it: 'Modo di dire', en: 'Way of saying' },
+    hint: { it: 'Da dove vengono i tempi, le pause, la melodia e l’intensità di ogni suono: dalle regole del simulatore (e dai cursori qui sotto), o da una piccola rete che li ha imparati da frasi registrate di una donna o di un uomo e li legge dalla frase stessa (solo italiano; le altre lingue con le regole). La rete dà la melodia attorno all’altezza abituale della voce e il ritmo diviso per la sua velocità.', en: 'Where the timing, the pauses, the melody and the loudness of every sound come from: the simulator’s rules (and the sliders below), or a small network that learnt them from recorded sentences of a woman or a man and reads them off the sentence itself (Italian only; other languages by the rules). The network gives the melody around the voice’s usual pitch and the pace divided by its rate.' },
+    options: [{ value: 'rules', label: { it: 'Regole', en: 'Rules' } }, { value: 'woman', label: { it: 'Imparato (donna)', en: 'Learnt (woman)' } }, { value: 'man', label: { it: 'Imparato (uomo)', en: 'Learnt (man)' } }],
+  },
+  n('speaking.range', 'melody', G.voice, { it: 'Ampiezza della melodia imparata', en: 'Range of the learnt melody' },
+    { it: 'Con un modo di dire imparato: quanto la melodia sale e scende attorno all’altezza abituale, rispetto a chi l’ha insegnata (1 come lui o lei, 0,5 più piatta, 1,5 più mossa). Con le regole conta la forza degli accenti.', en: 'With a learnt way of saying: how far the melody rises and falls around the usual pitch, against the speaker who taught it (1 as they did, 0.5 flatter, 1.5 livelier). With the rules the accent strength counts instead.' }, 0.2, 2.5, 0.05, '×'),
   n('speaking.f0', 'melody', G.voice, { it: 'Altezza abituale', en: 'Usual pitch' },
     { it: 'L’altezza media del parlato: uomini circa 100-130 Hz, donne 190-230, bambini 250-300.', en: 'The mean pitch of speech: men about 100-130 Hz, women 190-230, children 250-300.' }, 30, 500, 1, 'Hz'),
   n('speaking.accent', 'melody', G.accent, { it: 'Forza degli accenti', en: 'Accent strength' },

@@ -9,7 +9,6 @@ import { Slider, Toggle } from '../components/controls';
 import { VOICE_PRESETS } from '../presets';
 import { PHONEMES } from '../../dsp/speech/phonemes';
 import { textToPhones, ipaKind } from '../../dsp/speech/g2p';
-import { buildScore } from '../../dsp/speech/sequencer';
 import { speechLanguage } from '../../dsp/speech/languages';
 import { MRI_VOWELS } from '../../dsp/data/mri';
 import { noteName } from '../canvas';
@@ -77,7 +76,7 @@ export function SayBox(props: { examples?: boolean }) {
     if (speechLanguage(lang) && !ipaKind(text)) await store.ensurePhonemes(text, lang, true);
     const ph = textToPhones(text, lang);
     if (!ph.length) return;
-    void voice.speak(buildScore(ph, { ...voice.speechOptions(lang), rate: sp.rate, accent: sp.accent, natural: sp.natural }), { it: text, en: text });
+    void voice.speak(await voice.plan(ph, lang, { rate: sp.rate, accent: sp.accent, natural: sp.natural }), { it: text, en: text });
   };
   const speaking = perf.kind === 'sentence';
   return (
