@@ -137,6 +137,14 @@ const CLICK = { walls: 3e-5, dv: 0.6 };
 /** how fast the folds stiffen and slacken (s) */
 const STIFF_TAU = 0.005;
 /**
+ * The fold areas drawn together under the pressure of the mouth. Behind the constriction of a voiced sound (a v, a b,
+ * an r) the mouth pressure rises toward the lungs' and the drop across the folds falls; folds closer at rest keep
+ * going under a smaller drop (the threshold pressure grows with the rest gap: Titze 1988), so a speaker holds them
+ * together there and the voice carries through the sound. Their rest gap shrinks by up to `share` as the mouth
+ * pressure goes from `from` to `to` of the lungs', within `tau` (s); nothing changes where they are meant apart.
+ */
+const ADDUCT = { share: 0.5, from: 0.1, to: 0.4, tau: 0.015 };
+/**
  * A seal that has just broken with pressure behind it: the air parts its soft
  * surfaces before the articulator has moved away. A centimetre of seal with
  * the stiffness of the walls opens 0.12 cm^2 under 8 cmH2O: the release of a
@@ -385,6 +393,8 @@ export class VoiceEngine {
   /** the mean of their smaller area, for the aerodynamics, and the amplitude of the period, glided (shimmer, diplophonia) */
   private foldMean = 0;
   private foldAmp = 1;
+  /** the share of their rest gap the fold areas keep (ADDUCT) */
+  private adduct = 1;
   /** the trachea and the bronchi, joined to the tract through the glottis */
   private sub = new SubglottalTract();
   private aero = new Aero();
@@ -715,6 +725,12 @@ export class VoiceEngine {
     this.room = fr ? fr.room : 0;
     this.creak += ((fr ? fr.creak : 0) - this.creak) * (1 - Math.exp(-dt / 0.02));
     this.abduction = this.tam.abduction.step(fr ? fr.abduction : p.abduction, dt);
+    if (p.source.model === 'areas') {
+      // a voiced sound meant with the folds together, the mouth pressure risen behind its constriction
+      const r = this.psCur > 0 ? Math.max(0, this.aero.po) / this.psCur : 0;
+      const want = (fr ? fr.abduction : 1) < 0.1 && this.abduction < 0.1 ? 1 - ADDUCT.share * smoothstep(ADDUCT.from, ADDUCT.to, r) : 1;
+      this.adduct += (want - this.adduct) * (1 - Math.exp(-dt / ADDUCT.tau));
+    }
     const vib = p.source.vibratoDepth > 0 ? Math.pow(2, (p.source.vibratoDepth / 1200) * Math.sin(2 * Math.PI * p.source.vibratoRate * this.time)) : 1;
     // flutter: slow quasi-random F0 wander of a living voice (Klatt & Klatt
     // 1990), with a seed a random one of the same rms (three sines of
@@ -1231,7 +1247,7 @@ export class VoiceEngine {
       const folds = this.folds;
       const rel = this.rFoldRel.at(ph) * gate;
       this.foldAmp += (this.periodAmp - this.foldAmp) * this.pulseMeanCoef;
-      folds.shape(this.lf.phase + (this.lf.periodIndex & 1), this.lf.periodF0, ps - po, rel * this.foldAmp, gate, gapOf(p.source) * s2 * gate);
+      folds.shape(this.lf.phase + (this.lf.periodIndex & 1), this.lf.periodF0, ps - po, rel * this.foldAmp, gate * this.adduct, gapOf(p.source) * s2 * gate);
       // the opening between the cartilages of a glottis drawn apart: beside the folds, under the same pressure
       const beside = 0.55 * s2 * abduction;
       folds.step(ps, po, wg.pMinus, z0, this.uMean, wg.subUp, wg.subZ, beside);

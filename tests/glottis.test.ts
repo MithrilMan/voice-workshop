@@ -372,4 +372,29 @@ describe('the folds as two areas that open and shut along their length', () => {
     expect(less.f1).toBeGreaterThan(usual.f1 + 0.4);
     expect(usual.f1).toBeGreaterThan(more.f1 + 0.4);
   });
+
+  it('are drawn together behind a voiced closure, where the mouth pressure rises, and the voice carries through it', () => {
+    const say = (word: string) => {
+      const u = utterance(builtinVoice('woman')!.design, textToPhones(word, 'it'), 'it');
+      u.params.source.model = 'areas';
+      const e = new VoiceEngine(48000, u.params);
+      e.snapArticulators(); e.playScore(u.score);
+      const n = Math.round((u.score.duration + 0.2) * 48000), out = new Float32Array(n), kept: number[] = [];
+      for (let i = 0; i + 48 <= n; i += 48) { e.process(out.subarray(i, i + 48), 48); kept.push((e as unknown as { adduct: number }).adduct); }
+      const c = u.score.phones.find((p) => p.ipa !== 'a' && p.ipa !== '_')!, a = u.score.phones.find((p) => p.ipa === 'a')!;
+      const mid = (p: { t0: number; t1: number }) => kept[Math.round(500 * (p.t0 + p.t1))];
+      const low = (p: { t0: number; t1: number }) => 10 * Math.log10(bandPower(out.subarray(Math.round((p.t0 + 0.3 * (p.t1 - p.t0)) * 48000), Math.round((p.t0 + 0.7 * (p.t1 - p.t0)) * 48000)), 48000, 80, 400, 512));
+      return { inside: mid(c), vowel: mid(a), voice: low(c) - low(a) };
+    };
+    const d = say('ada'), r = say('ara'), f = say('afa');
+    note('fold areas drawn together', `share of the rest gap kept in the middle of d ${d.inside.toFixed(2)}, r ${r.inside.toFixed(2)}, f ${f.inside.toFixed(2)}, vowels ${d.vowel.toFixed(2)}; voice band against the vowel: d ${d.voice.toFixed(1)}, r ${r.voice.toFixed(1)}, f ${f.voice.toFixed(1)} dB`);
+    expect(d.inside).toBeLessThan(0.7);
+    expect(r.inside).toBeLessThan(0.8);
+    expect(d.vowel).toBeGreaterThan(0.99);
+    // a voiceless sound is meant with the folds apart: nothing changes there
+    expect(f.inside).toBeGreaterThan(0.99);
+    expect(d.voice).toBeGreaterThan(-15);
+    expect(r.voice).toBeGreaterThan(-15);
+    expect(f.voice).toBeLessThan(-30);
+  });
 });
