@@ -41,9 +41,9 @@ export { SPEECH_LANGUAGES } from '../dsp/speech/languages';
 // ------------------------------------------------------------- voices
 
 /** The voices that come with the simulator: id, name and what they are. */
-export const voiceList = (): { id: string; name: string; hint: string }[] => BUILTIN_VOICES.map((v) => ({ id: v.id, name: v.name.en, hint: v.hint.en }));
+export const voiceList = (): { id: string; name: string; hint: string }[] => BUILTIN_VOICES.map((v) => ({ id: v.id, name: v.name, hint: v.hint }));
 
-/** The knobs of a voice: path, tab, kind, range, unit, and what each one does (Italian and English). */
+/** The knobs of a voice: path, tab, kind, range, unit, and what each one does. */
 export const voiceKnobs = (): readonly Field[] => VOICE_FIELDS;
 
 /** A knob of a voice, by its path ('speaking.f0', 'body.anatomy.scale', ...). */

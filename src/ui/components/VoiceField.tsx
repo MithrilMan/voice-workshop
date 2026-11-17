@@ -1,5 +1,4 @@
 import { useId, useState } from 'react';
-import { useL } from '../i18n';
 import { Seg } from './controls';
 import type { Field } from '../../dsp/voice/design';
 
@@ -47,20 +46,19 @@ function NumberBox({ f, value, label, onCommit }: { f: Field; value: number; lab
  * had (`was`), which the slider marks while the field differs from it.
  */
 export function VoiceField({ f, value, was, hints, onChange }: { f: Field; value: Value; was: Value; hints: boolean; onChange: (path: string, v: Value) => void }) {
-  const L = useL();
   const id = useId();
   const [own, setOwn] = useState(false);
   const open = hints || own;
   const changed = !sameValue(f, value, was);
-  const label = L(f.label);
+  const label = f.label;
   const snap = (x: number) => Math.round(x / f.step!) * f.step!;
   const wasText = typeof was === 'number' ? `${was.toFixed(decimals(f.step))}${f.unit ? ` ${f.unit}` : ''}`
-    : typeof was === 'boolean' ? L(was ? { it: 'sì', en: 'on' } : { it: 'no', en: 'off' })
-      : L(f.options?.find((o) => o.value === was)?.label ?? { it: String(was), en: String(was) });
+    : typeof was === 'boolean' ? was ? 'on' : 'off'
+      : f.options?.find((o) => o.value === was)?.label ?? String(was);
   return (
     <div className={changed ? 'fld changed' : 'fld'}>
       <div className="fld-row">
-        <button type="button" className="fld-name" aria-expanded={open} aria-controls={id} title={L(f.hint)} onClick={() => setOwn(!own)}>
+        <button type="button" className="fld-name" aria-expanded={open} aria-controls={id} title={f.hint} onClick={() => setOwn(!own)}>
           <span className="fld-dot" aria-hidden />{label}
         </button>
         {f.kind === 'number' && (
@@ -70,7 +68,7 @@ export function VoiceField({ f, value, was, hints, onChange }: { f: Field; value
                 onChange={(e) => onChange(f.path, snap(Number(e.target.value)))} onDoubleClick={() => onChange(f.path, was)} />
               {changed && <i className="fld-was" aria-hidden />}
             </span>
-            <NumberBox f={f} value={value as number} label={`${label}: ${L({ it: 'valore', en: 'value' })}`} onCommit={(x) => onChange(f.path, x)} />
+            <NumberBox f={f} value={value as number} label={`${label}: value`} onCommit={(x) => onChange(f.path, x)} />
           </>
         )}
         {f.kind === 'boolean' && (
@@ -80,12 +78,12 @@ export function VoiceField({ f, value, was, hints, onChange }: { f: Field; value
           </label>
         )}
         {f.kind === 'enum' && (
-          <span className="fld-wide"><Seg value={value as string} options={f.options!.map((o) => [o.value, L(o.label)] as [string, string])} onChange={(x) => onChange(f.path, x)} /></span>
+          <span className="fld-wide"><Seg value={value as string} options={f.options!.map((o) => [o.value, o.label] as [string, string])} onChange={(x) => onChange(f.path, x)} /></span>
         )}
         <button type="button" className="fld-reset" disabled={!changed} onClick={() => onChange(f.path, was)}
-          title={L({ it: `Torna a com’era: ${wasText}`, en: `Back to what it was: ${wasText}` })} aria-label={L({ it: `${label}: torna a com’era (${wasText})`, en: `${label}: back to what it was (${wasText})` })}>↺</button>
+          title={`Back to what it was: ${wasText}`} aria-label={`${label}: back to what it was (${wasText})`}>↺</button>
       </div>
-      {open && <p id={id} className="field-hint">{L(f.hint)}</p>}
+      {open && <p id={id} className="field-hint">{f.hint}</p>}
     </div>
   );
 }

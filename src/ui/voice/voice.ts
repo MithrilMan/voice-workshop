@@ -34,7 +34,7 @@ import type { ScoreOptions } from '../../dsp/speech/sequencer';
 import type { Phone } from '../../dsp/speech/g2p';
 import { loadDeliveryModel, planSpeech } from '../../dsp/voice/interpret';
 import { ControlId, touched, cloneParams, DeepReadonly } from './controls';
-import { Bi, Filter, Lanes, Lock, lockOf, Performer } from './drivers';
+import { Filter, Lanes, Lock, lockOf, Performer } from './drivers';
 import type { VoiceSink, StreamBlock, EndReason } from './sink';
 
 export type Result = 'done' | 'stopped';
@@ -52,9 +52,9 @@ const realClock: Clock = {
   after: (ms, fn) => { const id = setTimeout(fn, ms); return () => clearTimeout(id); },
 };
 
-export const DRAWN_TUBE: Bi = { it: 'tubo disegnato a mano', en: 'hand-drawn tube' };
+export const DRAWN_TUBE: string = 'hand-drawn tube';
 /** Name of a tube measured by MRI. */
-export const mriTube = (ipa: string): Bi => ({ it: `tubo misurato della /${ipa}/`, en: `measured tube of /${ipa}/` });
+export const mriTube = (ipa: string): string => (`measured tube of /${ipa}/`);
 /** telemetry older than this no longer describes what sounds, ms */
 const LIVE_MS = 300;
 /** how long the hands' voice sounds after the last change, ms: a breath */
@@ -287,7 +287,7 @@ export class VoiceController {
   }
 
   /** Loads a tube (an area function, glottis to lips) as the filter and blows through it. */
-  loadTube(areas: number[], length: number, label: Bi, opts: { takeOver?: boolean } = {}): boolean {
+  loadTube(areas: number[], length: number, label: string, opts: { takeOver?: boolean } = {}): boolean {
     const ok = this.edit((q) => {
       q.tubeAreas = areas.slice(); q.tubeLength = length; q.tubeMode = true; q.bypassTract = false;
       q.articulators.velum = 0; q.phonate = true; q.voicing = true; q.abduction = 0;
@@ -318,7 +318,7 @@ export class VoiceController {
   // ------------------------------------------------------------ performers
 
   /** Speaks a score on the head; resolves when it ends ('done') or is stopped. */
-  async speak(score: Score, label: Bi): Promise<Result> {
+  async speak(score: Score, label: string): Promise<Result> {
     if (!(await this.ensureAudio())) return 'stopped';
     const id = this.begin({ kind: 'sentence', id: this.nextId++, label, score }, score.duration, { filter: { kind: 'head' } });
     const done = this.wait(id);
@@ -328,7 +328,7 @@ export class VoiceController {
   }
 
   /** Sings a pitch contour (a score without articulators): the hands keep the tract; `buzz` plays it with no filter. */
-  async sing(score: Score, opts: { buzz: boolean; label: Bi }): Promise<Result> {
+  async sing(score: Score, opts: { buzz: boolean; label: string }): Promise<Result> {
     if (!(await this.ensureAudio())) return 'stopped';
     const id = this.begin({ kind: 'melody', id: this.nextId++, label: opts.label, score, buzz: opts.buzz }, score.duration);
     const done = this.wait(id);
@@ -338,7 +338,7 @@ export class VoiceController {
   }
 
   /** Plays a state of the voice for a while (A/B listening) and returns the samples heard. */
-  async playClip(params: EngineParams, seconds: number, label: Bi): Promise<{ result: Result; samples: Float32Array | null }> {
+  async playClip(params: EngineParams, seconds: number, label: string): Promise<{ result: Result; samples: Float32Array | null }> {
     if (!(await this.ensureAudio())) return { result: 'stopped', samples: null };
     const id = this.begin({ kind: 'clip', id: this.nextId++, label, samples: false }, seconds, { clip: params });
     let samples: Float32Array | null = null;
@@ -350,7 +350,7 @@ export class VoiceController {
   }
 
   /** Plays samples made elsewhere (at sampleRate), in place of the voice. */
-  async playSamples(samples: Float32Array, label: Bi, flow?: Float32Array): Promise<Result> {
+  async playSamples(samples: Float32Array, label: string, flow?: Float32Array): Promise<Result> {
     if (!(await this.ensureAudio())) return 'stopped';
     const id = this.begin({ kind: 'clip', id: this.nextId++, label, samples: true }, samples.length / this.sampleRate);
     const done = this.wait(id);
@@ -360,7 +360,7 @@ export class VoiceController {
   }
 
   /** Glides the pitch from one value to another (a demonstration); the pitch stays at the end value. */
-  glide(from: number, to: number, seconds: number, label: Bi): Promise<Result> {
+  glide(from: number, to: number, seconds: number, label: string): Promise<Result> {
     const id = this.begin({ kind: 'glide', id: this.nextId++, label }, seconds, { lungsOff: false });
     const done = this.wait(id);
     const t0 = this.clock.now();

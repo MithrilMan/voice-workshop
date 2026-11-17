@@ -7,8 +7,6 @@ import type { Material, Measure } from '../../dsp/voice/fit';
 import type { FitRequest } from './fit.worker';
 import { voice } from './voice';
 
-type Bi = { it: string; en: string };
-
 export interface Recording { samples: Float32Array; fs: number; seconds: number; name: string }
 
 export interface FitStatus { stage: string; evaluations: number; budget: number; distance: number }
@@ -56,7 +54,7 @@ export async function decodeRecording(file: File): Promise<Recording> {
   return { samples, fs: audio.sampleRate, seconds: n / audio.sampleRate, name: file.name.replace(/\.[^.]+$/, '') };
 }
 
-export function playRecording(r: Recording, label: Bi): Promise<unknown> {
+export function playRecording(r: Recording, label: string): Promise<unknown> {
   return voice.playSamples(r.samples, label);
 }
 

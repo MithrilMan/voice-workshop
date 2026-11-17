@@ -1,7 +1,6 @@
 import { store, useStore, useTick } from '../store';
 import { voice } from '../voice/voice';
 import { useLock, useManual } from '../voice/hooks';
-import { useL } from '../i18n';
 import { Slider, Section, Readout } from './controls';
 import { useAnimatedCanvas, C, label } from '../canvas';
 import { DEFAULT_TEETH, Teeth } from '../../dsp/tract/types';
@@ -11,7 +10,6 @@ import { DEFAULT_TEETH, Teeth } from '../../dsp/tract/types';
  * (as in a mirror) and a side zoom with the jet hitting the incisors.
  */
 function TeethCanvas() {
-  const L = useL();
   const ref = useAnimatedCanvas(({ ctx, w, h, t }) => {
     const p = voice.sounding();
     const tel = store.ui.audioOn ? store.telemetry : null;
@@ -67,8 +65,8 @@ function TeethCanvas() {
       ctx.fillStyle = '#e9e2d0';
       ctx.beginPath(); ctx.roundRect(x, loY + T.lowerLength * -0.3 * k, 0.52 * k, lgum - loY, [5, 5, 2, 2]); ctx.fill();
     }
-    label(ctx, L({ it: 'vista frontale', en: 'front view' }), cx, 12, C.muted);
-    label(ctx, `${L({ it: 'fessura', en: 'slit' })} ${(sl.width * 10).toFixed(0)} × ${(sl.height * 10).toFixed(1)} mm`, cx, h - 12, C.violet);
+    label(ctx, 'front view', cx, 12, C.muted);
+    label(ctx, `slit ${(sl.width * 10).toFixed(0)} × ${(sl.height * 10).toFixed(1)} mm`, cx, h - 12, C.violet);
 
     // ---------- side zoom from the real geometry
     const sx0 = fw + 6, sw = w - sx0 - 6;
@@ -104,13 +102,12 @@ function TeethCanvas() {
       }
     }
     ctx.restore();
-    label(ctx, L({ it: 'di lato: il getto colpisce i denti', en: 'side: the jet hits the teeth' }), sx0 + sw / 2, 12, C.muted);
+    label(ctx, 'side: the jet hits the teeth', sx0 + sw / 2, 12, C.muted);
   });
   return <canvas ref={ref} className="teeth-canvas" />;
 }
 
 export function TeethPanel() {
-  const L = useL();
   const p = useManual();
   const numbers = useStore((s) => s.ui.numbers);
   const driven = !!useLock('posture');
@@ -124,32 +121,29 @@ export function TeethPanel() {
       <TeethCanvas />
       <div className="chips ipa">
         {['s', 'ʃ', 'f', 'θ', 'z'].map((c) => <button key={c} className="chip ipa" onClick={() => voice.holdPhoneme(c)}>{c}</button>)}
-        <button className="chip" onClick={() => voice.edit((x) => { x.teeth = { ...DEFAULT_TEETH }; }, { takeOver: true })}>{L({ it: 'Denti normali', en: 'Normal teeth' })}</button>
-        <button className="chip" onClick={() => voice.edit((x) => { x.teeth = { ...DEFAULT_TEETH, slitOpen: 0.45 }; }, { takeOver: true })}>{L({ it: 'Morso aperto', en: 'Open bite' })}</button>
-        <button className="chip" onClick={() => voice.edit((x) => { x.teeth = { ...DEFAULT_TEETH, diastema: 0.3 }; }, { takeOver: true })}>{L({ it: 'Spazio tra i denti', en: 'Gap teeth' })}</button>
-        <button className="chip" onClick={() => voice.edit((x) => { x.teeth = { ...DEFAULT_TEETH, overjet: 0.45 }; }, { takeOver: true })}>{L({ it: 'Denti sporgenti', en: 'Overjet' })}</button>
-        <button className="chip" onClick={() => voice.edit((x) => { x.teeth = { ...DEFAULT_TEETH, upperLength: -0.25, lowerLength: -0.2 }; }, { takeOver: true })}>{L({ it: 'Denti corti', en: 'Short teeth' })}</button>
+        <button className="chip" onClick={() => voice.edit((x) => { x.teeth = { ...DEFAULT_TEETH }; }, { takeOver: true })}>Normal teeth</button>
+        <button className="chip" onClick={() => voice.edit((x) => { x.teeth = { ...DEFAULT_TEETH, slitOpen: 0.45 }; }, { takeOver: true })}>Open bite</button>
+        <button className="chip" onClick={() => voice.edit((x) => { x.teeth = { ...DEFAULT_TEETH, diastema: 0.3 }; }, { takeOver: true })}>Gap teeth</button>
+        <button className="chip" onClick={() => voice.edit((x) => { x.teeth = { ...DEFAULT_TEETH, overjet: 0.45 }; }, { takeOver: true })}>Overjet</button>
+        <button className="chip" onClick={() => voice.edit((x) => { x.teeth = { ...DEFAULT_TEETH, upperLength: -0.25, lowerLength: -0.2 }; }, { takeOver: true })}>Short teeth</button>
       </div>
-      <Section title={L({ it: 'La fessura', en: 'The slit' })} accent={C.violet}
-        info={L({
-          it: 'Per la «s» la lingua forma un canale stretto e il getto d’aria va a sbattere contro gli incisivi: è l’ostacolo a creare gran parte del fruscio acuto (Shadle 1985). Se la fessura tra i denti si allarga, o i denti non sono sulla traiettoria del getto, la «s» perde forza e diventa più cupa o sibilante in modo diverso.',
-          en: 'For “s” the tongue forms a narrow channel and the air jet hits the incisors: the obstacle makes most of the high hiss (Shadle 1985). If the slit between the teeth widens, or the teeth are not in the jet’s path, the “s” weakens and changes color.',
-        })}>
-        <Slider label={L({ it: 'Larghezza fessura', en: 'Slit width' })} value={T.slitWidth} control="teeth" min={0.5} max={4} onChange={(v) => set('slitWidth', v)} format={(v) => `${(v * 10).toFixed(0)} mm`} />
-        <Slider label={L({ it: 'Apertura extra tra i denti', en: 'Extra opening between teeth' })} value={T.slitOpen} control="teeth" min={-0.15} max={0.8} onChange={(v) => set('slitOpen', v)} format={(v) => `${(v * 10).toFixed(1)} mm`} />
-        <Slider label={L({ it: 'Spazio tra gli incisivi', en: 'Gap between incisors' })} value={T.diastema} control="teeth" min={0} max={0.4} onChange={(v) => set('diastema', v)} format={(v) => `${(v * 10).toFixed(1)} mm`} />
-        <Slider label={L({ it: 'Incisivi superiori in avanti', en: 'Upper incisors forward' })} value={T.overjet} control="teeth" min={-0.2} max={0.5} onChange={(v) => set('overjet', v)} format={(v) => `${(v * 10).toFixed(1)} mm`} />
-        <Slider label={L({ it: 'Denti avanti/indietro', en: 'Teeth forward/back' })} value={T.advance} control="teeth" min={-0.3} max={0.4} onChange={(v) => set('advance', v)} format={(v) => `${(v * 10).toFixed(1)} mm`} />
-        <Slider label={L({ it: 'Lunghezza incisivi superiori', en: 'Upper incisor length' })} value={T.upperLength} control="teeth" min={-0.3} max={0.4} onChange={(v) => set('upperLength', v)} format={(v) => `${(v * 10).toFixed(1)} mm`} />
-        <Slider label={L({ it: 'Lunghezza incisivi inferiori', en: 'Lower incisor length' })} value={T.lowerLength} control="teeth" min={-0.3} max={0.4} onChange={(v) => set('lowerLength', v)} format={(v) => `${(v * 10).toFixed(1)} mm`} />
-        <Slider label={L({ it: 'Solco della lingua', en: 'Tongue groove' })} value={p.articulators.groove} live={voice.sounding().articulators.groove} control="posture" min={0} max={1} onChange={(v) => voice.edit((x) => { x.articulators.groove = v; })} />
+      <Section title="The slit" accent={C.violet}
+        info={'For “s” the tongue forms a narrow channel and the air jet hits the incisors: the obstacle makes most of the high hiss (Shadle 1985). If the slit between the teeth widens, or the teeth are not in the jet’s path, the “s” weakens and changes color.'}>
+        <Slider label="Slit width" value={T.slitWidth} control="teeth" min={0.5} max={4} onChange={(v) => set('slitWidth', v)} format={(v) => `${(v * 10).toFixed(0)} mm`} />
+        <Slider label={'Extra opening between teeth'} value={T.slitOpen} control="teeth" min={-0.15} max={0.8} onChange={(v) => set('slitOpen', v)} format={(v) => `${(v * 10).toFixed(1)} mm`} />
+        <Slider label={'Gap between incisors'} value={T.diastema} control="teeth" min={0} max={0.4} onChange={(v) => set('diastema', v)} format={(v) => `${(v * 10).toFixed(1)} mm`} />
+        <Slider label={'Upper incisors forward'} value={T.overjet} control="teeth" min={-0.2} max={0.5} onChange={(v) => set('overjet', v)} format={(v) => `${(v * 10).toFixed(1)} mm`} />
+        <Slider label="Teeth forward/back" value={T.advance} control="teeth" min={-0.3} max={0.4} onChange={(v) => set('advance', v)} format={(v) => `${(v * 10).toFixed(1)} mm`} />
+        <Slider label={'Upper incisor length'} value={T.upperLength} control="teeth" min={-0.3} max={0.4} onChange={(v) => set('upperLength', v)} format={(v) => `${(v * 10).toFixed(1)} mm`} />
+        <Slider label={'Lower incisor length'} value={T.lowerLength} control="teeth" min={-0.3} max={0.4} onChange={(v) => set('lowerLength', v)} format={(v) => `${(v * 10).toFixed(1)} mm`} />
+        <Slider label={'Tongue groove'} value={p.articulators.groove} live={voice.sounding().articulators.groove} control="posture" min={0} max={1} onChange={(v) => voice.edit((x) => { x.articulators.groove = v; })} />
         <Readout items={jet ? [
-          [L({ it: 'velocità getto', en: 'jet speed' }), `${(jet.v / 100).toFixed(1)} m/s`],
+          ['jet speed', `${(jet.v / 100).toFixed(1)} m/s`],
           ['Reynolds', jet.re.toFixed(0)],
-          [L({ it: 'getto sui denti', en: 'jet on teeth' }), `${(jet.impinge * 100).toFixed(0)} %`],
-          [L({ it: 'distanza ai denti', en: 'distance to teeth' }), `${(jet.toTeeth * 10).toFixed(1)} mm`],
-          ['fc ' + L({ it: 'parete', en: 'wall' }), `${(jet.fc / 1000).toFixed(1)} kHz`],
-          ['fc ' + L({ it: 'ostacolo', en: 'obstacle' }), `${(jet.fcObstacle / 1000).toFixed(1)} kHz`],
+          ['jet on teeth', `${(jet.impinge * 100).toFixed(0)} %`],
+          ['distance to teeth', `${(jet.toTeeth * 10).toFixed(1)} mm`],
+          ['fc ' + 'wall', `${(jet.fc / 1000).toFixed(1)} kHz`],
+          ['fc ' + 'obstacle', `${(jet.fcObstacle / 1000).toFixed(1)} kHz`],
         ] : []} />
       </Section>
     </div>

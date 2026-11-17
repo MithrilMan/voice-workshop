@@ -25,8 +25,8 @@ describe('the guided lessons', () => {
     for (const [li, l] of LESSONS.entries()) {
       expect(l.steps.length, `lesson ${li}`).toBeLessThanOrEqual(7);
       for (const s of l.steps) {
-        for (const lang of ['it', 'en'] as const) expect(s.text[lang].length, `${li}: ${s.text.en}`).toBeLessThanOrEqual(220);
-        expect((s.try ?? []).length, `${li}: ${s.text.en}`).toBeLessThanOrEqual(3);
+        expect(s.text.length, `${li}: ${s.text}`).toBeLessThanOrEqual(220);
+        expect((s.try ?? []).length, `${li}: ${s.text}`).toBeLessThanOrEqual(3);
       }
     }
   });
@@ -45,7 +45,7 @@ describe('the guided lessons', () => {
           for (const a of s.try ?? []) {
             const before = voice.manual;
             await press(a);
-            const where = `${at}: ${a.label.en}`;
+            const where = `${at}: ${a.label}`;
             const p = voice.lanes.performer;
             // it sounds: the lungs blow, or a performer plays
             expect(voice.soundOn, where).toBe(true);
@@ -75,8 +75,8 @@ describe('the guided lessons', () => {
   });
 
   it('after a measured tube, opening the jaw is heard on the head', async () => {
-    const mri = tries().find((a) => a.label.en === 'The measured “ee”')!;
-    const jaw = tries().find((a) => a.label.en === 'Jaw open')!;
+    const mri = tries().find((a) => a.label === 'The measured “ee”')!;
+    const jaw = tries().find((a) => a.label === 'Jaw open')!;
     mri.run();
     expect(voice.lanes.filter.kind).toBe('tube');
     jaw.run();
@@ -86,7 +86,7 @@ describe('the guided lessons', () => {
   });
 
   it('a sentence the reader speaks is a program with its score', async () => {
-    const say = tries().find((a) => a.label.en === 'Speak a sentence')!;
+    const say = tries().find((a) => a.label === 'Speak a sentence')!;
     const n = sink.programs().length;
     say.run();
     for (let i = 0; i < 20 && sink.programs().length === n; i++) await new Promise((r) => setTimeout(r, 5));

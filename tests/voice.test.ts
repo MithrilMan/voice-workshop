@@ -10,7 +10,7 @@ import { buildScore } from '../src/dsp/speech/sequencer';
 import { textToPhones } from '../src/dsp/speech/g2p';
 import { FakeSink, FakeClock, settle } from './voiceFakes';
 
-const L = { it: 'prova', en: 'test' };
+const L = 'test';
 const sentence = (): Score => buildScore(textToPhones('papà', 'it'), { lang: 'it' });
 
 /** Telemetry of a real engine, with the posture and pitch we want the controller to see. */
@@ -98,7 +98,7 @@ describe('the voice controller', () => {
   });
 
   it('a tube locks the head until the head is the filter again', () => {
-    v.loadTube([3, 1, 0.5, 4], 17, { it: 'tubo', en: 'tube' });
+    v.loadTube([3, 1, 0.5, 4], 17, 'tube');
     expect(v.lanes.filter.kind).toBe('tube');
     expect(v.manual.tubeMode).toBe(true);
     expect(v.lock('posture')?.by).toBe('tube');

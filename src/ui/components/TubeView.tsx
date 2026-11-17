@@ -4,7 +4,6 @@ import { voice } from '../voice/voice';
 import { useLock, useManual } from '../voice/hooks';
 import { LockIcon } from './controls';
 import { lockText } from './DriverBar';
-import { useL } from '../i18n';
 import { useAnimatedCanvas, C, fieldColor, label, fmtHz } from '../canvas';
 import { standingWave } from '../../dsp/tract/acoustics';
 import { portArea } from '../../dsp/tract/nasal';
@@ -19,7 +18,6 @@ const CTRL = 16;
  * drawn by hand (the head is bypassed).
  */
 export function TubeView() {
-  const L = useL();
   const p = useManual();
   const ui = useUi();
   const lockTube = useLock('tube'), lockFilter = useLock('filter');
@@ -51,7 +49,7 @@ export function TubeView() {
       ctx.lineTo(x1 - 40, yc - maxR * 1.5 + 10);
       ctx.bezierCurveTo(bx + 30, yc - maxR * 1.3, bx + r, yc - maxR * 1.1, bx + r, yc - rOf(af.areas[J]));
       ctx.fill();
-      label(ctx, L({ it: 'naso', en: 'nose' }), x1 - 60, yc - maxR * 1.5 - 10, C.teal);
+      label(ctx, 'nose', x1 - 60, yc - maxR * 1.5 - 10, C.teal);
     }
     // tube sections
     for (let i = 0; i < n; i++) {
@@ -83,8 +81,8 @@ export function TubeView() {
       ctx.strokeStyle = C.sky; ctx.beginPath();
       for (let i = 0; i <= n; i++) { const y = base - (prof.u[i] / um) * 22; if (i) ctx.lineTo(X(i), y); else ctx.moveTo(X(i), y); }
       ctx.stroke();
-      label(ctx, `F${sw} ${fmtHz(f)}: ${L({ it: 'pressione', en: 'pressure' })}`, x0 + 70, base + 10, C.amber);
-      label(ctx, L({ it: 'velocità dell’aria', en: 'air velocity' }), x0 + 210, base + 10, C.sky);
+      label(ctx, `F${sw} ${fmtHz(f)}: pressure`, x0 + 70, base + 10, C.amber);
+      label(ctx, 'air velocity', x0 + 210, base + 10, C.sky);
     }
     // tube mode control points (16 drawn by hand, or the 44 of a measured shape)
     if (prm.tubeMode) {
@@ -98,10 +96,10 @@ export function TubeView() {
     }
     // axis
     ctx.fillStyle = C.muted; ctx.font = '10px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    ctx.fillText(L({ it: 'glottide', en: 'glottis' }), x0, yc + maxR + 4);
-    ctx.fillText(L({ it: 'labbra', en: 'lips' }), x1, yc + maxR + 4);
-    label(ctx, `L = ${af.length.toFixed(1)} cm · ${L({ it: 'un tubo uniforme così risuonerebbe a', en: 'a uniform tube this long would ring at' })} ${Math.round(C_SOUND / (4 * af.length))} / ${Math.round((3 * C_SOUND) / (4 * af.length))} / ${Math.round((5 * C_SOUND) / (4 * af.length))} Hz`, 10, 46, C.text, undefined, 'left');
-    if (formants.length) label(ctx, `${L({ it: 'formanti di questa forma', en: 'formants of this shape' })}: ${formants.slice(0, 3).map((f) => Math.round(f.f)).join(' / ')} Hz`, 10, 66, C.teal, undefined, 'left');
+    ctx.fillText('glottis', x0, yc + maxR + 4);
+    ctx.fillText('lips', x1, yc + maxR + 4);
+    label(ctx, `L = ${af.length.toFixed(1)} cm · a uniform tube this long would ring at ${Math.round(C_SOUND / (4 * af.length))} / ${Math.round((3 * C_SOUND) / (4 * af.length))} / ${Math.round((5 * C_SOUND) / (4 * af.length))} Hz`, 10, 46, C.text, undefined, 'left');
+    if (formants.length) label(ctx, `formants of this shape: ${formants.slice(0, 3).map((f) => Math.round(f.f)).join(' / ')} Hz`, 10, 66, C.teal, undefined, 'left');
   });
 
   const edit = (e: React.PointerEvent) => {
@@ -132,16 +130,16 @@ export function TubeView() {
         onPointerUp={() => { drawing.current = false; }} />
       <div className="overlay-top right">
         {[0, 1, 2, 3].map((k) => (
-          <button key={k} className={ui.standing === k ? 'chip on amber' : 'chip'} onClick={() => store.setUi({ standing: k })}>{k === 0 ? L({ it: 'niente onde', en: 'no waves' }) : `F${k}`}</button>
+          <button key={k} className={ui.standing === k ? 'chip on amber' : 'chip'} onClick={() => store.setUi({ standing: k })}>{k === 0 ? 'no waves' : `F${k}`}</button>
         ))}
       </div>
       <div className="overlay-bottom row">
-        {lock && <span className="hint locked-note"><LockIcon /> {L(lockText(lock))}</span>}
-        <span className="hint">{p.tubeMode ? L({ it: 'Modalità tubo: disegna il profilo trascinando.', en: 'Tube mode: draw the profile by dragging.' }) : L({ it: 'Trascina sul tubo per disegnarlo a mano.', en: 'Drag on the tube to draw it by hand.' })}</span>
+        {lock && <span className="hint locked-note"><LockIcon /> {lockText(lock)}</span>}
+        <span className="hint">{p.tubeMode ? 'Tube mode: draw the profile by dragging.' : 'Drag on the tube to draw it by hand.'}</span>
         {p.tubeMode && <>
           <label className="mini">L {p.tubeLength.toFixed(1)} cm<input type="range" min={8} max={26} step={0.1} value={p.tubeLength} onChange={(e) => voice.edit((q) => { q.tubeLength = Number(e.target.value); })} /></label>
-          <button className="chip" onClick={() => voice.edit((q) => { q.tubeAreas = new Array(CTRL).fill(3); q.tubeLength = 17.5; })}>{L({ it: 'Uniforme', en: 'Uniform' })}</button>
-          <button className="chip on" onClick={() => voice.setFilter('head', { takeOver: true })}>{L({ it: 'Torna alla testa', en: 'Back to the head' })}</button>
+          <button className="chip" onClick={() => voice.edit((q) => { q.tubeAreas = new Array(CTRL).fill(3); q.tubeLength = 17.5; })}>Uniform</button>
+          <button className="chip on" onClick={() => voice.setFilter('head', { takeOver: true })}>Back to the head</button>
         </>}
       </div>
     </div>

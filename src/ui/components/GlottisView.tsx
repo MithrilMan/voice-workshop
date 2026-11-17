@@ -2,7 +2,6 @@ import { useRef, useState } from 'react';
 import { store } from '../store';
 import { voice } from '../voice/voice';
 import { useManual } from '../voice/hooks';
-import { useL } from '../i18n';
 import { useAnimatedCanvas, C, label } from '../canvas';
 import { lfFlow, lfDerivative, rdToTiming, solveLF, timingFromQuotients, LFShape } from '../../dsp/glottis/lf';
 
@@ -13,7 +12,6 @@ import { lfFlow, lfDerivative, rdToTiming, solveLF, timingFromQuotients, LFShape
  * folds with the measured flow.
  */
 export function GlottisView() {
-  const L = useL();
   const p = useManual();
   const [speed, setSpeed] = useState(0.6);
   const phase = useRef(0);
@@ -110,8 +108,8 @@ export function GlottisView() {
       ctx.beginPath(); ctx.moveTo(a1, 0); ctx.lineTo(a1 - Math.sign(a1 - a0) * 6, -4); ctx.lineTo(a1 - Math.sign(a1 - a0) * 6, 4); ctx.fill();
     }
     ctx.restore();
-    label(ctx, opening ? L({ it: 'la pressione dei polmoni le apre', en: 'lung pressure pushes them apart' }) : L({ it: 'elasticità e risucchio le richiudono', en: 'elasticity and suction close them' }), cx, h - 16, opening ? C.sky : C.rose);
-    label(ctx, L({ it: 'davanti', en: 'front' }), cx, cy - halfW * 0.98, C.muted);
+    label(ctx, opening ? 'lung pressure pushes them apart' : 'elasticity and suction close them', cx, h - 16, opening ? C.sky : C.rose);
+    label(ctx, 'front', cx, cy - halfW * 0.98, C.muted);
     // puffs
     const isOpen = open > 0.3;
     if (isOpen && !lastOpen.current) puffs.current.push({ y: 0, a: 1, x: 0 });
@@ -123,7 +121,7 @@ export function GlottisView() {
       ctx.fillStyle = `rgba(246,168,35,${0.5 * q.a})`;
       ctx.beginPath(); ctx.arc(cx + halfW * 0.95, cy + halfW * 0.6 - q.y, 6 + q.y * 0.25, 0, Math.PI * 2); ctx.fill();
     }
-    label(ctx, L({ it: 'sbuffi', en: 'puffs' }), cx + halfW * 0.95, cy + halfW * 0.6 + 14, C.amber);
+    label(ctx, 'puffs', cx + halfW * 0.95, cy + halfW * 0.6 + 14, C.amber);
 
     // ---- one cycle (right half)
     const x0 = w * 0.52, x1 = w - 12, y0 = 40, y1 = h - 28;
@@ -152,8 +150,8 @@ export function GlottisView() {
         ctx.fillText(name, PX(u), y1 + 3);
       }
       ctx.setLineDash([]);
-      label(ctx, L({ it: 'flusso U(t)', en: 'flow U(t)' }), PX(0.82), y0 + 12, C.amber);
-      label(ctx, L({ it: 'derivata dU/dt', en: 'derivative dU/dt' }), PX(0.82), y1 - 12, C.violet);
+      label(ctx, 'flow U(t)', PX(0.82), y0 + 12, C.amber);
+      label(ctx, 'derivative dU/dt', PX(0.82), y1 - 12, C.violet);
       const oq = sh.te, am = sh.tp / sh.te;
       label(ctx, `Oq ${oq.toFixed(2)} · αm ${am.toFixed(2)} · Ra ${sh.ta.toFixed(3)}`, (x0 + x1) / 2, h - 10, C.text);
     } else {
@@ -172,8 +170,8 @@ export function GlottisView() {
         ctx.fillRect(bx + side * (6 + m1 * asym) - (side < 0 ? 26 : 0), by + 16, 26, 14);
         ctx.fillRect(bx + side * (6 + m2 * asym) - (side < 0 ? 22 : 0), by, 22, 12);
       }
-      label(ctx, L({ it: 'due masse per lato', en: 'two masses per side' }), bx, by - 10, C.text);
-      label(ctx, `${L({ it: 'tensione', en: 'tension' })} Q ${(tm?.q ?? s.q).toFixed(2)} · F0 ${tel?.f0 ? tel.f0.toFixed(0) + ' Hz' : '–'}`, (x0 + x1) / 2, h - 10, C.text);
+      label(ctx, 'two masses per side', bx, by - 10, C.text);
+      label(ctx, `tension Q ${(tm?.q ?? s.q).toFixed(2)} · F0 ${tel?.f0 ? tel.f0.toFixed(0) + ' Hz' : '–'}`, (x0 + x1) / 2, h - 10, C.text);
     }
     // cursor
     ctx.strokeStyle = 'rgba(231,235,243,0.7)'; ctx.lineWidth = 1;
@@ -184,8 +182,8 @@ export function GlottisView() {
     <div className="view-panel">
       <canvas ref={ref} className="fill" />
       <div className="overlay-top right">
-        <span className="mini">{p.source.model === 'lf' ? 'Liljencrants–Fant' : p.source.model === 'areas' ? L({ it: 'aree delle corde', en: 'fold areas' }) : L({ it: 'due masse', en: 'two-mass' })}</span>
-        <label className="mini">{L({ it: 'rallentatore', en: 'slow motion' })}<input type="range" min={0.1} max={2} step={0.05} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} /></label>
+        <span className="mini">{p.source.model === 'lf' ? 'Liljencrants–Fant' : p.source.model === 'areas' ? 'fold areas' : 'two-mass'}</span>
+        <label className="mini">slow motion<input type="range" min={0.1} max={2} step={0.05} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} /></label>
       </div>
     </div>
   );

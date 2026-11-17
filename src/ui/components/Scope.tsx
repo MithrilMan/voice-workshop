@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { store } from '../store';
 import { voice } from '../voice/voice';
-import { useL, useT } from '../i18n';
+import { useT } from '../i18n';
 import { useAnimatedCanvas, C, label } from '../canvas';
 
 /**
@@ -10,7 +10,6 @@ import { useAnimatedCanvas, C, label } from '../canvas';
  * opening of the glottis so that the repeating shape stands still.
  */
 export function Scope() {
-  const L = useL();
   const t = useT();
   const [ms, setMs] = useState(25);
   const [show, setShow] = useState({ out: true, flow: true, noise: false });
@@ -62,20 +61,20 @@ export function Scope() {
       ctx.beginPath();
       for (let i = 0; i < n; i++) { const px = (i / n) * w, py = h - 8 - (flow[start + i] / mf) * (h * 0.42); if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py); }
       ctx.stroke();
-      label(ctx, L({ it: 'flusso alla glottide (sbuffi)', en: 'glottal airflow (puffs)' }), 10, h - 34, C.amber, undefined, 'left');
+      label(ctx, 'glottal airflow (puffs)', 10, h - 34, C.amber, undefined, 'left');
     }
     if (show.noise) { draw(noise, C.violet, 0.8 / peak(noise), 1); }
-    if (show.out) { draw(out, C.text, 0.95 / peak(out), 1.6); label(ctx, L({ it: 'onda di pressione (uscita)', en: 'pressure wave (output)' }), 10, 44, C.text, undefined, 'left'); }
-    if (tel.f0 > 0) label(ctx, `${L({ it: 'periodo', en: 'period' })} ${(1000 / tel.f0).toFixed(1)} ms · ${tel.f0.toFixed(0)} Hz`, 10, 64, C.amber, undefined, 'left');
+    if (show.out) { draw(out, C.text, 0.95 / peak(out), 1.6); label(ctx, 'pressure wave (output)', 10, 44, C.text, undefined, 'left'); }
+    if (tel.f0 > 0) label(ctx, `period ${(1000 / tel.f0).toFixed(1)} ms · ${tel.f0.toFixed(0)} Hz`, 10, 64, C.amber, undefined, 'left');
   });
 
   return (
     <div className="view-panel">
       <canvas ref={ref} className="fill" />
       <div className="overlay-top right">
-        <button className={show.out ? 'chip on' : 'chip'} onClick={() => setShow({ ...show, out: !show.out })}>{L({ it: 'Uscita', en: 'Output' })}</button>
-        <button className={show.flow ? 'chip on amber' : 'chip'} onClick={() => setShow({ ...show, flow: !show.flow })}>{L({ it: 'Flusso', en: 'Flow' })}</button>
-        <button className={show.noise ? 'chip on violet' : 'chip'} onClick={() => setShow({ ...show, noise: !show.noise })}>{L({ it: 'Rumore', en: 'Noise' })}</button>
+        <button className={show.out ? 'chip on' : 'chip'} onClick={() => setShow({ ...show, out: !show.out })}>Output</button>
+        <button className={show.flow ? 'chip on amber' : 'chip'} onClick={() => setShow({ ...show, flow: !show.flow })}>Flow</button>
+        <button className={show.noise ? 'chip on violet' : 'chip'} onClick={() => setShow({ ...show, noise: !show.noise })}>Noise</button>
         <label className="mini">{ms} ms<input type="range" min={5} max={200} value={ms} onChange={(e) => setMs(Number(e.target.value))} /></label>
       </div>
     </div>

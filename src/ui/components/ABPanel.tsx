@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react';
-import { useL } from '../i18n';
 import { Section } from './controls';
 import { useAnimatedCanvas, C } from '../canvas';
 import { EngineParams } from '../../dsp/engine/params';
@@ -8,77 +7,75 @@ import { cloneParams } from '../voice/controls';
 import { useLanes } from '../voice/hooks';
 import { welch } from '../../dsp/util/fft';
 import { applyPhoneme, VOICE_PRESETS, TIMBRE_PRESETS } from '../presets';
-
-type Bi = { it: string; en: string };
-interface Experiment { id: string; title: Bi; question: Bi; a: Bi; b: Bi; setA: (p: EngineParams) => void; setB: (p: EngineParams) => void; answer: Bi }
+interface Experiment { id: string; title: string; question: string; a: string; b: string; setA: (p: EngineParams) => void; setB: (p: EngineParams) => void; answer: string }
 
 const vowelAt = (v: string, f0: number) => (p: EngineParams) => { applyPhoneme(v, p); p.source.f0 = f0; };
 const preset = (list: typeof VOICE_PRESETS, id: string) => list.find((x) => x.id === id)!.apply;
 
 const EXPERIMENTS: Experiment[] = [
   {
-    id: 'pitch', title: { it: 'Stesso filtro, altra nota', en: 'Same filter, different pitch' },
-    question: { it: 'La vocale cambia se alzo la nota?', en: 'Does the vowel change if I raise the pitch?' },
-    a: { it: '«a» a 110 Hz', en: '“ah” at 110 Hz' }, b: { it: '«a» a 220 Hz', en: '“ah” at 220 Hz' },
+    id: 'pitch', title: 'Same filter, different pitch',
+    question: 'Does the vowel change if I raise the pitch?',
+    a: '“ah” at 110 Hz', b: '“ah” at 220 Hz',
     setA: vowelAt('a', 110), setB: vowelAt('a', 220),
-    answer: { it: 'Le armoniche si allargano e scorrono sotto lo stesso inviluppo: la vocale resta «a» e la voce resta riconoscibile.', en: 'The harmonics spread apart and slide under the same envelope: the vowel stays “ah” and the voice stays recognizable.' },
+    answer: 'The harmonics spread apart and slide under the same envelope: the vowel stays “ah” and the voice stays recognizable.',
   },
   {
-    id: 'vowel', title: { it: 'Stessa nota, altro filtro', en: 'Same pitch, different filter' },
-    question: { it: 'Cosa cambia tra «a» e «i» sulla stessa nota?', en: 'What changes between “ah” and “ee” on the same note?' },
-    a: { it: '«a» a 150 Hz', en: '“ah” at 150 Hz' }, b: { it: '«i» a 150 Hz', en: '“ee” at 150 Hz' },
+    id: 'vowel', title: 'Same pitch, different filter',
+    question: 'What changes between “ah” and “ee” on the same note?',
+    a: '“ah” at 150 Hz', b: '“ee” at 150 Hz',
     setA: vowelAt('a', 150), setB: vowelAt('i', 150),
-    answer: { it: 'Le armoniche restano agli stessi multipli di 150 Hz; cambia l’inviluppo: in «i» F1 scende e F2 sale.', en: 'The harmonics stay at the same multiples of 150 Hz; the envelope changes: in “ee” F1 drops and F2 rises.' },
+    answer: 'The harmonics stay at the same multiples of 150 Hz; the envelope changes: in “ee” F1 drops and F2 rises.',
   },
   {
-    id: 'size', title: { it: 'Stessa vocale, altro corpo', en: 'Same vowel, different body' },
-    question: { it: 'Un tratto più corto, con la stessa nota?', en: 'A shorter tract, with the same pitch?' },
-    a: { it: 'tratto adulto', en: 'adult tract' }, b: { it: 'tratto di bambino', en: 'child tract' },
+    id: 'size', title: 'Same vowel, different body',
+    question: 'A shorter tract, with the same pitch?',
+    a: 'adult tract', b: 'child tract',
     setA: (p) => { vowelAt('a', 180)(p); p.anatomy.scale = 1; }, setB: (p) => { vowelAt('a', 180)(p); p.anatomy.scale = 0.74; p.anatomy.pharynx = 0.82; },
-    answer: { it: 'Tutte le formanti salgono di circa un terzo: è la stessa «a», ma di una persona più piccola.', en: 'All formants rise by about a third: the same “ah”, from a smaller person.' },
+    answer: 'All formants rise by about a third: the same “ah”, from a smaller person.',
   },
   {
-    id: 'timbre', title: { it: 'Scuro contro chiaro', en: 'Dark versus bright' },
-    question: { it: 'Cosa fa la forma della gola?', en: 'What does the shape of the throat do?' },
-    a: { it: 'laringe bassa, faringe ampia', en: 'low larynx, wide pharynx' }, b: { it: 'laringe alta, faringe stretta', en: 'high larynx, narrow pharynx' },
+    id: 'timbre', title: 'Dark versus bright',
+    question: 'What does the shape of the throat do?',
+    a: 'low larynx, wide pharynx', b: 'high larynx, narrow pharynx',
     setA: (p) => { vowelAt('ə', 130)(p); preset(TIMBRE_PRESETS, 'dark')(p); }, setB: (p) => { vowelAt('ə', 130)(p); preset(TIMBRE_PRESETS, 'bright')(p); },
-    answer: { it: 'Stessa vocale e stessa nota, ma l’inviluppo si sposta: è una parte del timbro che appartiene alla persona.', en: 'Same vowel and pitch, but the envelope shifts: a part of timbre that belongs to the person.' },
+    answer: 'Same vowel and pitch, but the envelope shifts: a part of timbre that belongs to the person.',
   },
   {
-    id: 'nasal', title: { it: 'Velo chiuso contro aperto', en: 'Velum closed versus open' },
-    question: { it: 'Che cosa aggiunge il naso?', en: 'What does the nose add?' },
-    a: { it: '«a» orale', en: 'oral “ah”' }, b: { it: '«a» nasalizzata', en: 'nasalized “ah”' },
+    id: 'nasal', title: 'Velum closed versus open',
+    question: 'What does the nose add?',
+    a: 'oral “ah”', b: 'nasalized “ah”',
     setA: vowelAt('a', 130), setB: (p) => { vowelAt('a', 130)(p); p.articulators.velum = 0.7; },
-    answer: { it: 'Il ramo nasale aggiunge risonanze e antirisonanze: F1 si allarga e si abbassa, compaiono valli nello spettro.', en: 'The nasal branch adds resonances and anti-resonances: F1 broadens and drops, valleys appear in the spectrum.' },
+    answer: 'The nasal branch adds resonances and anti-resonances: F1 broadens and drops, valleys appear in the spectrum.',
   },
   {
-    id: 'nostril', title: { it: 'Una narice tappata', en: 'One nostril pinched' },
-    question: { it: 'Il naso ha due strade: cosa succede se ne chiudo una?', en: 'The nose has two passages: what happens if I close one?' },
-    a: { it: '«m» con il naso libero', en: '“m” with a free nose' }, b: { it: '«m» con la narice sinistra tappata', en: '“m” with the left nostril pinched' },
+    id: 'nostril', title: 'One nostril pinched',
+    question: 'The nose has two passages: what happens if I close one?',
+    a: '“m” with a free nose', b: '“m” with the left nostril pinched',
     setA: vowelAt('m', 130), setB: (p) => { vowelAt('m', 130)(p); p.anatomy.nostrilLeft = 0; },
-    answer: { it: 'La fossa tappata diventa un ramo chiuso: aggiunge un’antirisonanza verso 560 Hz e abbassa la prima risonanza del ronzio da circa 320 a 240 Hz. Tappandole tutte e due l’aria non esce più e il ronzio si spegne.', en: 'The pinched passage becomes a closed side branch: it adds an antiresonance near 560 Hz and lowers the first resonance of the hum from about 320 to 240 Hz. Pinch both and the air has no way out: the hum dies.' },
+    answer: 'The pinched passage becomes a closed side branch: it adds an antiresonance near 560 Hz and lowers the first resonance of the hum from about 320 to 240 Hz. Pinch both and the air has no way out: the hum dies.',
   },
   {
-    id: 'pulse', title: { it: 'Fruscio costante contro pulsato', en: 'Steady versus pulsed hiss' },
-    question: { it: 'Il fruscio della voce soffiata è costante?', en: 'Is the hiss of a breathy voice steady?' },
-    a: { it: 'fruscio costante', en: 'steady hiss' }, b: { it: 'fruscio pulsato (fisico)', en: 'pulsed hiss (physical)' },
+    id: 'pulse', title: 'Steady versus pulsed hiss',
+    question: 'Is the hiss of a breathy voice steady?',
+    a: 'steady hiss', b: 'pulsed hiss (physical)',
     setA: (p) => { vowelAt('a', 110)(p); preset(VOICE_PRESETS, 'breathy')(p); p.noise.aspirationPulse = 0; p.noise.aspiration = 8; },
     setB: (p) => { vowelAt('a', 110)(p); preset(VOICE_PRESETS, 'breathy')(p); p.noise.aspirationPulse = 1; p.noise.aspiration = 8; },
-    answer: { it: 'Nella voce vera il fruscio pulsa a ogni ciclo delle corde, più forte quando sono aperte: suona più naturale e si fonde col ronzio.', en: 'In a real voice the hiss pulses with every cycle of the folds, strongest while they are open: it sounds more natural and fuses with the buzz.' },
+    answer: 'In a real voice the hiss pulses with every cycle of the folds, strongest while they are open: it sounds more natural and fuses with the buzz.',
   },
   {
-    id: 'whisper', title: { it: 'Voce contro sussurro', en: 'Voice versus whisper' },
-    question: { it: 'Senza ronzio la vocale si capisce ancora?', en: 'Without the buzz, is the vowel still there?' },
-    a: { it: '«i» con voce', en: 'voiced “ee”' }, b: { it: '«i» sussurrata', en: 'whispered “ee”' },
+    id: 'whisper', title: 'Voice versus whisper',
+    question: 'Without the buzz, is the vowel still there?',
+    a: 'voiced “ee”', b: 'whispered “ee”',
     setA: vowelAt('i', 120), setB: (p) => { vowelAt('i', 120)(p); preset(VOICE_PRESETS, 'whisper')(p); },
-    answer: { it: 'Il filtro è lo stesso: le formanti si vedono anche nel fruscio, ma non ci sono armoniche né nota.', en: 'The filter is the same: the formants show in the hiss too, but there are no harmonics and no pitch.' },
+    answer: 'The filter is the same: the formants show in the hiss too, but there are no harmonics and no pitch.',
   },
   {
-    id: 'model', title: { it: 'Due modelli di corde', en: 'Two fold models' },
-    question: { it: 'Sbuffi disegnati o corde che oscillano da sole?', en: 'Drawn puffs or folds that oscillate on their own?' },
-    a: { it: 'modello LF', en: 'LF model' }, b: { it: 'modello a due masse', en: 'two-mass model' },
+    id: 'model', title: 'Two fold models',
+    question: 'Drawn puffs or folds that oscillate on their own?',
+    a: 'LF model', b: 'two-mass model',
     setA: vowelAt('a', 120), setB: (p) => { vowelAt('a', 120)(p); p.source.model = 'twomass'; },
-    answer: { it: 'Il secondo nasce dalla fisica delle corde: la forma dello sbuffo cambia con la pressione e con il tratto (interazione).', en: 'The second comes from the physics of the folds: the shape of the puff changes with pressure and with the tract (interaction).' },
+    answer: 'The second comes from the physics of the folds: the shape of the puff changes with pressure and with the tract (interaction).',
   },
 ];
 
@@ -88,7 +85,6 @@ const CLIP_SECONDS = 1.5;
 
 /** `start`: the experiment shown first (by id). */
 export function ABPanel({ start }: { start?: string } = {}) {
-  const L = useL();
   const [exp, setExp] = useState(EXPERIMENTS.find((x) => x.id === start) ?? EXPERIMENTS[0]);
   const [clips, setClips] = useState<{ a: Clip | null; b: Clip | null }>({ a: null, b: null });
   const perf = useLanes().performer;
@@ -99,7 +95,7 @@ export function ABPanel({ start }: { start?: string } = {}) {
   const base = (): EngineParams => { const p = cloneParams(voice.manual); p.tubeMode = false; p.bypassTract = false; return p; };
   const clipLabel = (which: 'a' | 'b') => {
     const l = which === 'a' ? exp.a : exp.b, k = which.toUpperCase();
-    return { it: `${k} · ${l.it}`, en: `${k} · ${l.en}` };
+    return `${k} · ${l}`;
   };
   const run = async (which: 'a' | 'b') => {
     let p: EngineParams;
@@ -114,7 +110,7 @@ export function ABPanel({ start }: { start?: string } = {}) {
     const fs = voice.sampleRate;
     if (samples && samples.length > 0.6 * fs) setClips((c) => ({ ...c, [which]: { spec: welch(samples.subarray(Math.round(0.2 * fs)), 4096), fs } }));
   };
-  const playing = (which: 'a' | 'b') => perf.kind === 'clip' && perf.label.en === clipLabel(which).en;
+  const playing = (which: 'a' | 'b') => perf.kind === 'clip' && perf.label === clipLabel(which);
 
   const ref = useAnimatedCanvas(({ ctx, w, h }) => {
     ctx.fillStyle = C.panel; ctx.fillRect(0, 0, w, h);
@@ -134,31 +130,31 @@ export function ABPanel({ start }: { start?: string } = {}) {
       ctx.stroke();
     };
     draw(clips.a, C.amber); draw(clips.b, C.teal);
-    if (!all.length) { ctx.fillStyle = C.muted; ctx.textAlign = 'center'; ctx.fillText(L({ it: 'ascolta A e B per confrontare gli spettri', en: 'listen to A and B to compare their spectra' }), w / 2, h / 2); }
+    if (!all.length) { ctx.fillStyle = C.muted; ctx.textAlign = 'center'; ctx.fillText('listen to A and B to compare their spectra', w / 2, h / 2); }
   });
 
   return (
     <div className="panel-body">
-      <Section title={L({ it: 'Esperimento A/B', en: 'A/B experiment' })} accent={C.teal}
-        info={L({ it: 'L’idea chiave: ronzio e filtro si controllano quasi indipendentemente. Ogni esperimento cambia una cosa sola tra A e B; ascolta e guarda come si spostano armoniche e inviluppo. Con «I miei A e B» confronti due stati del laboratorio catturati da te.', en: 'The key idea: buzz and filter are controlled almost independently. Each experiment changes one thing between A and B; listen and watch how the harmonics and the envelope move. With “My A and B” you compare two lab states you captured.' })}>
-        <select value={exp.id} onChange={(e) => { setExp(e.target.value === 'custom' ? { ...EXPERIMENTS[0], id: 'custom', title: { it: 'I miei A e B', en: 'My A and B' }, question: { it: 'Cattura due stati e confrontali.', en: 'Capture two states and compare them.' }, a: { it: 'A', en: 'A' }, b: { it: 'B', en: 'B' }, answer: { it: '', en: '' } } : EXPERIMENTS.find((x) => x.id === e.target.value)!); setClips({ a: null, b: null }); setShowAnswer(false); }}>
-          {EXPERIMENTS.map((x) => <option key={x.id} value={x.id}>{L(x.title)}</option>)}
-          <option value="custom">{L({ it: 'I miei A e B', en: 'My A and B' })}</option>
+      <Section title={'A/B experiment'} accent={C.teal}
+        info={'The key idea: buzz and filter are controlled almost independently. Each experiment changes one thing between A and B; listen and watch how the harmonics and the envelope move. With “My A and B” you compare two lab states you captured.'}>
+        <select value={exp.id} onChange={(e) => { setExp(e.target.value === 'custom' ? { ...EXPERIMENTS[0], id: 'custom', title: 'My A and B', question: 'Capture two states and compare them.', a: 'A', b: 'B', answer: '' } : EXPERIMENTS.find((x) => x.id === e.target.value)!); setClips({ a: null, b: null }); setShowAnswer(false); }}>
+          {EXPERIMENTS.map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}
+          <option value="custom">My A and B</option>
         </select>
-        <p className="question">{L(exp.question)}</p>
+        <p className="question">{exp.question}</p>
         {exp.id === 'custom' && (
           <div className="row">
-            <button className="chip" onClick={() => { custom.current.a = cloneParams(voice.manual); setClips((c) => ({ ...c, a: null })); }}>{L({ it: 'Cattura A dal laboratorio', en: 'Capture A from the lab' })}{custom.current.a ? ' ✓' : ''}</button>
-            <button className="chip" onClick={() => { custom.current.b = cloneParams(voice.manual); setClips((c) => ({ ...c, b: null })); }}>{L({ it: 'Cattura B dal laboratorio', en: 'Capture B from the lab' })}{custom.current.b ? ' ✓' : ''}</button>
+            <button className="chip" onClick={() => { custom.current.a = cloneParams(voice.manual); setClips((c) => ({ ...c, a: null })); }}>Capture A from the lab{custom.current.a ? ' ✓' : ''}</button>
+            <button className="chip" onClick={() => { custom.current.b = cloneParams(voice.manual); setClips((c) => ({ ...c, b: null })); }}>Capture B from the lab{custom.current.b ? ' ✓' : ''}</button>
           </div>
         )}
         <div className="ab-buttons">
-          <button className={playing('a') ? 'btn ab a on' : 'btn ab a'} onClick={() => void run('a')}><b>A</b> {L(exp.a)}</button>
-          <button className={playing('b') ? 'btn ab b on' : 'btn ab b'} onClick={() => void run('b')}><b>B</b> {L(exp.b)}</button>
+          <button className={playing('a') ? 'btn ab a on' : 'btn ab a'} onClick={() => void run('a')}><b>A</b> {exp.a}</button>
+          <button className={playing('b') ? 'btn ab b on' : 'btn ab b'} onClick={() => void run('b')}><b>B</b> {exp.b}</button>
         </div>
         <canvas ref={ref} className="ab-canvas" />
         {exp.id !== 'custom' && (
-          showAnswer ? <p className="answer">{L(exp.answer)}</p> : <button className="chip" onClick={() => setShowAnswer(true)}>{L({ it: 'Cosa succede?', en: 'What happens?' })}</button>
+          showAnswer ? <p className="answer">{exp.answer}</p> : <button className="chip" onClick={() => setShowAnswer(true)}>What happens?</button>
         )}
       </Section>
     </div>

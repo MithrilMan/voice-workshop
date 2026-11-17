@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { store, useUi, Mode } from './store';
-import { useT, useL } from './i18n';
+import { useT } from './i18n';
 import { DriverBar } from './components/DriverBar';
 import { Learn } from './modes/Learn';
 import { Play } from './modes/Play';
@@ -18,7 +18,6 @@ const MODES: [Mode, 'mLearn' | 'mPlay' | 'mLab' | 'mVoices', 'mLearnHint' | 'mPl
 /** The bar every mode shares: the name, the three modes, one Sound button, the volume, the language; then who drives the voice. */
 function Header() {
   const t = useT();
-  const L = useL();
   const ui = useUi();
   const p = useManual();
   const sound = useSoundOn();
@@ -45,7 +44,7 @@ function Header() {
           <p>{t('appSub')}</p>
         </div>
       </div>
-      <nav className="modes" aria-label={L({ it: 'Modo', en: 'Mode' })}>
+      <nav className="modes" aria-label="Mode">
         {MODES.map(([id, name, hint]) => (
           <button key={id} className={ui.mode === id ? 'on' : ''} title={t(hint)} aria-current={ui.mode === id ? 'page' : undefined} onClick={() => store.setUi({ mode: id })}>{t(name)}</button>
         ))}
@@ -61,22 +60,17 @@ function Header() {
           <span aria-hidden>🔈</span>
           <input type="range" min={-30} max={12} step={0.5} value={p.volume} aria-label={t('volume')} onChange={(e) => voice.edit((q) => { q.volume = Number(e.target.value); })} />
         </label>
-        <div className="seg lang">
-          <button className={ui.lang === 'en' ? 'on' : ''} onClick={() => store.setUi({ lang: 'en' })}>EN</button>
-          <button className={ui.lang === 'it' ? 'on' : ''} onClick={() => store.setUi({ lang: 'it' })}>IT</button>
-        </div>
       </div>
       <DriverBar />
-      {ui.info && <div className="toast" onClick={() => store.setUi({ info: null })}>{ui.info} — {L({ it: 'clic per chiudere', en: 'click to close' })}</div>}
+      {ui.info && <div className="toast" onClick={() => store.setUi({ info: null })}>{ui.info} — click to close</div>}
     </header>
   );
 }
 
 export function App() {
   const t = useT();
-  const L = useL();
   const ui = useUi();
-  useEffect(() => { document.documentElement.lang = ui.lang; document.title = t('appTitle'); }, [ui.lang]);
+  useEffect(() => { document.documentElement.lang = 'en'; document.title = t('appTitle'); }, []);
   // a voice shared with a link (#voice=…) opens in the voice studio, ready to be saved
   useEffect(() => {
     void voiceFromLink(window.location.hash).then((v) => { if (v) { library.setIncoming(v); store.setUi({ mode: 'voices' }); } });
@@ -89,7 +83,7 @@ export function App() {
       {ui.mode === 'lab' && <Lab />}
       {ui.mode === 'voices' && <Studio />}
       <footer className="app-footer">
-        <span>{L({ it: 'Modello fisico: sorgente LF, a due masse o ad aree delle corde, tratto vocale a guida d’onda (Kelly-Lochbaum) con naso e seni, turbolenza da numero di Reynolds, ostacolo dei denti. Dettagli e riferimenti nel README.', en: 'Physical model: LF, two-mass or fold-area source, waveguide vocal tract (Kelly-Lochbaum) with nose and sinuses, Reynolds-number turbulence, teeth obstacle. Details and references in the README.' })}</span>
+        <span>Physical model: LF, two-mass or fold-area source, waveguide vocal tract (Kelly-Lochbaum) with nose and sinuses, Reynolds-number turbulence, teeth obstacle. Details and references in the README.</span>
       </footer>
     </div>
   );

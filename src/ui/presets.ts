@@ -6,9 +6,7 @@ import { BUILTIN_VOICES } from '../dsp/voice/builtin';
 import { applyDesign } from '../dsp/voice/design';
 import { colourCurve, NoiseColour, NOISE_CURVE_POINTS, noiseCurveFreq } from '../dsp/noise/noise';
 
-type Bi = { it: string; en: string };
-
-export interface Preset { id: string; name: Bi; hint: Bi; apply: (p: EngineParams) => void }
+export interface Preset { id: string; name: string; hint: string; apply: (p: EngineParams) => void }
 
 /**
  * Speaker presets: the first nine voices that come with the simulator
@@ -19,12 +17,12 @@ export const VOICE_PRESETS: Preset[] = BUILTIN_VOICES.slice(0, 9).map((v) => ({ 
 
 /** Persistent, person-specific parts of the filter (timbre). */
 export const TIMBRE_PRESETS: Preset[] = [
-  { id: 'neutral', name: { it: 'Neutro', en: 'Neutral' }, hint: { it: 'anatomia di riferimento', en: 'reference anatomy' }, apply: (p) => { p.anatomy.pharynxWidth = 1; p.anatomy.nasalLeak = 0; p.articulators.larynx = 0; } },
-  { id: 'dark', name: { it: 'Scuro', en: 'Dark' }, hint: { it: 'laringe bassa e faringe ampia: formanti più basse', en: 'low larynx and wide pharynx: lower formants' }, apply: (p) => { p.articulators.larynx = -0.9; p.anatomy.pharynxWidth = 1.3; p.anatomy.nasalLeak = 0; } },
-  { id: 'bright', name: { it: 'Chiaro', en: 'Bright' }, hint: { it: 'laringe alta e faringe stretta: formanti più alte', en: 'high larynx and narrow pharynx: higher formants' }, apply: (p) => { p.articulators.larynx = 0.7; p.anatomy.pharynxWidth = 0.75; p.anatomy.nasalLeak = 0; } },
-  { id: 'nasal', name: { it: 'Nasale', en: 'Nasal' }, hint: { it: 'il velo lascia passare suono nel naso', en: 'the velum lets sound into the nose' }, apply: (p) => { p.anatomy.nasalLeak = 0.7; } },
-  { id: 'warm', name: { it: 'Calda', en: 'Warm' }, hint: { it: 'faringe un po’ ampia, laringe un po’ bassa', en: 'slightly wide pharynx, slightly low larynx' }, apply: (p) => { p.articulators.larynx = -0.4; p.anatomy.pharynxWidth = 1.15; p.anatomy.nasalLeak = 0.1; } },
-  { id: 'hollow', name: { it: 'Cava', en: 'Hollow' }, hint: { it: 'faringe molto ampia e labbra un po’ arrotondate', en: 'very wide pharynx and slightly rounded lips' }, apply: (p) => { p.anatomy.pharynxWidth = 1.45; p.articulators.lipRound = Math.max(p.articulators.lipRound, 0.35); p.articulators.lipProtrude = Math.max(p.articulators.lipProtrude, 0.3); } },
+  { id: 'neutral', name: 'Neutral', hint: 'reference anatomy', apply: (p) => { p.anatomy.pharynxWidth = 1; p.anatomy.nasalLeak = 0; p.articulators.larynx = 0; } },
+  { id: 'dark', name: 'Dark', hint: 'low larynx and wide pharynx: lower formants', apply: (p) => { p.articulators.larynx = -0.9; p.anatomy.pharynxWidth = 1.3; p.anatomy.nasalLeak = 0; } },
+  { id: 'bright', name: 'Bright', hint: 'high larynx and narrow pharynx: higher formants', apply: (p) => { p.articulators.larynx = 0.7; p.anatomy.pharynxWidth = 0.75; p.anatomy.nasalLeak = 0; } },
+  { id: 'nasal', name: 'Nasal', hint: 'the velum lets sound into the nose', apply: (p) => { p.anatomy.nasalLeak = 0.7; } },
+  { id: 'warm', name: 'Warm', hint: 'slightly wide pharynx, slightly low larynx', apply: (p) => { p.articulators.larynx = -0.4; p.anatomy.pharynxWidth = 1.15; p.anatomy.nasalLeak = 0.1; } },
+  { id: 'hollow', name: 'Hollow', hint: 'very wide pharynx and slightly rounded lips', apply: (p) => { p.anatomy.pharynxWidth = 1.45; p.articulators.lipRound = Math.max(p.articulators.lipRound, 0.35); p.articulators.lipProtrude = Math.max(p.articulators.lipProtrude, 0.3); } },
 ];
 
 /** Sets the articulators (and glottal setting) of a phoneme. */
@@ -46,19 +44,16 @@ export function applyPhoneme(ipa: string, p: EngineParams): void {
 }
 
 /** Noise colour presets for the user noise designer. */
-export const NOISE_SHAPES: { id: string; name: Bi; curve: () => number[] }[] = [
+export const NOISE_SHAPES: { id: string; name: string; curve: () => number[] }[] = [
   ...(['white', 'pink', 'brown', 'blue', 'violet'] as NoiseColour[]).map((c) => ({
     id: c,
-    name: {
-      it: { white: 'Bianco', pink: 'Rosa', brown: 'Marrone', blue: 'Blu', violet: 'Viola' }[c],
-      en: { white: 'White', pink: 'Pink', brown: 'Brown', blue: 'Blue', violet: 'Violet' }[c],
-    },
+    name: { white: 'White', pink: 'Pink', brown: 'Brown', blue: 'Blue', violet: 'Violet' }[c],
     curve: () => Array.from(colourCurve(c)),
   })),
-  { id: 'sss', name: { it: 'Come una «s»', en: 'Like an “s”' }, curve: () => bandCurve(6000, 1.1, 0, -30) },
-  { id: 'shh', name: { it: 'Come «sc»', en: 'Like “sh”' }, curve: () => bandCurve(3000, 1.0, 0, -28) },
-  { id: 'fff', name: { it: 'Come una «f» (piatto)', en: 'Like an “f” (flat)' }, curve: () => bandCurve(7000, 3, 0, -12) },
-  { id: 'band', name: { it: 'Banda stretta 1 kHz', en: 'Narrow band 1 kHz' }, curve: () => bandCurve(1000, 0.35, 0, -40) },
+  { id: 'sss', name: 'Like an “s”', curve: () => bandCurve(6000, 1.1, 0, -30) },
+  { id: 'shh', name: 'Like “sh”', curve: () => bandCurve(3000, 1.0, 0, -28) },
+  { id: 'fff', name: 'Like an “f” (flat)', curve: () => bandCurve(7000, 3, 0, -12) },
+  { id: 'band', name: 'Narrow band 1 kHz', curve: () => bandCurve(1000, 0.35, 0, -40) },
 ];
 
 /** A curve with a peak at fc (Hz), bandwidth in octaves, peak and floor levels (dB). */

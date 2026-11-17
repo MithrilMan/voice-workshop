@@ -2,7 +2,6 @@ import { useRef, useState } from 'react';
 import { store } from '../store';
 import { voice } from '../voice/voice';
 import { useManual } from '../voice/hooks';
-import { useL } from '../i18n';
 import { useAnimatedCanvas, C, label } from '../canvas';
 import { VOWELS } from '../../dsp/speech/phonemes';
 import { PETERSON_BARNEY, HILLENBRAND_MEN, VIDEO_VOICE, Speaker, VowelRef } from '../../dsp/data/vowels';
@@ -41,7 +40,6 @@ function modelVowels(): { ipa: string; f1: number; f2: number; art: Articulators
  * shape sits; the blue dot is your microphone.
  */
 export function VowelChart() {
-  const L = useL();
   useManual();
   const [refSet, setRefSet] = useState<RefSet>('pb-men');
   const trail = useRef<{ f1: number; f2: number }[]>([]);
@@ -66,9 +64,9 @@ export function VowelChart() {
     ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
     for (const f of [200, 300, 400, 500, 600, 800, 1000]) { ctx.beginPath(); ctx.moveTo(x0, ly(f)); ctx.lineTo(x1, ly(f)); ctx.stroke(); ctx.fillText(String(f), x0 - 5, ly(f)); }
     ctx.textAlign = 'center';
-    ctx.fillText(L({ it: 'F2 (Hz) — lingua avanti ←   → indietro', en: 'F2 (Hz) — tongue front ←   → back' }), (x0 + x1) / 2, h - 8);
+    ctx.fillText('F2 (Hz) — tongue front ←   → back', (x0 + x1) / 2, h - 8);
     ctx.save(); ctx.translate(11, (y0 + y1) / 2); ctx.rotate(-Math.PI / 2);
-    ctx.fillText(L({ it: 'F1 (Hz) — bocca chiusa ↔ aperta', en: 'F1 (Hz) — mouth closed ↔ open' }), 0, 0); ctx.restore();
+    ctx.fillText('F1 (Hz) — mouth closed ↔ open', 0, 0); ctx.restore();
 
     // reference set
     let refs: VowelRef[];
@@ -135,7 +133,7 @@ export function VowelChart() {
         ctx.fillStyle = `rgba(69,184,245,${(i + 1) / mt.length})`;
         ctx.beginPath(); ctx.arc(lx(mt[i].f2), ly(mt[i].f1), i === mt.length - 1 ? 6 : 3, 0, Math.PI * 2); ctx.fill();
       }
-      if (mt.length) label(ctx, L({ it: 'tu', en: 'you' }), lx(mt[mt.length - 1].f2) + 18, ly(mt[mt.length - 1].f1), C.sky);
+      if (mt.length) label(ctx, 'you', lx(mt[mt.length - 1].f2) + 18, ly(mt[mt.length - 1].f1), C.sky);
     }
   });
 
@@ -191,8 +189,8 @@ export function VowelChart() {
   const onUp = () => { dragging.current = false; voice.letGo(); };
 
   const sets: [RefSet, string][] = [
-    ['pb-men', L({ it: 'P&B uomini', en: 'P&B men' })], ['pb-women', L({ it: 'P&B donne', en: 'P&B women' })], ['pb-children', L({ it: 'P&B bambini', en: 'P&B children' })],
-    ['hillenbrand', 'Hillenbrand 1995'], ['video', L({ it: 'voce del video', en: 'video narrator' })],
+    ['pb-men', 'P&B men'], ['pb-women', 'P&B women'], ['pb-children', 'P&B children'],
+    ['hillenbrand', 'Hillenbrand 1995'], ['video', 'video narrator'],
   ];
   return (
     <div className="view-panel">
@@ -203,9 +201,9 @@ export function VowelChart() {
         </select>
       </div>
       <div className="legend bl">
-        <span className="lg"><span className="dot teal" />{L({ it: 'vocali del modello (clic)', en: 'model vowels (click)' })}</span>
-        <span className="lg"><span className="dot violet" />{L({ it: 'misure di riferimento', en: 'reference measurements' })}</span>
-        <span className="lg"><span className="dot amber" />{L({ it: 'forma attuale (trascina per scivolare)', en: 'current shape (drag to glide)' })}</span>
+        <span className="lg"><span className="dot teal" />model vowels (click)</span>
+        <span className="lg"><span className="dot violet" />reference measurements</span>
+        <span className="lg"><span className="dot amber" />current shape (drag to glide)</span>
       </div>
     </div>
   );

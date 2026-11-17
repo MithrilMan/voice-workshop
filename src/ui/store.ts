@@ -13,7 +13,6 @@ import { phonemizerSources, NeedsDownload } from './voice/phonemizerWeb';
 import { voice } from './voice/voice';
 import type { StreamBlock } from './voice/sink';
 
-export type Lang = 'it' | 'en';
 /** learn: guided chapters; play: a few big controls; lab: everything, organised by the signal chain */
 export type Mode = 'learn' | 'play' | 'lab' | 'voices';
 export type ControlTab = 'source' | 'tract' | 'teeth' | 'noise' | 'output' | 'speak' | 'melody' | 'ab' | 'machine';
@@ -27,7 +26,6 @@ export type PlayActivity = 'speak' | 'sounds' | 'voices' | 'vowels';
 export type FieldMode = 'pressure' | 'velocity' | 'air';
 
 export interface UiState {
-  lang: Lang;
   mode: Mode;
   chapter: number;
   /** the step of the chapter, in the Learn mode */
@@ -63,11 +61,10 @@ export interface UiState {
   phonemizer: { stage: 'idle' | 'dictionary' | 'model' | 'error'; progress: number; error?: string };
 }
 
-/** First sentence in the speak panel, in the language of the interface. */
-export const DEFAULT_SPEECH_TEXT: Record<Lang, string> = { en: 'a buzz, a hiss and a filter', it: 'la voce è fatta di aria' };
+/** First sentence in the speak panel. */
+export const DEFAULT_SPEECH_TEXT = 'a buzz, a hiss and a filter';
 
 const RING = 1 << 17;
-const LANG_KEY = 'voice-workshop.lang';
 const MODE_KEY = 'voice-workshop.mode';
 const CHAPTER_KEY = 'voice-workshop.chapter';
 const STEP_KEY = 'voice-workshop.step';
@@ -125,21 +122,12 @@ function initialPlay(): PlayActivity {
 }
 
 /**
- * Interface language: English by default; `?lang=it` in the address or the
- * viewer's last choice (kept in this browser) picks Italian.
- */
-function initialLang(): Lang {
-  for (const v of [query('lang'), remembered(LANG_KEY)]) if (v === 'it' || v === 'en') return v;
-  return 'en';
-}
-
-/**
  * The state of the interface and of the analysis views. What is heard lives
  * in the voice controller (./voice/voice.ts), the only door to the audio.
  */
 class Store {
   ui: UiState = {
-    lang: initialLang(), mode: initialMode(), chapter: initialChapter(), step: initialStep(), controlTab: 'source', learnTool: null, viewTab: 'spectrum', labViews: initialLabViews(), playActivity: initialPlay(), specWindow: 30, mel: false,
+    mode: initialMode(), chapter: initialChapter(), step: initialStep(), controlTab: 'source', learnTool: null, viewTab: 'spectrum', labViews: initialLabViews(), playActivity: initialPlay(), specWindow: 30, mel: false,
     field: 'pressure', envelope: true, showHarmonics: true, standing: 0, freeze: false, micOn: false, audioOn: false,
     info: null, numbers: false,
     speech: { text: '', lang: 'en', rate: 1, accent: 5, natural: { ...NATURAL_ALL } },
@@ -151,7 +139,7 @@ class Store {
   private version = 0;
 
   constructor() {
-    this.ui.speech = { ...this.ui.speech, text: DEFAULT_SPEECH_TEXT[this.ui.lang], lang: this.ui.lang };
+    this.ui.speech = { ...this.ui.speech, text: DEFAULT_SPEECH_TEXT, lang: 'en' };
     voice.onStream((s) => this.pushStream(s));
     voice.onInfo = (msg) => this.setUi({ info: msg });
     voice.subscribe(() => {
@@ -195,12 +183,6 @@ class Store {
     if (u.step !== undefined) remember(STEP_KEY, String(u.step));
     if (u.labViews) remember(VIEWS_KEY, JSON.stringify(u.labViews));
     if (u.playActivity) remember(PLAY_KEY, u.playActivity);
-    if (u.lang && u.lang !== this.ui.lang) {
-      remember(LANG_KEY, u.lang);
-      // the untouched example sentence follows the interface language
-      const sp = this.ui.speech;
-      if (!u.speech && sp.text === DEFAULT_SPEECH_TEXT[this.ui.lang]) u = { ...u, speech: { ...sp, text: DEFAULT_SPEECH_TEXT[u.lang], lang: u.lang } };
-    }
     this.ui = { ...this.ui, ...u };
     this.emit();
   }

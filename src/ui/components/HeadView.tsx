@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { store, useUi, FieldMode } from '../store';
-import { useT, useL } from '../i18n';
+import { useT } from '../i18n';
 import { voice } from '../voice/voice';
 import { useSoundOn, useVoice } from '../voice/hooks';
 import type { ControlId } from '../voice/controls';
@@ -34,7 +34,6 @@ const clampArt = (k: keyof Articulators, v: number) => Math.max(ARTICULATOR_RANG
 
 export function HeadView({ guide }: { guide?: Guide } = {}) {
   const t = useT();
-  const L = useL();
   const ui = useUi();
   const sound = useSoundOn();
   const postureLock = useVoice((v) => v.lock('posture'));
@@ -264,7 +263,7 @@ export function HeadView({ guide }: { guide?: Guide } = {}) {
         const el = e.target as HTMLElement;
         const lk = h ? voice.lock(HANDLE_CONTROL[h]) : null;
         el.style.cursor = !h ? 'default' : lk ? 'not-allowed' : 'grab';
-        el.title = lk ? L(lockText(lk)) : '';
+        el.title = lk ? lockText(lk) : '';
       }
       return;
     }
@@ -320,8 +319,8 @@ export function HeadView({ guide }: { guide?: Guide } = {}) {
         <button className={labels ? 'chip on' : 'chip'} onClick={() => setLabels(!labels)}>Aa</button>
       </div>
       <div className="overlay-bottom hint">
-        {postureLock ? <span className="locked-note">{L(lockText(postureLock, 'head'))}</span>
-          : !sound ? <span className="sound-note">{L({ it: 'In silenzio: premi «▶ Suono» o trascina una maniglia per sentirla.', en: 'Silent: press “▶ Sound” or drag a handle to hear it.' })}</span>
+        {postureLock ? <span className="locked-note">{lockText(postureLock, 'head')}</span>
+          : !sound ? <span className="sound-note">Silent: press “▶ Sound” or drag a handle to hear it.</span>
           : t('headHint')}
       </div>
     </div>

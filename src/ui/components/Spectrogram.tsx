@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { store, useUi } from '../store';
 import { voice } from '../voice/voice';
-import { useT, useL } from '../i18n';
+import { useT } from '../i18n';
 import { useAnimatedCanvas, C, heat } from '../canvas';
 import { getFFT, hann } from '../../dsp/util/fft';
 import { melBank, applyMel, MelBank } from '../../dsp/analysis/mel';
@@ -19,7 +19,6 @@ const FMAX = 8000;
  */
 export function Spectrogram() {
   const t = useT();
-  const L = useL();
   const ui = useUi();
   const state = useRef<{ img: ImageData | null; off: HTMLCanvasElement | null; lastTotal: number; key: string; bank: MelBank | null; win: Float64Array | null; frame: Float32Array }>({
     img: null, off: null, lastTotal: 0, key: '', bank: null, win: null, frame: new Float32Array(8192),
@@ -135,10 +134,10 @@ export function Spectrogram() {
       </div>
       <div className="overlay-bottom hint">
         {ui.specWindow >= 25
-          ? L({ it: 'Fette lunghe: si vedono le armoniche (righe orizzontali), ma gli eventi rapidi si sfocano.', en: 'Long slices: the harmonics show as horizontal lines, but fast events blur.' })
+          ? 'Long slices: the harmonics show as horizontal lines, but fast events blur.'
           : ui.specWindow <= 8
-            ? L({ it: 'Fette corte: si vede ogni impulso delle corde vocali (righe verticali), ma le armoniche si fondono.', en: 'Short slices: every pulse of the vocal folds shows as a vertical line, but the harmonics merge.' })
-            : L({ it: 'Compromesso tra tempo e frequenza.', en: 'A compromise between time and frequency.' })}
+            ? 'Short slices: every pulse of the vocal folds shows as a vertical line, but the harmonics merge.'
+            : 'A compromise between time and frequency.'}
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { store, useUi, useTick, FieldMode } from '../store';
-import { useL, useT } from '../i18n';
+import { useT } from '../i18n';
 import { fieldRgb } from '../canvas';
 import { buildTractMeshes, TractMeshes, Pouch } from '../three/meshes';
 import { N_SECTIONS } from '../../dsp/tract/areaFunction';
@@ -13,17 +13,17 @@ import type { Telemetry } from '../../dsp/engine/engine';
 type Preset = 'side' | 'front' | 'top' | 'three';
 type AnchorKey = keyof TractMeshes['anchors'];
 
-const LABELS: Record<AnchorKey, { it: string; en: string }> = {
-  tongue: { it: 'lingua', en: 'tongue' },
-  palate: { it: 'palato duro (osso)', en: 'hard palate (bone)' },
-  velum: { it: 'velo', en: 'velum' },
-  teeth: { it: 'denti', en: 'teeth' },
-  lips: { it: 'labbra', en: 'lips' },
-  larynx: { it: 'laringe', en: 'larynx' },
-  pharynx: { it: 'faringe', en: 'pharynx' },
-  piriform: { it: 'seni piriformi', en: 'piriform fossae' },
-  channels: { it: 'canali laterali', en: 'lateral channels' },
-  supra: { it: 'cavità sopralinguale', en: 'supralingual cavity' },
+const LABELS: Record<AnchorKey, string> = {
+  tongue: 'tongue',
+  palate: 'hard palate (bone)',
+  velum: 'velum',
+  teeth: 'teeth',
+  lips: 'lips',
+  larynx: 'larynx',
+  pharynx: 'pharynx',
+  piriform: 'piriform fossae',
+  channels: 'lateral channels',
+  supra: 'supralingual cavity',
 };
 const ANCHORS = Object.keys(LABELS) as AnchorKey[];
 const WATER = new THREE.Color(0.27, 0.62, 0.92);
@@ -46,7 +46,6 @@ function fieldAt(g: TractGeometry, i: number, mode: FieldMode, tel: Telemetry | 
  * cross-sections the sound is computed with. Drag to turn, wheel to zoom.
  */
 export default function Tract3DView() {
-  const L = useL();
   const t = useT();
   const ui = useUi();
   const host = useRef<HTMLDivElement | null>(null);
@@ -322,20 +321,17 @@ export default function Tract3DView() {
     }
     let cavity = 0;
     if (af.supralingual && af.supralingual.at >= 0) for (const x of af.supralingual.areas) if (x > 1e-3) cavity += af.dx;
-    numbers = L({
-      it: `passaggio più stretto ${narrow.toFixed(2)} cm²` + (lateral > 0 ? ` · canali laterali ${lateral.toFixed(2)} cm² · cavità sopralinguale ${cavity.toFixed(1)} cm` : '') + ` · seni piriformi: ${geom.piriform.length.toFixed(1)} cm d’aria`,
-      en: `narrowest passage ${narrow.toFixed(2)} cm²` + (lateral > 0 ? ` · lateral channels ${lateral.toFixed(2)} cm² · supralingual cavity ${cavity.toFixed(1)} cm` : '') + ` · piriform fossae: ${geom.piriform.length.toFixed(1)} cm of air`,
-    });
+    numbers = `narrowest passage ${narrow.toFixed(2)} cm²` + (lateral > 0 ? ` · lateral channels ${lateral.toFixed(2)} cm² · supralingual cavity ${cavity.toFixed(1)} cm` : '') + ` · piriform fossae: ${geom.piriform.length.toFixed(1)} cm of air`;
   }
 
   const fields: [FieldMode, string][] = [['pressure', t('fieldPressure')], ['velocity', t('fieldVelocity')], ['air', t('fieldAir')]];
-  const presets: [Preset, { it: string; en: string }][] = [
-    ['side', { it: 'lato', en: 'side' }], ['front', { it: 'fronte', en: 'front' }], ['top', { it: 'alto', en: 'top' }], ['three', { it: '¾', en: '¾' }],
+  const presets: [Preset, string][] = [
+    ['side', 'side'], ['front', 'front'], ['top', 'top'], ['three', '¾'],
   ];
   return (
     <div className="tract3d" ref={host}>
       <div className="labels3d" aria-hidden>
-        {ANCHORS.map((k) => <span key={k} ref={(e) => { labelEls.current[k] = e; }} className={`l3d l3d-${k}`}>{L(LABELS[k])}</span>)}
+        {ANCHORS.map((k) => <span key={k} ref={(e) => { labelEls.current[k] = e; }} className={`l3d l3d-${k}`}>{LABELS[k]}</span>)}
       </div>
       <div className="overlay-top">
         <div className="seg">
@@ -343,19 +339,19 @@ export default function Tract3DView() {
         </div>
       </div>
       <div className="overlay-top right">
-        <button className={cut ? 'chip on' : 'chip'} title={L({ it: 'Taglia la testa a metà, lungo il piano sagittale', en: 'Cut the head in half along the mid-sagittal plane' })} onClick={() => setCut(!cut)}>{L({ it: 'Spaccato', en: 'Cutaway' })}</button>
-        <button className={tissues ? 'chip on' : 'chip'} onClick={() => setTissues(!tissues)}>{L({ it: 'Tessuti', en: 'Tissues' })}</button>
+        <button className={cut ? 'chip on' : 'chip'} title={'Cut the head in half along the mid-sagittal plane'} onClick={() => setCut(!cut)}>Cutaway</button>
+        <button className={tissues ? 'chip on' : 'chip'} onClick={() => setTissues(!tissues)}>Tissues</button>
         <button className={labels ? 'chip on' : 'chip'} onClick={() => setLabels(!labels)}>Aa</button>
       </div>
       <div className="views3d seg">
-        {presets.map(([id, name]) => <button key={id} onClick={() => presetRef.current(id)}>{L(name)}</button>)}
+        {presets.map(([id, name]) => <button key={id} onClick={() => presetRef.current(id)}>{name}</button>)}
       </div>
       <div className="overlay-bottom hint">
         {lost === 'nowebgl'
-          ? L({ it: 'Questo browser non offre WebGL: la vista 3D non è disponibile.', en: 'This browser offers no WebGL: the 3D view is not available.' })
+          ? 'This browser offers no WebGL: the 3D view is not available.'
           : lost === 'lost'
-            ? L({ it: 'La scheda grafica ha perso il contesto: cambia vista e torna qui.', en: 'The graphics context was lost: switch views and come back.' })
-            : numbers || L({ it: 'Trascina per girare, rotella per avvicinarti. L’aria è colorata dal suono; i tessuti dalla loro natura: osso chiaro, tessuto molle rosa.', en: 'Drag to turn, scroll to zoom. The air is coloured by the sound; the tissues by what they are: pale bone, pink soft tissue.' })}
+            ? 'The graphics context was lost: switch views and come back.'
+            : numbers || 'Drag to turn, scroll to zoom. The air is coloured by the sound; the tissues by what they are: pale bone, pink soft tissue.'}
       </div>
     </div>
   );

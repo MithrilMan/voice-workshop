@@ -23,9 +23,10 @@ source (Liljencrants-Fant or a self-oscillating two-mass model), and
 turbulence noise appears wherever the Reynolds number of the airflow says it
 should, with a separate obstacle source where the jet hits the incisors.
 
-The interface is in English by default, with an Italian toggle (EN / IT). The
-last choice is remembered in the browser, and `?lang=it` or `?lang=en` in the
-address opens the page in that language.
+The interface is in English. The voices speak Italian and English by
+rules and, through a pronunciation dictionary and a small model, about 70
+other languages; the example sentences of the studio, of Play and of the
+Speak panel come in many of them, and picking one also picks its language.
 
 ## Run
 
@@ -1554,7 +1555,7 @@ teeth), the phonation (the fold model, its quality, irregularity, breath
 and vibrato), the habits (the articulatory setting and the precision) and
 the way of speaking (the usual pitch, the lung pressure, the accent
 strength, the rate and the prosodic style). Every field has a range, a
-unit, a step and an explanation in both languages; one table serves the
+unit, a step and an explanation; one table serves the
 studio and the validation, which keeps only the fields it knows, each
 within its range, so a file or a link can never carry anything else. The
 speaker presets are built-in voices, checked against the presets they

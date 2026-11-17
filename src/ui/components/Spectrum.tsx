@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { store, useUi } from '../store';
 import { voice } from '../voice/voice';
-import { useT, useL } from '../i18n';
+import { useT } from '../i18n';
 import { useAnimatedCanvas, C, fmtHz, label } from '../canvas';
 import { spectrumDb, sourceHarmonics, filterResponse } from '../analysis';
 
@@ -13,7 +13,6 @@ import { spectrumDb, sourceHarmonics, filterResponse } from '../analysis';
  */
 export function Spectrum() {
   const t = useT();
-  const L = useL();
   const ui = useUi();
   const [fmax, setFmax] = useState(5000);
   const avg = useRef<Float32Array | null>(null);
@@ -170,10 +169,10 @@ export function Spectrum() {
         <button className="chip" onClick={() => setFmax(fmax === 5000 ? 10000 : 5000)}>{fmax === 5000 ? '0–5 kHz' : '0–10 kHz'}</button>
       </div>
       <div className="legend">
-        <span className="lg"><span className="dot white" />{L({ it: 'misurato', en: 'measured' })}</span>
-        <span className="lg"><span className="dot amber" />{L({ it: 'armoniche e inviluppo', en: 'harmonics and envelope' })}</span>
-        <span className="lg"><span className="dot teal dashed" />{L({ it: 'solo filtro', en: 'filter alone' })}</span>
-        {ui.micOn && <span className="lg"><span className="dot sky" />{L({ it: 'microfono', en: 'microphone' })}</span>}
+        <span className="lg"><span className="dot white" />measured</span>
+        <span className="lg"><span className="dot amber" />harmonics and envelope</span>
+        <span className="lg"><span className="dot teal dashed" />filter alone</span>
+        {ui.micOn && <span className="lg"><span className="dot sky" />microphone</span>}
       </div>
     </div>
   );

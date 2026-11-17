@@ -1,6 +1,5 @@
 import { Children, ReactElement, ReactNode, cloneElement, isValidElement, useState } from 'react';
 import { useStore } from '../store';
-import { useL } from '../i18n';
 import { useLock } from '../voice/hooks';
 import type { ControlId } from '../voice/controls';
 import { lockText } from './DriverBar';
@@ -28,12 +27,11 @@ export function Slider(props: {
   const { label, min, max, step = 0.01, log, onChange, format, hint, color } = props;
   const numbers = useStore((s) => s.ui.numbers);
   const lock = useLock(props.control);
-  const L = useL();
   const value = lock && props.live !== undefined ? Math.max(min, Math.min(max, props.live)) : props.value;
   const toPos = (v: number) => (log ? (Math.log(v / min) / Math.log(max / min)) * 1000 : v);
   const fromPos = (x: number) => (log ? min * Math.pow(max / min, x / 1000) : x);
   return (
-    <label className={lock ? 'slider locked' : 'slider'} title={lock ? L(lockText(lock)) : hint}>
+    <label className={lock ? 'slider locked' : 'slider'} title={lock ? lockText(lock) : hint}>
       <span className="slider-label" style={color && !lock ? { color } : undefined}>{lock && <LockIcon />}{label}</span>
       <input type="range" min={log ? 0 : min} max={log ? 1000 : max} step={log ? 1 : step} value={toPos(value)} disabled={!!lock}
         onChange={(e) => onChange(fromPos(Number(e.target.value)))} />
@@ -44,9 +42,8 @@ export function Slider(props: {
 
 export function Toggle(props: { label: string; value: boolean; onChange: (v: boolean) => void; hint?: string; control?: ControlId }) {
   const lock = useLock(props.control);
-  const L = useL();
   return (
-    <label className={lock ? 'toggle locked' : 'toggle'} title={lock ? L(lockText(lock)) : props.hint}>
+    <label className={lock ? 'toggle locked' : 'toggle'} title={lock ? lockText(lock) : props.hint}>
       <input type="checkbox" checked={props.value} disabled={!!lock} onChange={(e) => props.onChange(e.target.checked)} />
       <span className="track"><span className="knob" /></span>
       <span>{lock && <LockIcon />}{props.label}</span>
@@ -56,9 +53,8 @@ export function Toggle(props: { label: string; value: boolean; onChange: (v: boo
 
 export function Seg<T extends string>(props: { value: T; options: [T, string][]; onChange: (v: T) => void; control?: ControlId }) {
   const lock = useLock(props.control);
-  const L = useL();
   return (
-    <div className={lock ? 'seg locked' : 'seg'} title={lock ? L(lockText(lock)) : undefined}>
+    <div className={lock ? 'seg locked' : 'seg'} title={lock ? lockText(lock) : undefined}>
       {props.options.map(([id, name]) => (
         <button key={id} className={props.value === id ? 'on' : ''} disabled={!!lock} onClick={() => props.onChange(id)}>{name}</button>
       ))}

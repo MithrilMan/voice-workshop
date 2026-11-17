@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { useL } from '../i18n';
 import { Section, Toggle, LockIcon } from './controls';
 import { lockText } from './DriverBar';
 import { voice } from '../voice/voice';
@@ -33,7 +32,6 @@ export const melodyState = { contour: defaultContour(120) };
  * plays sustained notes (singing).
  */
 export function MelodyPanel() {
-  const L = useL();
   const p = useManual();
   const [, force] = useState(0);
   const [octave, setOctave] = useState(p.source.f0 > 170 ? 4 : 3);
@@ -72,7 +70,7 @@ export function MelodyPanel() {
     }
     ctx.fillStyle = C.muted; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     for (let s = 0; s <= DUR; s += 0.5) ctx.fillText(`${s.toFixed(1)} s`, X((s / DUR) * (NPTS - 1)), h - 15);
-    label(ctx, L({ it: 'disegna la melodia (tasto destro o Maiusc: cancella = senza voce)', en: 'draw the melody (right button or Shift: erase = unvoiced)' }), w / 2, 14, C.muted);
+    label(ctx, 'draw the melody (right button or Shift: erase = unvoiced)', w / 2, 14, C.muted);
   });
 
   const last = useRef<number | null>(null);
@@ -94,7 +92,7 @@ export function MelodyPanel() {
     const c = melodyState.contour;
     const pts = c.map((f0, i) => ({ t: (i / (NPTS - 1)) * DUR, f0 }));
     const score = contourScore(pts, Math.max(6, voice.manual.source.ps));
-    const label = mode === 'buzz' ? { it: 'col solo ronzio', en: 'on the buzz alone' } : { it: 'sulla vocale della testa', en: 'on the head’s vowel' };
+    const label = mode === 'buzz' ? 'on the buzz alone' : 'on the head’s vowel';
     void voice.sing(score, { buzz: mode === 'buzz', label });
   };
 
@@ -133,31 +131,28 @@ export function MelodyPanel() {
   const nW = wx + 1;
   return (
     <div className="panel-body">
-      <Section title={L({ it: 'La melodia della voce', en: 'The melody of speech' })} accent={C.amber}
-        info={L({
-          it: 'Quando parliamo la nota non sta mai ferma: quella fondamentale in movimento è l’intonazione. Suonata dal solo ronzio si segue la melodia, ma non ci sono parole e della persona si capisce poco più di quanto è acuta: il resto lo fa il filtro.',
-          en: 'When we talk the pitch never stops moving: that moving fundamental is intonation. Played by the buzz alone you can follow the tune, but there are no words and little of the person beyond how high it sits: the rest comes from the filter.',
-        })}>
+      <Section title="The melody of speech" accent={C.amber}
+        info={'When we talk the pitch never stops moving: that moving fundamental is intonation. Played by the buzz alone you can follow the tune, but there are no words and little of the person beyond how high it sits: the rest comes from the filter.'}>
         <canvas ref={ref} className="melody-canvas" onContextMenu={(e) => e.preventDefault()}
           onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); last.current = null; paint(e); }}
           onPointerMove={(e) => { if (e.buttons) paint(e); }} onPointerUp={() => { last.current = null; }} />
         <div className="row wrap">
-          <button className="btn primary" onClick={() => play('buzz')}>{L({ it: 'Suona col solo ronzio', en: 'Play with the buzz alone' })}</button>
-          <button className="btn" onClick={() => play('vowel')}>{L({ it: 'Canta con la vocale attuale', en: 'Sing with the current vowel' })}</button>
-          <button className="chip" onClick={() => { melodyState.contour = defaultContour(voice.manual.source.f0); force((x) => x + 1); }}>{L({ it: 'Frase tipo', en: 'Sample sentence' })}</button>
-          <button className="chip" onClick={() => { melodyState.contour = defaultContour(voice.manual.source.f0).map((f, i) => (f > 0 && i > NPTS * 0.8 ? f * Math.pow(2, (6 * (i - NPTS * 0.8)) / (NPTS * 0.2) / 12) : f)); force((x) => x + 1); }}>{L({ it: 'Domanda', en: 'Question' })}</button>
-          <button className="chip" onClick={() => { melodyState.contour = new Array(NPTS).fill(voice.manual.source.f0); force((x) => x + 1); }}>{L({ it: 'Piatta (robot)', en: 'Flat (robot)' })}</button>
+          <button className="btn primary" onClick={() => play('buzz')}>Play with the buzz alone</button>
+          <button className="btn" onClick={() => play('vowel')}>Sing with the current vowel</button>
+          <button className="chip" onClick={() => { melodyState.contour = defaultContour(voice.manual.source.f0); force((x) => x + 1); }}>Sample sentence</button>
+          <button className="chip" onClick={() => { melodyState.contour = defaultContour(voice.manual.source.f0).map((f, i) => (f > 0 && i > NPTS * 0.8 ? f * Math.pow(2, (6 * (i - NPTS * 0.8)) / (NPTS * 0.2) / 12) : f)); force((x) => x + 1); }}>Question</button>
+          <button className="chip" onClick={() => { melodyState.contour = new Array(NPTS).fill(voice.manual.source.f0); force((x) => x + 1); }}>Flat (robot)</button>
         </div>
       </Section>
-      <Section title={L({ it: 'Canta', en: 'Sing' })} accent={C.amber}
-        info={L({ it: 'Tieni premuto un tasto (o usa la tastiera del computer: A W S E D F T G Y H U J K). La vocale resta quella scelta: cambia solo la nota, le armoniche scorrono sotto lo stesso inviluppo.', en: 'Hold a key (or use the computer keyboard: A W S E D F T G Y H U J K). The vowel stays the same: only the pitch changes, the harmonics slide under the same envelope.' })}>
+      <Section title={'Sing'} accent={C.amber}
+        info={'Hold a key (or use the computer keyboard: A W S E D F T G Y H U J K). The vowel stays the same: only the pitch changes, the harmonics slide under the same envelope.'}>
         <div className="row">
           <button className="chip" onClick={() => setOctave(Math.max(1, octave - 1))}>−8va</button>
           <span className="small">C{octave}–C{octave + 2}</span>
           <button className="chip" onClick={() => setOctave(Math.min(5, octave + 1))}>+8va</button>
           <Toggle label="vibrato" value={vib} onChange={setVib} />
         </div>
-        {pitchLock && <p className="small muted locked-note"><LockIcon /> {L(lockText(pitchLock))}</p>}
+        {pitchLock && <p className="small muted locked-note"><LockIcon /> {lockText(pitchLock)}</p>}
         <div className={pitchLock ? 'keyboard locked' : 'keyboard'} style={{ ['--n' as string]: nW }}>
           {keysUi.map((k) => (
             <button key={k.m} className={k.black ? 'key black' : 'key'} disabled={!!pitchLock} style={{ left: `${(k.x / nW) * 100}%`, width: `${((k.black ? 0.6 : 1) / nW) * 100}%` }}

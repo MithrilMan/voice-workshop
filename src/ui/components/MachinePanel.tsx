@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
 import { voice } from '../voice/voice';
-import { useL } from '../i18n';
 import { Section, Slider } from './controls';
 import { useAnimatedCanvas, C, label } from '../canvas';
 import { melodyState } from './MelodyPanel';
@@ -42,14 +41,13 @@ function excitation(weights: number[], contour: number[], FS: number): Float32Ar
 }
 
 export function MachinePanel() {
-  const L = useL();
   const [w, setW] = useState<number[]>([1, 0.7, 0.5, 0.4, 0.3, 0.25, 0.2, 0.15, 0.12]);
   const spec = useRef<{ s: Float64Array; fs: number } | null>(null);
   const play = () => {
     const fs = voice.sampleRate;
     const x = excitation(w, melodyState.contour, fs);
     spec.current = { s: welch(x, 8192), fs };
-    void voice.playSamples(x, { it: 'l’eccitazione', en: 'the excitation' });
+    void voice.playSamples(x, 'the excitation');
   };
   const ref = useAnimatedCanvas(({ ctx, w: cw, h }) => {
     ctx.fillStyle = C.panel; ctx.fillRect(0, 0, cw, h);
@@ -68,7 +66,7 @@ export function MachinePanel() {
     }
     ctx.fillStyle = 'rgba(169,139,250,0.12)';
     ctx.fillRect(X(9 * f0 + f0 / 2), 10, cw - 10 - X(9 * f0 + f0 / 2), h - 28);
-    label(ctx, L({ it: 'oltre la 9ª armonica: tocca al filtro appreso', en: 'beyond the 9th harmonic: up to the learned filter' }), Math.min(cw - 120, X(9 * f0) + 130), 22, C.violet);
+    label(ctx, 'beyond the 9th harmonic: up to the learned filter', Math.min(cw - 120, X(9 * f0) + 130), 22, C.violet);
     const sp = spec.current;
     if (sp) {
       const s = sp.s, FS = sp.fs;
@@ -81,19 +79,16 @@ export function MachinePanel() {
   });
   return (
     <div className="panel-body">
-      <Section title={L({ it: 'Come la costruisce un modello', en: 'How a model builds it' })} accent={C.violet}
-        info={L({
-          it: 'Questa scheda riassume solo come costruisce una voce il modello vocale del lavoro «Teacher in the Loop». Il ronzio lì è quasi tutto matematica: dalla melodia prevista nascono nove sinusoidi, a una, due, tre… fino a nove volte la fondamentale. Partono insieme e l’armonica k gira esattamente k volte più veloce, così restano agganciate alla nota. Nove armoniche arrivano solo a circa 2 kHz: sopra deve pensarci la rete. Dove la melodia prevista va a zero (la «s» di «hiss») le sinusoidi si spengono e al loro posto c’è un rumore leggero. Dieci numeri appresi mescolano le nove sinusoidi in un solo segnale, l’eccitazione; poi un filtro appreso (il decoder) la trasforma in voce, e il colore della voce vive nei suoi pesi.',
-          en: 'This tab only summarizes how the speech model of the “Teacher in the Loop” paper builds a voice. Its buzz is mostly math: from the predicted melody come nine sine waves, at one, two, three… up to nine times the fundamental. They start together and harmonic k turns exactly k times faster, so they stay locked to the pitch. Nine harmonics reach only about 2 kHz: above that the network has to do the work. Where the predicted melody drops to zero (the s of “hiss”) the sines switch off and a soft noise takes their place. Ten learned numbers mix the nine sines into one signal, the excitation; then a learned filter (the decoder) turns it into a voice, and the color of the voice lives in its weights.',
-        })}>
-        <p className="small">{L({ it: 'Prova a mescolare a mano le nove sinusoidi (nel modello lo fanno numeri appresi) e ascolta l’eccitazione sulla melodia disegnata nella scheda «Melodia».', en: 'Try mixing the nine sines by hand (in the model learned numbers do it) and listen to the excitation on the melody drawn in the “Melody” tab.' })}</p>
+      <Section title="How a model builds it" accent={C.violet}
+        info={'This tab only summarizes how the speech model of the “Teacher in the Loop” paper builds a voice. Its buzz is mostly math: from the predicted melody come nine sine waves, at one, two, three… up to nine times the fundamental. They start together and harmonic k turns exactly k times faster, so they stay locked to the pitch. Nine harmonics reach only about 2 kHz: above that the network has to do the work. Where the predicted melody drops to zero (the s of “hiss”) the sines switch off and a soft noise takes their place. Ten learned numbers mix the nine sines into one signal, the excitation; then a learned filter (the decoder) turns it into a voice, and the color of the voice lives in its weights.'}>
+        <p className="small">Try mixing the nine sines by hand (in the model learned numbers do it) and listen to the excitation on the melody drawn in the “Melody” tab.</p>
         {w.map((v, i) => (
           <Slider key={i} label={`${i + 1} × F0`} value={v} min={-1} max={1} onChange={(x) => setW(w.map((y, j) => (j === i ? x : y)))} color={C.amber} />
         ))}
         <div className="row">
-          <button className="btn primary" onClick={play}>{L({ it: 'Ascolta l’eccitazione', en: 'Listen to the excitation' })}</button>
-          <button className="chip" onClick={() => setW([1, 0, 0, 0, 0, 0, 0, 0, 0])}>{L({ it: 'Solo la fondamentale', en: 'Fundamental only' })}</button>
-          <button className="chip" onClick={() => setW([1, 1, 1, 1, 1, 1, 1, 1, 1])}>{L({ it: 'Tutte uguali', en: 'All equal' })}</button>
+          <button className="btn primary" onClick={play}>Listen to the excitation</button>
+          <button className="chip" onClick={() => setW([1, 0, 0, 0, 0, 0, 0, 0, 0])}>Fundamental only</button>
+          <button className="chip" onClick={() => setW([1, 1, 1, 1, 1, 1, 1, 1, 1])}>All equal</button>
         </div>
         <canvas ref={ref} className="ab-canvas" />
       </Section>

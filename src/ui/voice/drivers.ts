@@ -1,26 +1,24 @@
 import type { Score } from '../../dsp/engine/params';
 import { ControlId, CONTROL_IDS } from './controls';
 
-export type Bi = { it: string; en: string };
-
 /** What filters the sources: the head, a tube (drawn or measured), or nothing. */
 export type Filter =
   | { kind: 'head' }
-  | { kind: 'tube'; label: Bi }
+  | { kind: 'tube'; label: string }
   | { kind: 'bypass' };
 
 /** Who plays the voice: the hands, or a performance that owns some controls while it lasts. */
 export type Performer =
   | { kind: 'hands' }
-  | { kind: 'sentence'; id: number; label: Bi; score: Score }
-  | { kind: 'melody'; id: number; label: Bi; score: Score; buzz: boolean }
-  | { kind: 'glide'; id: number; label: Bi }
-  | { kind: 'clip'; id: number; label: Bi; samples: boolean };
+  | { kind: 'sentence'; id: number; label: string; score: Score }
+  | { kind: 'melody'; id: number; label: string; score: Score; buzz: boolean }
+  | { kind: 'glide'; id: number; label: string }
+  | { kind: 'clip'; id: number; label: string; samples: boolean };
 
 export interface Lanes { filter: Filter; performer: Performer }
 
 export type LockOwner = 'sentence' | 'melody' | 'glide' | 'clip' | 'tube' | 'bypass';
-export interface Lock { by: LockOwner; label: Bi }
+export interface Lock { by: LockOwner; label: string }
 
 const ALL_BUT_VOLUME = CONTROL_IDS.filter((c) => c !== 'volume');
 
@@ -51,6 +49,6 @@ export function lockOf(l: Lanes, c: ControlId): Lock | null {
   const p = l.performer;
   if (p.kind !== 'hands' && performerLocks(p).includes(c)) return { by: p.kind, label: p.label };
   const f = l.filter;
-  if (filterLocks(f).includes(c)) return f.kind === 'tube' ? { by: 'tube', label: f.label } : { by: 'bypass', label: { it: 'nessun filtro', en: 'no filter' } };
+  if (filterLocks(f).includes(c)) return f.kind === 'tube' ? { by: 'tube', label: f.label } : { by: 'bypass', label: 'no filter' };
   return null;
 }
