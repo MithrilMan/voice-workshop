@@ -27,8 +27,8 @@ import { encodeWav, encodeWavStereo, decodeWav } from '../dsp/util/wav';
 import { Note, parseNotes } from '../dsp/music/notes';
 import { singScore, sungPitch, meantNotes, SingOptions, SungSyllable, SungNote } from '../dsp/music/sing';
 import { melodyOf, pitchTrack, Melody, MelodyNote, MelodyOptions } from '../dsp/music/transcribe';
-import { beatHits, parseBeat, BeatTrack, BeatOptions } from '../dsp/music/beat';
-import { mixTracks, MixOptions, Stereo, Track, downmix, arrange, Performance, Placed } from '../dsp/music/mix';
+import { beatHits, parseBeat, parsePattern, BeatTrack, BeatOptions, BeatTakes } from '../dsp/music/beat';
+import { mixTracks, loopMix, MixOptions, Stereo, Track, downmix, arrange, Performance, Placed } from '../dsp/music/mix';
 import { voicePrint, VoicePrint, Clip } from '../dsp/analysis/voiceprint';
 import { VoiceDesign, VOICE_FIELDS, Field, cloneVoice, fieldValue, withField, sanitizeVoice } from '../dsp/voice/design';
 import { BUILTIN_VOICES, builtinVoice } from '../dsp/voice/builtin';
@@ -43,7 +43,7 @@ export { sungPitch, melodyOf, pitchTrack };
 export type { Melody, MelodyNote, MelodyOptions };
 export { parseNotes, noteNumber, noteName, midiHz, transpose } from '../dsp/music/notes';
 export { BEATBOX_KIT, DRUM_FAMILIES, drumSound, parsePattern, parseBeat, drumHit } from '../dsp/music/beat';
-export type { DrumSound, DrumPart, DrumFamily, DrumHit, DrumHitOptions } from '../dsp/music/beat';
+export type { DrumSound, DrumPart, DrumFamily, DrumHit, DrumHitOptions, BeatTakes } from '../dsp/music/beat';
 export { BEAT_PATTERNS } from '../dsp/music/patterns';
 export { imitate } from '../dsp/music/imitate';
 export type { Imitation, ImitateOptions } from '../dsp/music/imitate';
@@ -264,6 +264,42 @@ export function beatbox(voice: Readonly<VoiceDesign>, beat: string | readonly Be
   const mono = mixTracks([...hits.map((h) => ({ ...h, at: (h.at ?? 0) + pre })), { samples: new Float32Array(1), fs, at: pre + length }], { room: 0, peak: null, tail: 0.3 });
   const samples = downmix(mono);
   return { samples, fs, beat0: pre, duration: samples.length / fs };
+}
+
+/** A beat made to go round and round (see beatLoop). */
+export interface BeatLoop {
+  /** one round, mono: played again from its start as it ends, it goes on with no seam */
+  samples: Float32Array;
+  fs: number;
+  /** its length, s, and how many times round the pattern it holds */
+  length: number;
+  passes: number;
+  /** steps of the pattern in one pass (its first strikes at sample 0) */
+  steps: number;
+}
+
+export interface BeatLoopOptions extends Omit<BeatOptions, 'repeat'>, Pick<MixOptions, 'room' | 'size' | 'peak'> {
+  /** how many times round the pattern a round of the loop holds, each a little different when `humanize` (4) */
+  passes?: number;
+}
+
+/**
+ * A voice beatboxes a beat (as in `beatbox`) as a loop, to be played round
+ * and round as it is edited: the sound that rings past the end of a round
+ * is heard at its start, one mouth's last sound is cut by the first strike
+ * of the next round, and the room has the tail of the round before. Played
+ * round, it sounds as `beatbox` with as many repeats, over the same room.
+ * `takes`, kept between calls for one voice at one rate, holds the sounds
+ * already said, so that a beat that changes as it plays is made again in
+ * a few milliseconds.
+ */
+export function beatLoop(voice: Readonly<VoiceDesign>, beat: string | readonly BeatTrack[], opts: BeatLoopOptions = {}, takes?: BeatTakes): BeatLoop {
+  const fs = opts.fs ?? 48000, passes = Math.max(1, Math.round(opts.passes ?? 4));
+  const tracks = typeof beat === 'string' ? parseBeat(beat, opts.sounds) : beat;
+  const { hits, length } = beatHits(voice, tracks, { ...opts, fs, repeat: passes }, { loop: true, takes });
+  if (!hits.length) throw new Error('no hit in the pattern');
+  const samples = loopMix(hits, length, { room: opts.room ?? 0, size: opts.size, peak: opts.peak });
+  return { samples, fs, length: samples.length / fs, passes, steps: Math.max(...tracks.map((t) => parsePattern(t.pattern).length)) };
 }
 
 /** A part of an ensemble: a voice that sings a song, or beatboxes. */

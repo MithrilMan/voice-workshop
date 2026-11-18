@@ -73,6 +73,10 @@ export class VoiceController {
   telemetry: Telemetry | null = null;
   telemetryProgram = 0;
   private telemetryTime = -1e9;
+  /** where the loop playing was in its samples at the latest telemetry, s */
+  private telemetryAt: number | undefined;
+  /** how long the samples of the loop playing are, s */
+  private loopLength = 0;
   private nextId = 1;
   private waiters = new Map<number, { resolve: (r: Result) => void; captured?: (s: Float32Array) => void }>();
   private stopGlide: (() => void) | null = null;
@@ -103,7 +107,7 @@ export class VoiceController {
   /** Connects the audio. */
   attach(sink: VoiceSink): void {
     this.sink = sink;
-    sink.onTelemetry = (t, program) => { this.telemetry = t; this.telemetryProgram = program; this.telemetryTime = this.clock.now(); };
+    sink.onTelemetry = (t, program, at) => { this.telemetry = t; this.telemetryProgram = program; this.telemetryTime = this.clock.now(); this.telemetryAt = at; };
     sink.onStream = (s) => { for (const l of this.streamListeners) l(s); };
     sink.onEnded = (id, reason, captured) => this.ended(id, reason, captured);
     sink.onState = () => this.emit();
@@ -359,6 +363,42 @@ export class VoiceController {
     return done;
   }
 
+  /**
+   * Plays samples made elsewhere round and round (a loop), in place of the
+   * voice, until stopped, from `from` s into them; swapLoop() changes them
+   * as they play.
+   */
+  async playLoop(samples: Float32Array, label: string, from = 0): Promise<Result> {
+    if (!(await this.ensureAudio())) return 'stopped';
+    const id = this.begin({ kind: 'clip', id: this.nextId++, label, samples: true }, 0);
+    const done = this.wait(id);
+    this.loopLength = samples.length / this.sampleRate;
+    this.telemetryAt = undefined;
+    this.sink!.program({ id, params: this.effective(), after: this._manual, samples, loop: true, from: Math.round(from * this.sampleRate) });
+    this.emit();
+    return done;
+  }
+
+  /** New samples for the loop playing, heard from the same share of their length; false if no loop plays. */
+  swapLoop(samples: Float32Array): boolean {
+    const p = this._lanes.performer;
+    if (p.kind !== 'clip' || !p.samples || !this.loopLength || !samples.length) return false;
+    const length = samples.length / this.sampleRate;
+    // the audio goes on from the same share of the new samples: so does the place last heard of
+    if (this.telemetryAt !== undefined) this.telemetryAt = (this.telemetryAt % this.loopLength) * (length / this.loopLength);
+    this.loopLength = length;
+    this.sink?.swap(p.id, samples);
+    return true;
+  }
+
+  /** Where the loop playing is now, s into its samples, and how long they are; null when no loop plays (or before it is heard). */
+  loopPlace(): { at: number; length: number } | null {
+    const p = this._lanes.performer;
+    if (p.kind !== 'clip' || !this.loopLength || this.telemetryProgram !== p.id || this.telemetryAt === undefined) return null;
+    const at = this.telemetryAt + Math.max(0, Math.min(0.1, (this.clock.now() - this.telemetryTime) / 1000));
+    return { at: at % this.loopLength, length: this.loopLength };
+  }
+
   /** Glides the pitch from one value to another (a demonstration); the pitch stays at the end value. */
   glide(from: number, to: number, seconds: number, label: string): Promise<Result> {
     const id = this.begin({ kind: 'glide', id: this.nextId++, label }, seconds, { lungsOff: false });
@@ -539,6 +579,7 @@ export class VoiceController {
     if (p.kind === 'hands' || p.id !== id) return;
     if (p.kind === 'glide') { this.stopGlide?.(); this.stopGlide = null; }
     this.clipParams = null;
+    this.loopLength = 0;
     this.setLanes({ ...this._lanes, performer: { kind: 'hands' } });
     // after a glide the voice still has a whole breath
     if (p.kind === 'glide') this.breathe();

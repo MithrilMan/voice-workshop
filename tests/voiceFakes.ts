@@ -6,7 +6,8 @@ import type { Clock } from '../src/ui/voice/voice';
 export type SinkMsg =
   | { type: 'params'; params: EngineParams; after: EngineParams; program: number }
   | { type: 'program'; program: Program }
-  | { type: 'stop'; id: number };
+  | { type: 'stop'; id: number }
+  | { type: 'swap'; id: number; samples: Float32Array };
 
 /** A sink that records what the controller sends, in order. */
 export class FakeSink implements VoiceSink {
@@ -16,7 +17,7 @@ export class FakeSink implements VoiceSink {
   starts = 0;
   suspends = 0;
   micAnalyser: AnalyserNode | null = null;
-  onTelemetry: (t: Telemetry, program: number) => void = () => {};
+  onTelemetry: (t: Telemetry, program: number, at?: number) => void = () => {};
   onStream: (s: StreamBlock) => void = () => {};
   onEnded: (id: number, reason: EndReason, captured?: Float32Array) => void = () => {};
   onState: (running: boolean) => void = () => {};
@@ -26,6 +27,7 @@ export class FakeSink implements VoiceSink {
   params(params: EngineParams, after: EngineParams, program: number): void { this.sent.push({ type: 'params', params, after, program }); }
   program(p: Program): void { this.sent.push({ type: 'program', program: p }); }
   stop(id: number): void { this.sent.push({ type: 'stop', id }); }
+  swap(id: number, samples: Float32Array): void { this.sent.push({ type: 'swap', id, samples }); }
   async enableMic(): Promise<AnalyserNode> { throw new Error('no microphone in the tests'); }
   disableMic(): void {}
 

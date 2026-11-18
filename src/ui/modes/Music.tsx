@@ -3,7 +3,7 @@ import { store } from '../store';
 import { useLibrary } from '../library';
 import { Slider, Toggle, Seg } from '../components/controls';
 import { LanguagePick } from '../components/LanguagePick';
-import { makeParts, musicRate, arrangeParts, playMix, stopPlaying, saveWav, wakeSound, findMelody, imitateSound, recordMicrophone, decodeRecording, playRecording, type MusicRequest, type PartOutcome, type Recording } from '../voice/music';
+import { makeParts, musicRate, arrangeParts, playMix, stopPlaying, saveWav, wakeSound, findMelody, imitateSound, recordMicrophone, decodeRecording, playRecording, makeLoop, playLoop, swapLoop, loopPlace, type MusicRequest, type PartOutcome, type Recording } from '../voice/music';
 import type { Melody } from '../../dsp/music/transcribe';
 import { useLanes } from '../voice/hooks';
 import { SONGS, ENSEMBLES, type PartPreset } from '../songs';
@@ -273,7 +273,11 @@ function BeatBench({ voice }: { voice: VoiceDesign }) {
   const [humanize, setHumanize] = useState(0.3);
   const [oneMouth, setOneMouth] = useState(true);
   const [anySound, setAnySound] = useState('');
-  const [mix, setMix] = useState<Stereo | null>(null);
+  // the beat plays live, round and round, and every change is heard as it plays; `now` the step heard
+  const [live, setLive] = useState(false);
+  const [now, setNow] = useState(-1);
+  const shape = useRef<{ passes: number; steps: number; made: string } | null>(null);
+  const asked = useRef(0), playing = useRef(0);
   const job = useJob();
   const speaking = useLanes().performer.kind !== 'hands';
   const steps = Math.max(16, ...rows.map((r) => r.pattern.length));
@@ -328,24 +332,100 @@ function BeatBench({ voice }: { voice: VoiceDesign }) {
   const setRow = (r: number, ch: Partial<BeatTrack>) => edit(rows.map((x, k) => (k === r ? { ...x, ...ch } : x)));
   const addRow = (sound: string) => edit([...rows, { sound, pattern: '.'.repeat(steps) }]);
 
-  const run = async (req: MusicRequest, label: string, room: number) => {
-    wakeSound();
+  const make = async (req: MusicRequest, room: number) => {
     job.setProblem(''); job.setBusy('Making the sounds…');
     const r = makeParts([req]);
     job.stop.current = r.stop;
     const [o] = await r.done;
     job.setBusy('');
     if (!o.performance) { if (o.error) job.setProblem(o.error); return null; }
-    const m = arrangeParts([{ performance: o.performance }], { tempo, room, size: 0.3 });
-    void playMix(m, label);
-    return m;
+    return arrangeParts([{ performance: o.performance }], { tempo, room, size: 0.3 });
   };
+  const run = async (req: MusicRequest, label: string, room: number) => {
+    wakeSound();
+    const m = await make(req, room);
+    if (m) void playMix(m, label);
+  };
+  const hits = () => rows.filter((x) => /[xXo>]/.test(x.pattern));
+  // the loop: four times round the pattern (each a little different when human), over the room of the WAV
+  const loopOpts = { tempo, swing, humanize, layered: !oneMouth, sounds: own, fs: musicRate(), room: 0.08, size: 0.3, passes: 4 };
+  const madeKey = (t: BeatTrack[]) => JSON.stringify([t, loopOpts, voice]);
   const play = async () => {
     if (textError && view === 'text') { job.setProblem(`The text has a mistake (${textError}): mend it, or go back to the grid, which still holds the beat as it was.`); return; }
-    const t = rows.filter((x) => /[xXo>]/.test(x.pattern));
+    const t = hits();
     if (!t.length) { job.setProblem('Nothing to play: click the steps of the grid, or write a beat as text.'); return; }
-    const m = await run({ kind: 'beat', voice, tracks: t, opts: { tempo, swing, repeat, humanize, layered: !oneMouth, sounds: own, fs: musicRate() } }, `${voice.name || 'The voice'} beatboxes`, 0.08);
-    if (m) setMix(m);
+    wakeSound();
+    job.setProblem(''); job.setBusy('Making the sounds…');
+    const id = ++asked.current;
+    job.stop.current = () => { asked.current++; };
+    try {
+      const key = madeKey(t);
+      const l = await makeLoop(voice, t, loopOpts);
+      job.setBusy('');
+      if (id !== asked.current) return;
+      shape.current = { passes: l.passes, steps: l.steps, made: key };
+      const token = ++playing.current;
+      setLive(true);
+      // from a little before the end of the round: the first strike comes 120 ms after the press, its start heard whole
+      await playLoop(l.samples, `${voice.name || 'The voice'} beatboxes`, Math.max(0, l.samples.length / musicRate() - 0.12));
+      if (playing.current === token) { setLive(false); setNow(-1); }
+    } catch (e) {
+      job.setBusy('');
+      job.setProblem((e as Error).message);
+    }
+  };
+  // while it plays, what changes is made again (the sounds already said are kept) and heard from the same step
+  useEffect(() => {
+    if (!live) return;
+    const t = hits();
+    const key = madeKey(t);
+    if (shape.current?.made === key) return;
+    const id = ++asked.current;
+    const timer = setTimeout(() => {
+      if (!t.length) {
+        // nothing left to play: a silent round, the steps still going
+        const s = shape.current, n = Math.round(((s?.steps ?? 16) * (s?.passes ?? 4) * 15 * musicRate()) / tempo);
+        if (s) shape.current = { ...s, made: key };
+        swapLoop(new Float32Array(Math.max(1, n)));
+        return;
+      }
+      makeLoop(voice, t, loopOpts).then((l) => {
+        if (id !== asked.current) return;
+        shape.current = { passes: l.passes, steps: l.steps, made: key };
+        swapLoop(l.samples);
+      }).catch((e: Error) => job.setProblem(e.message));
+    }, 30);
+    return () => clearTimeout(timer);
+  }, [live, rows, tempo, swing, humanize, oneMouth, own, voice]);
+  // before it plays, its sounds are said ahead (the worker keeps them), so that Play sounds at once
+  useEffect(() => {
+    if (live) return;
+    const t = hits();
+    if (!t.length) return;
+    const timer = setTimeout(() => { makeLoop(voice, t, loopOpts).catch(() => {}); }, 400);
+    return () => clearTimeout(timer);
+  }, [live, rows, own, voice]);
+  // the step heard now
+  useEffect(() => {
+    if (!live) return;
+    let raf = 0, last = -2;
+    const tick = () => {
+      const pl = loopPlace(), s = shape.current;
+      if (pl && s) {
+        const pass = pl.length / s.passes;
+        const k = Math.min(s.steps - 1, Math.floor(((pl.at % pass) / pass) * s.steps));
+        if (k !== last) { last = k; setNow(k); }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { cancelAnimationFrame(raf); setNow(-1); };
+  }, [live]);
+  const wav = async () => {
+    const t = hits();
+    if (!t.length) { job.setProblem('Nothing to save: click the steps of the grid, or write a beat as text.'); return; }
+    const m = await make({ kind: 'beat', voice, tracks: t, opts: { tempo, swing, repeat, humanize, layered: !oneMouth, sounds: own, fs: musicRate() } }, 0.08);
+    if (m) saveWav(m, `${voice.name || 'voice'} - ${b.name}`);
   };
   const audition = (t: { sound: string; f0?: number | string }, sounds: DrumSound[] = own) =>
     void run({ kind: 'beat', voice, tracks: [{ sound: t.sound, f0: t.f0 === '' ? undefined : t.f0, pattern: 'x' }], opts: { tempo, sounds, fs: musicRate() } }, `[${drumSound(t.sound, sounds)?.ipa ?? t.sound}]`, 0);
@@ -361,14 +441,13 @@ function BeatBench({ voice }: { voice: VoiceDesign }) {
           : speaking
             ? <button className="btn big" onClick={stopPlaying}>■ Stop</button>
             : <button className="btn primary big" onClick={() => void play()}>▶ Play</button>}
-        <button className="btn" disabled={!mix} onClick={() => mix && void playMix(mix, 'Again')}>▶ Again</button>
-        <button className="btn" disabled={!mix} onClick={() => mix && saveWav(mix, `${voice.name || 'voice'} - ${b.name}`)}>⇩ WAV</button>
+        <button className="btn" disabled={!!job.busy} title="The beat as a WAV file, as many bars as Bars says" onClick={() => void wav()}>⇩ WAV</button>
       </div>
-      <p className="muted small">{b.hint}. Every drum is a sound of the mouth of the voice you are editing (a bigger head, a deeper kit).</p>
+      <p className="muted small">{b.hint}. Every drum is a sound of the mouth of the voice you are editing (a bigger head, a deeper kit). It plays round and round: change the steps, the sounds, the tempo as it plays.</p>
       <div className="music-grid2">
         <Slider label="Tempo" value={tempo} min={50} max={200} step={1} onChange={setTempo} format={(v) => `${Math.round(v)} bpm`} />
         <Slider label="Swing" value={swing} min={0} max={0.6} step={0.05} onChange={setSwing} format={(v) => v.toFixed(2)} hint="every second step played a little late" />
-        <Slider label="Bars" value={repeat} min={1} max={8} step={1} onChange={setRepeat} format={(v) => `${Math.round(v)}`} />
+        <Slider label="Bars" value={repeat} min={1} max={8} step={1} onChange={setRepeat} format={(v) => `${Math.round(v)}`} hint="how many times round the pattern the WAV holds" />
         <Slider label="Human" value={humanize} min={0} max={1} step={0.05} onChange={setHumanize} format={(v) => v.toFixed(2)} hint="hits a few milliseconds early or late, a little louder or softer, as a person plays" />
         <Toggle label="One mouth" value={oneMouth} onChange={setOneMouth} hint="one sound at a time, each cut by the next, as a beatboxer makes them (a hum goes on under the clicks); off: every hit rings out, as a drum machine" />
       </div>
@@ -402,7 +481,7 @@ function BeatBench({ voice }: { voice: VoiceDesign }) {
                   <button className="chip" title="Hear it once" onClick={() => audition(r)}>▶</button>
                   <div className="beat-steps">
                     {Array.from({ length: steps }, (_, i) => r.pattern[i] ?? '.').map((c, i) => (
-                      <button key={i} className={`beat-step${c === 'x' ? ' on' : c === 'X' || c === '>' ? ' accent' : c === 'o' ? ' soft' : ''}${i % 4 === 0 ? ' beat' : ''}`}
+                      <button key={i} className={`beat-step${c === 'x' ? ' on' : c === 'X' || c === '>' ? ' accent' : c === 'o' ? ' soft' : ''}${i % 4 === 0 ? ' beat' : ''}${i === now ? ' now' : ''}`}
                         aria-label={`Row ${ri + 1}, step ${i + 1}`} onClick={() => { const p = r.pattern.padEnd(steps, '.'); setRow(ri, { pattern: p.slice(0, i) + cycle(c) + p.slice(i + 1) }); }} />
                     ))}
                   </div>

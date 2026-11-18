@@ -18,7 +18,7 @@ export class AudioBridge implements VoiceSink {
   micAnalyser: AnalyserNode | null = null;
   private micStream: MediaStream | null = null;
 
-  onTelemetry: (t: Telemetry, program: number) => void = () => {};
+  onTelemetry: (t: Telemetry, program: number, at?: number) => void = () => {};
   onStream: (s: StreamBlock) => void = () => {};
   onEnded: (id: number, reason: EndReason, captured?: Float32Array) => void = () => {};
   onState: (running: boolean) => void = () => {};
@@ -62,7 +62,7 @@ export class AudioBridge implements VoiceSink {
       const node = new AudioWorkletNode(ctx, 'voice-processor', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
       node.port.onmessage = (e: MessageEvent<RunnerOut>) => {
         const d = e.data;
-        if (d.type === 'telemetry') this.onTelemetry(d.telemetry, d.program);
+        if (d.type === 'telemetry') this.onTelemetry(d.telemetry, d.program, d.at);
         else if (d.type === 'stream') this.onStream(d);
         else if (d.type === 'ended') this.onEnded(d.id, d.reason, d.captured);
       };
@@ -101,6 +101,7 @@ export class AudioBridge implements VoiceSink {
   params(params: EngineParams, after: EngineParams, program: number): void { this.send({ type: 'params', params, after, program }); }
   program(p: Program): void { this.send({ type: 'program', program: p }); }
   stop(id: number): void { this.send({ type: 'stop', id }); }
+  swap(id: number, samples: Float32Array): void { this.send({ type: 'swap', id, samples }); }
 
   /** Opt-in microphone analysis (never routed to the speakers). */
   async enableMic(): Promise<AnalyserNode> {

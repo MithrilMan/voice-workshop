@@ -11,8 +11,11 @@
  *       `after`
  *   { type: 'program', program } starts a program, replacing the running one
  *   { type: 'stop', id }         stops that program (ignored if it is over)
+ *   { type: 'swap', id, samples } new samples for that looping program,
+ *       heard from the same share of their length (crossfaded)
  * Messages out:
- *   { type: 'telemetry', telemetry, program } about 60 per second
+ *   { type: 'telemetry', telemetry, program, at? } about 60 per second
+ *       (`at`: where a looping program is in its samples, s)
  *   { type: 'stream', out, flow, noise }      blocks of STREAM samples
  *   { type: 'ended', id, reason, captured? }  once per program
  */
@@ -32,6 +35,10 @@ export interface Program {
   samples?: Float32Array;
   /** glottal flow shown with the samples */
   flow?: Float32Array;
+  /** the samples go round and round, until stopped */
+  loop?: boolean;
+  /** the sample the samples start from (0) */
+  from?: number;
   /** a hold of `params` for this long, s */
   seconds?: number;
   /** jump the articulators to the program's posture (a short fade hides the jump) */
@@ -45,10 +52,11 @@ export type EndReason = 'done' | 'stopped' | 'replaced';
 export type RunnerIn =
   | { type: 'params'; params: EngineParams; after: EngineParams; program: number }
   | { type: 'program'; program: Program }
-  | { type: 'stop'; id: number };
+  | { type: 'stop'; id: number }
+  | { type: 'swap'; id: number; samples: Float32Array };
 
 export type RunnerOut =
-  | { type: 'telemetry'; telemetry: Telemetry; program: number }
+  | { type: 'telemetry'; telemetry: Telemetry; program: number; at?: number }
   | { type: 'stream'; out: Float32Array; flow: Float32Array; noise: Float32Array }
   | { type: 'ended'; id: number; reason: EndReason; captured?: Float32Array };
 
@@ -70,10 +78,14 @@ export class ProgramRunner {
   private readonly gainStep: number;
   private started = false;
   private blocks = 0;
+  /** the samples a loop played before a swap, heard fading out from where they were */
+  private old: { samples: Float32Array; pos: number; left: number } | null = null;
+  private readonly fadeLength: number;
 
   constructor(readonly fs: number, private readonly post: (m: RunnerOut, transfer?: Transferable[]) => void) {
     this.engine = new VoiceEngine(fs);
     this.gainStep = 1 / Math.max(1, FADE * fs);
+    this.fadeLength = Math.max(1, Math.round(FADE * fs));
     this.newStreams();
   }
 
@@ -117,16 +129,30 @@ export class ProgramRunner {
           this.gainTarget = 1;
         }
         break;
+      case 'swap': {
+        const p = this.prog?.id === m.id ? this.prog : this.queued?.id === m.id ? this.queued : null;
+        if (!p?.loop || !p.samples || !m.samples.length) break;
+        if (p === this.prog) {
+          // the new samples from the same share of their length; the old ones fade out from where they were
+          const s = p.samples, at = this.pos % s.length;
+          this.old = { samples: s, pos: at, left: this.fadeLength };
+          this.pos = Math.min(m.samples.length - 1, Math.round((at / s.length) * m.samples.length));
+        }
+        p.samples = m.samples;
+        p.flow = undefined;
+        break;
+      }
     }
   }
 
   private begin(p: Program): void {
     this.prog = p;
-    this.pos = 0;
+    this.old = null;
+    this.pos = p.samples && p.from ? Math.max(0, Math.min(p.samples.length - 1, Math.round(p.from))) : 0;
     this.engine.setParams(p.params);
     if (p.snap || !this.started) { this.engine.snapArticulators(); this.started = true; }
     if (p.score) this.engine.playScore(p.score);
-    this.length = p.samples ? p.samples.length : p.seconds ? Math.round(p.seconds * this.fs) : 0;
+    this.length = p.loop ? 0 : p.samples ? p.samples.length : p.seconds ? Math.round(p.seconds * this.fs) : 0;
     const cap = this.length || (p.score ? Math.ceil((p.score.duration + 0.5) * this.fs) : 0);
     this.captured = p.capture && cap > 0 ? new Float32Array(cap) : null;
     this.gainTarget = 1;
@@ -138,6 +164,7 @@ export class ProgramRunner {
     if (p.score && this.engine.isPlaying) this.engine.stopScore();
     this.engine.setParams(p.after);
     this.prog = null;
+    this.old = null;
     const cap = this.captured;
     this.captured = null;
     if (cap) {
@@ -157,12 +184,26 @@ export class ProgramRunner {
     if (p?.samples) {
       const g = Math.pow(10, this.engine.params.volume / 20);
       const s = p.samples, fl = p.flow;
-      for (let i = 0; i < n; i++) {
-        const j = this.pos + i;
-        out[i] = j < s.length ? s[j] * g : 0;
+      if (p.loop) {
+        for (let i = 0; i < n; i++) out[i] = s[(this.pos + i) % s.length] * g;
+        const o = this.old;
+        if (o) {
+          // a swap: the new samples come in as the old ones go out
+          for (let i = 0; i < n && o.left > 0; i++, o.left--) {
+            const u = o.left / this.fadeLength;
+            out[i] = out[i] * (1 - u) + o.samples[(o.pos + i) % o.samples.length] * g * u;
+          }
+          o.pos = (o.pos + n) % o.samples.length;
+          if (o.left <= 0) this.old = null;
+        }
+      } else {
+        for (let i = 0; i < n; i++) {
+          const j = this.pos + i;
+          out[i] = j < s.length ? s[j] * g : 0;
+        }
       }
       for (let i = 0; i < written; i++) {
-        const j = this.pos + i;
+        const j = p.loop ? (this.pos + i) % s.length : this.pos + i;
         st.out[k0 + i] = out[i];
         st.flow[k0 + i] = fl && j < fl.length ? fl[j] : 0;
         st.noise[k0 + i] = 0;
@@ -181,6 +222,7 @@ export class ProgramRunner {
       const cap = this.captured;
       if (cap) for (let i = 0; i < n && this.pos + i < cap.length; i++) cap[this.pos + i] = out[i];
       this.pos += n;
+      if (p.loop && p.samples) this.pos %= p.samples.length;
       if (p.score ? !this.engine.isPlaying : this.length > 0 && this.pos >= this.length) this.end('done');
     }
     if (this.queued && this.gain === 0) {
@@ -194,7 +236,8 @@ export class ProgramRunner {
     }
     if (++this.blocks >= TELEMETRY_BLOCKS) {
       this.blocks = 0;
-      this.post({ type: 'telemetry', telemetry: this.engine.telemetry(), program: this.playing });
+      const lp = this.prog;
+      this.post({ type: 'telemetry', telemetry: this.engine.telemetry(), program: this.playing, ...(lp?.loop ? { at: this.pos / this.fs } : {}) });
     }
   }
 }

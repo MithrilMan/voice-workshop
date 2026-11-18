@@ -381,7 +381,7 @@ function rng(seed: number): () => number {
  * default), each hit is cut where the next one strikes, except a hum under
  * a click.
  */
-export function beatHits(d: Readonly<VoiceDesign>, tracks: readonly BeatTrack[], o: BeatOptions = {}): { hits: Track[]; length: number } {
+export function beatHits(d: Readonly<VoiceDesign>, tracks: readonly BeatTrack[], o: BeatOptions = {}, more: { loop?: boolean; takes?: BeatTakes } = {}): { hits: Track[]; length: number } {
   const fs = o.fs ?? 48000, spb = 60 / Math.max(20, Math.min(400, o.tempo ?? 100)), per = Math.max(1, Math.round(o.stepsPerBeat ?? 4));
   const step = spb / per, swing = Math.max(0, Math.min(0.6, o.swing ?? 0)), rep = Math.max(1, Math.round(o.repeat ?? 1));
   const human = Math.max(0, Math.min(1, o.humanize ?? 0));
@@ -389,7 +389,7 @@ export function beatHits(d: Readonly<VoiceDesign>, tracks: readonly BeatTrack[],
   const gauss = () => { let a = 0; for (let k = 0; k < 4; k++) a += rand(); return (a - 2) * Math.sqrt(3); };
   const placed: { track: Track; samples: Float32Array; at: number; hum: boolean; click: boolean }[] = [];
   let steps = 0;
-  const cache = new Map<string, DrumHit[]>();
+  const cache = more.takes ?? new Map<string, DrumHit[]>();
   for (const t of tracks) {
     const pat = parsePattern(t.pattern);
     steps = Math.max(steps, pat.length);
@@ -417,18 +417,31 @@ export function beatHits(d: Readonly<VoiceDesign>, tracks: readonly BeatTrack[],
     }
   }
   placed.sort((a, b) => a.at - b.at);
+  const length = steps * rep * step;
   if (!o.layered) {
-    // one mouth: a sound ends where the next one strikes (faded over 8 ms), a hum goes on under the clicks
+    // one mouth: a sound ends where the next one strikes (faded over 8 ms), a hum goes on under the clicks;
+    // going round a loop, the last sounds end where the first strike again
     const fade = Math.round(0.008 * fs);
     placed.forEach((p, k) => {
-      const next = placed.slice(k + 1).find((q) => q.at > p.at + 1e-4 && !(p.hum && q.click) && !(q.hum && p.click));
-      if (!next) return;
-      const keep = Math.round((next.at - (p.track.at ?? 0)) * fs);
+      const mouth = (q: (typeof placed)[number]) => !(p.hum && q.click) && !(q.hum && p.click);
+      const later = placed.slice(k + 1).find((q) => q.at > p.at + 1e-4 && mouth(q));
+      const round = more.loop && !later ? placed.slice(0, k + 1).find(mouth) : undefined;
+      const at = later ? later.at : round ? round.at + length : undefined;
+      if (at === undefined) return;
+      const keep = Math.round((at - (p.track.at ?? 0)) * fs);
       if (keep >= p.samples.length) return;
       const s = p.samples.slice(0, Math.max(0, keep));
       for (let i = 0; i < Math.min(fade, s.length); i++) s[s.length - 1 - i] *= i / fade;
       p.track = { ...p.track, samples: s };
     });
   }
-  return { hits: placed.map((p) => p.track), length: steps * rep * step };
+  return { hits: placed.map((p) => p.track), length };
 }
+
+/**
+ * The sounds of a voice already said for a beat, by what was said (the
+ * sound, its pitch and how it is held), three takes of each: kept between
+ * beats of one voice at one rate, so that a beat played live is made again
+ * at once when it changes.
+ */
+export type BeatTakes = Map<string, DrumHit[]>;

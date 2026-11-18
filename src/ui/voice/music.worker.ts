@@ -4,7 +4,7 @@
  * are), or beatboxes its pattern. The samples come back as they are. Also
  * the melody of a recording, found here.
  */
-import { sing, beatbox, melodyOf, imitate, type Song, type BeatTrack, type BeatOptions, type SungNote, type SungSyllable, type Melody, type Imitation } from '../../library';
+import { sing, beatbox, beatLoop, melodyOf, imitate, type Song, type BeatTrack, type BeatOptions, type BeatLoopOptions, type BeatTakes, type SungNote, type SungSyllable, type Melody, type Imitation } from '../../library';
 import type { VoiceDesign } from '../../dsp/voice/design';
 
 export type MusicRequest =
@@ -32,10 +32,29 @@ export type FindRequest =
   | { kind: 'melody'; samples: Float32Array; fs: number }
   | { kind: 'imitate'; voice: VoiceDesign; samples: Float32Array; fs: number };
 
-const ctx = self as unknown as { onmessage: ((e: MessageEvent<MusicRequest | FindRequest>) => void) | null; postMessage(m: unknown, transfer?: Transferable[]): void };
+/** a beat as a loop to play live (see beatLoop); `id` comes back with the reply */
+export interface LoopRequest { kind: 'loop'; id: number; voice: VoiceDesign; tracks: BeatTrack[]; opts: BeatLoopOptions }
+
+export interface LoopReply { id: number; ok: boolean; reason?: string; samples?: Float32Array; fs?: number; passes?: number; steps?: number }
+
+// the sounds already said for loops, kept while the worker lives: by the voice and the rate they were said with
+let takes: { key: string; store: BeatTakes } = { key: '', store: new Map() };
+
+const ctx = self as unknown as { onmessage: ((e: MessageEvent<MusicRequest | FindRequest | LoopRequest>) => void) | null; postMessage(m: unknown, transfer?: Transferable[]): void };
 
 ctx.onmessage = (e) => {
   const r = e.data;
+  if (r.kind === 'loop') {
+    try {
+      const key = `${r.opts.fs ?? 48000}|${JSON.stringify(r.voice)}`;
+      if (takes.key !== key) takes = { key, store: new Map() };
+      const l = beatLoop(r.voice, r.tracks, r.opts, takes.store);
+      ctx.postMessage({ id: r.id, ok: true, samples: l.samples, fs: l.fs, passes: l.passes, steps: l.steps } satisfies LoopReply, [l.samples.buffer]);
+    } catch (err) {
+      ctx.postMessage({ id: r.id, ok: false, reason: err instanceof Error ? err.message : String(err) } satisfies LoopReply);
+    }
+    return;
+  }
   try {
     let reply: MusicReply;
     if (r.kind === 'melody') {

@@ -4,7 +4,9 @@
  */
 import { arrange, downmix, type Performance, type Placed, type Stereo, type MixOptions } from '../../dsp/music/mix';
 import { encodeWavStereo } from '../../dsp/util/wav';
-import type { MusicRequest, MusicReply } from './music.worker';
+import type { MusicRequest, MusicReply, LoopRequest, LoopReply } from './music.worker';
+import type { BeatTrack } from '../../dsp/music/beat';
+import type { BeatLoopOptions } from '../../library';
 import type { Melody } from '../../dsp/music/transcribe';
 import type { Imitation } from '../../dsp/music/imitate';
 import type { VoiceDesign } from '../../dsp/voice/design';
@@ -107,6 +109,43 @@ export function imitateSound(voice: VoiceDesign, r: { samples: Float32Array; fs:
   w.postMessage({ kind: 'imitate', voice, samples: r.samples, fs: r.fs });
   return { done, stop: () => { w.terminate(); fail(new Error('stopped')); } };
 }
+
+// ------------------------------------------------------------- a beat played live
+
+/** A beat made as a loop: one round of its samples, how many times round the pattern it holds, the steps of the pattern. */
+export interface MadeLoop { samples: Float32Array; passes: number; steps: number }
+
+/** the worker that makes loops lives on, keeping the sounds already said: a changed beat is made again at once */
+let loopWorker: Worker | null = null;
+let loopId = 0;
+const loopWaiting = new Map<number, (r: LoopReply) => void>();
+
+/** A beat (as in the beatbox bench) made as a loop for playing live (see beatLoop), in the worker that keeps its sounds. */
+export function makeLoop(v: VoiceDesign, tracks: BeatTrack[], opts: BeatLoopOptions): Promise<MadeLoop> {
+  if (!loopWorker) {
+    const w = new Worker(new URL('./music.worker.ts', import.meta.url), { type: 'module' });
+    w.onmessage = (e: MessageEvent<LoopReply>) => { const f = loopWaiting.get(e.data.id); loopWaiting.delete(e.data.id); f?.(e.data); };
+    w.onerror = (e) => {
+      for (const f of loopWaiting.values()) f({ id: 0, ok: false, reason: e.message || 'failed' });
+      loopWaiting.clear();
+      w.terminate();
+      if (loopWorker === w) loopWorker = null;
+    };
+    loopWorker = w;
+  }
+  const id = ++loopId, w = loopWorker;
+  return new Promise((res, rej) => {
+    loopWaiting.set(id, (r) => (r.ok && r.samples ? res({ samples: r.samples, passes: r.passes ?? 1, steps: r.steps ?? 16 }) : rej(new Error(r.reason ?? 'failed'))));
+    w.postMessage({ kind: 'loop', id, voice: v, tracks, opts } satisfies LoopRequest);
+  });
+}
+
+/** Plays a loop round and round until stopped (see VoiceController.playLoop). */
+export const playLoop = (samples: Float32Array, label: string, from = 0): Promise<unknown> => voice.playLoop(samples, label, from);
+/** New samples for the loop playing, heard from the same point of it; false if none plays. */
+export const swapLoop = (samples: Float32Array): boolean => voice.swapLoop(samples);
+/** Where the loop playing is, s into one round, as heard now. */
+export const loopPlace = (): { at: number; length: number } | null => voice.loopPlace();
 
 export { recordMicrophone, decodeRecording, playRecording, type Recording } from './fitter';
 

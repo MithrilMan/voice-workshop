@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createVoice, speak, sing, beatbox, arrange, mix, toWav, parseNotes, noteNumber, sungPitch, BEATBOX_KIT, BEAT_PATTERNS, drumHit, drumSound, parseBeat, melodyOf, pitchTrack, imitate } from '../src/library';
+import { createVoice, speak, sing, beatbox, arrange, mix, toWav, parseNotes, noteNumber, sungPitch, BEATBOX_KIT, BEAT_PATTERNS, drumHit, drumSound, parseBeat, melodyOf, pitchTrack, imitate, beatLoop } from '../src/library';
 import { beatHits } from '../src/dsp/music/beat';
 import { textToPhones } from '../src/dsp/speech/g2p';
 import { utterance } from '../src/dsp/voice/utterance';
@@ -227,6 +227,31 @@ describe('beatbox', () => {
       expect(Math.max(...env2.slice(at - 100, at - 15))).toBeLessThan(top2 - 40);
       expect(Math.max(...env2.slice(at, at + 40))).toBeGreaterThan(top2 - 6);
     }
+  });
+
+  it('makes a beat as a loop that goes round with no seam, as the same beat played on', () => {
+    const v = createVoice('man'), fs = 24000, tempo = 120, step = 60 / tempo / 4;
+    const o = { tempo, fs, peak: null, room: 0 };
+    const beat = 'b . ts . pf . ts .';
+    const l = beatLoop(v, beat, { ...o, passes: 2 });
+    expect([l.steps, l.passes]).toEqual([8, 2]);
+    expect(l.samples.length).toBe(Math.round(8 * 2 * step * fs));
+    // away from its seam it is the beat played twice on, sample for sample
+    const p = beatbox(v, beat, { tempo, fs, repeat: 2 });
+    const pre = Math.round(p.beat0 * fs);
+    let err = 0, top = 0;
+    for (let i = Math.round(0.3 * fs); i < l.samples.length - Math.round(0.2 * fs); i++) {
+      err = Math.max(err, Math.abs(l.samples[i] - p.samples[pre + i]));
+      top = Math.max(top, Math.abs(l.samples[i]));
+    }
+    expect(err / top).toBeLessThan(1e-4);
+    // a hum on the last step: one mouth, it ends where the first strikes again; layered, it rings on into the start
+    const tracks = (hum: string) => [{ sound: 'b', pattern: 'x.......' }, { sound: 'm', pattern: hum }];
+    const fast = { ...o, tempo: 200, passes: 1 };
+    const alone = beatLoop(v, tracks('........'), fast), cut = beatLoop(v, tracks('.......x'), fast), rings = beatLoop(v, tracks('.......x'), { ...fast, layered: true });
+    const diff = (a: Float32Array, b: Float32Array) => { let d = 0, t = 0; for (let i = 0; i < 0.06 * fs; i++) { d = Math.max(d, Math.abs(a[i] - b[i])); t = Math.max(t, Math.abs(b[i])); } return d / t; };
+    expect(diff(cut.samples, alone.samples)).toBeLessThan(1e-6);
+    expect(diff(rings.samples, alone.samples)).toBeGreaterThan(0.01);
   });
 });
 

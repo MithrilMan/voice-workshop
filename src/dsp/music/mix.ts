@@ -94,6 +94,47 @@ export function mixTracks(tracks: readonly Track[], o: MixOptions = {}): Stereo 
   return { left: L, right: R, fs, duration: n / fs };
 }
 
+/**
+ * Tracks mixed into one round of a loop, `length` s long, in the middle of
+ * the two ears (mono), over a room: what rings past the end is heard at the
+ * start, and the room is the one it has after going round once (its tail
+ * of the last round under the first sounds), so that the samples played
+ * round and round sound as the same tracks mixed one after another.
+ */
+export function loopMix(tracks: readonly Track[], length: number, o: MixOptions = {}): Float32Array {
+  if (!tracks.length) throw new Error('nothing to mix');
+  const fs = tracks[0].fs;
+  if (tracks.some((t) => t.fs !== fs)) throw new Error('tracks at different sample rates');
+  const n = Math.max(1, Math.round(length * fs));
+  const dry = new Float32Array(n);
+  for (const t of tracks) {
+    const g = 10 ** ((t.gain ?? 0) / 20);
+    const s0 = Math.round((t.at ?? 0) * fs);
+    for (let i = 0; i < t.samples.length; i++) {
+      const j = (((s0 + i) % n) + n) % n;
+      dry[j] += t.samples[i] * g;
+    }
+  }
+  let out = dry;
+  const wet = Math.max(0, Math.min(1, o.room ?? 0.18));
+  if (wet > 0) {
+    // twice round: the second has the room as it is going round
+    const two = new Float32Array(2 * n);
+    two.set(dry); two.set(dry, n);
+    const [rl, rr] = reverberate(two, two, fs, o.size ?? 0.6);
+    const w = wet * 3, d = 1 - 0.5 * wet;
+    out = new Float32Array(n);
+    for (let i = 0; i < n; i++) out[i] = dry[i] * d + 0.5 * (rl[n + i] + rr[n + i]) * w;
+  }
+  const peak = o.peak === undefined ? -1 : o.peak;
+  if (peak !== null) {
+    let mx = 0;
+    for (let i = 0; i < n; i++) mx = Math.max(mx, Math.abs(out[i]));
+    if (mx > 0) { const g = 10 ** (peak / 20) / mx; for (let i = 0; i < n; i++) out[i] *= g; }
+  }
+  return out;
+}
+
 /** Something performed in time: mono samples and where its first beat falls, s. */
 export interface Performance {
   samples: Float32Array;

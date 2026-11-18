@@ -20,7 +20,10 @@ export interface VoiceSink {
   params(params: EngineParams, after: EngineParams, program: number): void;
   program(p: Program): void;
   stop(id: number): void;
-  onTelemetry: (t: Telemetry, program: number) => void;
+  /** new samples for a looping program that plays (see Program.loop) */
+  swap(id: number, samples: Float32Array): void;
+  /** `at`: where a looping program is in its samples, s */
+  onTelemetry: (t: Telemetry, program: number, at?: number) => void;
   onStream: (s: StreamBlock) => void;
   onEnded: (id: number, reason: EndReason, captured?: Float32Array) => void;
   onState: (running: boolean) => void;

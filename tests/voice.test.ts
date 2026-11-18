@@ -254,5 +254,27 @@ describe('the voice controller', () => {
     v.reset();
     expect(v.active.id).toBe('reference');
   });
+
+  it('plays a loop round and round, swaps it as it plays, and says where it is', async () => {
+    const done = v.playLoop(new Float32Array(48000), L, 0.25);
+    await settle();
+    const p = sink.programs().at(-1)!;
+    expect([p.loop, p.from, p.samples!.length]).toEqual([true, 12000, 48000]);
+    expect(v.loopPlace()).toBeNull();
+    // the audio says where it is; between its messages the place goes on with the clock, and round
+    sink.onTelemetry(telemetryAt(0.5, 120), p.id, 0.95);
+    clock.advance(10);
+    expect(v.loopPlace()!.at).toBeCloseTo(0.96, 6);
+    expect(v.loopPlace()!.length).toBe(1);
+    expect(v.swapLoop(new Float32Array(96000))).toBe(true);
+    expect(sink.sent.at(-1)).toMatchObject({ type: 'swap', id: p.id });
+    expect(v.loopPlace()!.length).toBe(2);
+    // heard from the same share of the new samples
+    expect(v.loopPlace()!.at).toBeCloseTo(1.91, 6);
+    v.stop();
+    expect(await done).toBe('stopped');
+    expect(v.swapLoop(new Float32Array(10))).toBe(false);
+    expect(v.loopPlace()).toBeNull();
+  });
 });
 

@@ -95,6 +95,45 @@ describe('the program runner (audio thread)', () => {
     expect(Math.max(...mid.map((x) => Math.abs(x - g)))).toBeLessThan(1e-6);
   });
 
+  it('plays samples round and round, says where it is, and takes new ones from the same share of them', () => {
+    const { r, run, ended, out } = runner();
+    const hands = vowel('a', false);
+    hands.volume = 0;
+    r.handle({ type: 'params', params: hands, after: hands, program: 0 });
+    run(0.02);
+    // a ramp of 0.1 s: each sample says where it is
+    const n = FS * 0.1, ramp = new Float32Array(n).map((_, i) => i / n);
+    r.handle({ type: 'program', program: prog(6, { params: hands, after: hands, samples: ramp, loop: true, from: n / 2 }) });
+    const heard: number[] = [];
+    run(0.35, heard);
+    expect(ended()).toEqual([]);
+    // after the fade in, from the middle of the ramp, it goes round: steps of one sample, a drop to the start at each end
+    const start = heard.findIndex((x) => x > 0.45);
+    expect(heard[start + 400]).toBeGreaterThan(0.5);
+    let drops = 0;
+    for (let i = start + 400; i < heard.length; i++) {
+      const d = heard[i] - heard[i - 1];
+      if (d < -0.9) drops++;
+      else expect(Math.abs(d - 1 / n)).toBeLessThan(1e-6);
+    }
+    expect(drops).toBe(3);
+    const tel = out.filter((m): m is Extract<RunnerOut, { type: 'telemetry' }> => m.type === 'telemetry').at(-1)!;
+    expect(tel.at).toBeGreaterThanOrEqual(0);
+    expect(tel.at).toBeLessThan(0.1);
+    // new samples, twice as long, from the same share of them, the old ones fading out
+    const share = heard.at(-1)! + 1 / n;
+    const twice = new Float32Array(2 * n).map((_, i) => 2 + i / (2 * n));
+    r.handle({ type: 'swap', id: 6, samples: twice });
+    const after: number[] = [];
+    run(0.02, after);
+    const fade = Math.round(0.005 * FS);
+    expect(after[fade]).toBeCloseTo(2 + (Math.round(share * 2 * n) + fade) / (2 * n), 5);
+    expect(after[fade + 100] - after[fade + 99]).toBeCloseTo(1 / (2 * n), 6);
+    r.handle({ type: 'stop', id: 6 });
+    run(0.01);
+    expect(ended()).toEqual([{ type: 'ended', id: 6, reason: 'stopped' }]);
+  });
+
   it('a score without articulators leaves the tract to the parameters (the hands)', () => {
     const { r, run, out } = runner();
     const hands = vowel('a', false);

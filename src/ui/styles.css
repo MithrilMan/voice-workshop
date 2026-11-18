@@ -566,6 +566,8 @@ input[type='range'] { accent-color: var(--amber); width: 100%; }
 .beat-step.beat { background: #182031; }
 .beat-step.on { background: rgba(42, 212, 189, 0.55); border-color: var(--teal); }
 .beat-step.accent { background: var(--amber); border-color: var(--amber); }
+/* the step heard now, as the beat plays */
+.beat-step.now { border-color: #e8eefc; box-shadow: 0 0 7px rgba(232, 238, 252, 0.5); filter: brightness(1.45); }
 .part-list { display: flex; flex-direction: column; gap: 8px; }
 .part-row { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
 .part-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }

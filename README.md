@@ -180,7 +180,11 @@ Four modes, switchable in the header and remembered in the browser:
   rolls, a scratch, a laser), each heard on its own; beats from a dozen
   styles, written on a grid or as text (`b . ts . pf . ts ^k`), with
   swing, a human's unevenness, and one mouth making one sound at a time
-  (or every hit ringing out, as a drum machine); and sounds of your own:
+  (or every hit ringing out, as a drum machine), played live: round and
+  round, the step heard lit on the grid, every change (a step, a sound,
+  the tempo, the swing) heard from the same step as it plays (the
+  sounds of a beat are said once, in a worker that keeps them, and a
+  changed beat is mixed again in milliseconds); and sounds of your own:
   make a noise into the microphone and the voice's mouth finds the
   nearest sound it can make, to keep in the kit. Ensemble: several voices at once,
   each part sung or beatboxed by a voice of its own (a starting voice or
@@ -1722,6 +1726,17 @@ writeFileSync('hello.wav', toWav(s));
   strikes (a hum through the nose goes on under the clicks); `layered`
   lets every hit ring out. `humanize` (0-1) moves hits by a few
   milliseconds (8 ms rms at 1) and their level by 1.5 dB rms.
+- `beatLoop(voice, beat, { passes, room, ... }, takes?)`: the same beat
+  as a loop to play round and round while it is edited: `passes` times
+  round the pattern (4), the sound that rings past the end of a round
+  heard at its start, one mouth's last sound cut where the first
+  strikes again, the room with the tail of the round before (mixed twice
+  round, the second kept). Away from its seam a round is the beatbox
+  played on, sample for sample. `takes`, kept between calls for one
+  voice at one rate, holds the sounds already said. The studio plays it
+  through the audio thread as samples that go round (a `loop` program),
+  swapped as the beat changes at the same share of the round (crossfaded
+  over 5 ms), the place in the round reported with the telemetry.
 - Inward sounds: `↓` after a sound (extIPA's ingressive airflow: `k↓`,
   `s↓`, `ʙ̥↓`) has the lungs draw the air in through it: the planner
   pulls with 80 % of the speaking pressure from 40 ms before the sound
