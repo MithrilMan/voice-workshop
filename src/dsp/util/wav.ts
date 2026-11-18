@@ -15,6 +15,23 @@ export function encodeWav(samples: ArrayLike<number>, fs: number): Uint8Array {
   return new Uint8Array(buf);
 }
 
+/** Encodes two channels of float samples as a 16-bit PCM stereo WAV file. */
+export function encodeWavStereo(left: ArrayLike<number>, right: ArrayLike<number>, fs: number): Uint8Array {
+  const n = Math.min(left.length, right.length);
+  const buf = new ArrayBuffer(44 + n * 4);
+  const v = new DataView(buf);
+  const str = (o: number, s: string) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  str(0, 'RIFF'); v.setUint32(4, 36 + n * 4, true); str(8, 'WAVE');
+  str(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 2, true);
+  v.setUint32(24, fs, true); v.setUint32(28, fs * 4, true); v.setUint16(32, 4, true); v.setUint16(34, 16, true);
+  str(36, 'data'); v.setUint32(40, n * 4, true);
+  for (let i = 0; i < n; i++) {
+    v.setInt16(44 + i * 4, Math.round(Math.max(-1, Math.min(1, left[i])) * 32767), true);
+    v.setInt16(46 + i * 4, Math.round(Math.max(-1, Math.min(1, right[i])) * 32767), true);
+  }
+  return new Uint8Array(buf);
+}
+
 /** Decodes a 16-bit or float PCM WAV (first channel). */
 export function decodeWav(data: Uint8Array): { samples: Float32Array; fs: number } {
   const v = new DataView(data.buffer, data.byteOffset, data.byteLength);

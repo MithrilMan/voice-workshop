@@ -19,6 +19,7 @@ import { loadDeliveryModel, planSpeech } from '../../dsp/voice/interpret';
 import type { ViewTab } from '../store';
 import { LanguagePick, ExamplePick } from '../components/LanguagePick';
 import { EXAMPLES, MELODY_PATTERNS, firstExample } from '../examples';
+import { Music, type MusicSection } from './Music';
 
 const TABS: [Tab, string, string][] = [
   ['body', 'Body', 'size of the tract, nose and teeth'],
@@ -78,13 +79,20 @@ function download(d: VoiceDesign): void {
 }
 
 const PREFS = 'voice-workshop.studio';
-interface Prefs { hints: boolean; auto: boolean }
-/** what the studio remembers in this browser: explanations unfolded, saying the sentence again after a change */
+type Section = 'design' | MusicSection;
+const SECTIONS: [Section, string, string][] = [
+  ['design', 'Design', 'the voice itself: body, folds, habits, melody'],
+  ['sing', 'Sing', 'the voice sings notes and words'],
+  ['beat', 'Beatbox', 'the drums of its mouth on a grid'],
+  ['ensemble', 'Ensemble', 'several voices at once: a round, a choir, a band of mouths'],
+];
+interface Prefs { hints: boolean; auto: boolean; section: Section }
+/** what the studio remembers in this browser: explanations unfolded, saying the sentence again after a change, the section open */
 function loadPrefs(): Prefs {
   try {
     const o = JSON.parse(window.localStorage.getItem(PREFS) ?? '{}') as Partial<Prefs>;
-    return { hints: o.hints === true, auto: o.auto === true };
-  } catch { return { hints: false, auto: false }; }
+    return { hints: o.hints === true, auto: o.auto === true, section: SECTIONS.some(([s]) => s === o.section) ? o.section! : 'design' };
+  } catch { return { hints: false, auto: false, section: 'design' }; }
 }
 
 /**
@@ -242,6 +250,9 @@ export function Studio() {
       </aside>
 
       <section className="studio-main">
+        <nav className="studio-sections">
+          <Pills value={prefs.section} onChange={(s) => setPrefs({ section: s })} label="Section" options={SECTIONS.map(([id, name, hint]) => [id, name, hint])} />
+        </nav>
         <div className="studio-bar ds-card">
           <div className="studio-id">
             <input className="text-input studio-name" value={draft.name} maxLength={60} placeholder="Name of the voice" aria-label="Name of the voice"
@@ -258,7 +269,7 @@ export function Studio() {
               ✎ Notes{draft.notes.trim() && !notes && <span className="count dot" />}
             </button>
           </div>
-          <div className="studio-say">
+          {prefs.section === 'design' && <div className="studio-say">
             <input className="text-input" value={text} aria-label={'Test sentence'} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) void say(draft); }} />
             <ExamplePick now={lang} onPick={(t, l) => { setText(t); setLang(l); }} />
             <LanguagePick value={lang} onChange={(l) => { setLang(l); setDraft({ ...draft, language: l }); }} />
@@ -268,7 +279,7 @@ export function Studio() {
             <button className="btn" disabled={!changed} title={'The same sentence with the voice as it was before the changes'} onClick={() => void say(origin)}>As it was</button>
             <Toggle label={'Replay after each change'} value={prefs.auto} onChange={(x) => setPrefs({ auto: x })}
               hint={'Says the sentence again by itself after every change'} />
-          </div>
+          </div>}
           {notes && (
             <textarea className="studio-notes" autoFocus value={draft.notes} maxLength={500} rows={2} aria-label={'Notes on the voice'}
               placeholder="Notes: who it is, how it speaks, what it is for…"
@@ -277,7 +288,7 @@ export function Studio() {
           {link && <input className="text-input studio-link" readOnly value={link} onFocus={(e) => e.target.select()} aria-label={'Link of the voice'} />}
         </div>
 
-        <div className="studio-work">
+        {prefs.section !== 'design' ? <Music section={prefs.section} voice={draft} /> : <div className="studio-work">
           <section className="ds-card studio-editor">
             <header className="studio-tabs">
               <Pills value={tab} onChange={setTab} label="Part of the voice"
@@ -312,7 +323,7 @@ export function Studio() {
             <PhonemeButtons list={['a', 'e', 'i', 'o', 'u', 'm', 's']} size="small" label={'Hold a sound'} />
             <ViewFrame className="studio-view" view={view} onView={setView} />
           </div>
-        </div>
+        </div>}
       </section>
     </main>
   );

@@ -522,6 +522,50 @@ input[type='range'] { accent-color: var(--amber); width: 100%; }
 .mp-base { stroke: var(--line2); stroke-dasharray: 4 4; }
 .mp-curve { fill: none; stroke: var(--amber); stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; }
 .mp-ipa { fill: var(--muted); font-size: 11px; text-anchor: middle; }
+/* singing, beatbox and ensemble */
+.studio-sections { flex: none; }
+.music { padding: 12px 14px; display: flex; flex-direction: column; min-height: 0; }
+.music-bench { display: flex; flex-direction: column; gap: 10px; }
+.music-bench > p { margin: 0; }
+.music-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.music-pick { flex: 1 1 220px; min-width: 160px; }
+.music-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 4px 16px; align-items: center; }
+.music-field { display: flex; flex-direction: column; gap: 4px; }
+.music-field > span { font-size: 13px; }
+.music-notes { resize: vertical; background: #0d1119; border: 1px solid var(--line2); border-radius: 8px; padding: 6px 10px; color: var(--text); font: 13px/1.5 ui-monospace, 'Cascadia Mono', Consolas, monospace; }
+.music-busy { color: var(--teal); }
+.music-problem { color: var(--amber); }
+.music-roll { margin: 0; }
+.music-roll svg { width: 100%; height: auto; max-height: 160px; background: #0d1119; border: 1px solid var(--line); border-radius: 8px; }
+.roll-note { fill: rgba(246, 168, 35, 0.35); stroke: var(--amber); stroke-width: 0.8; }
+.roll-vowel { fill: var(--amber); }
+.roll-syl { fill: var(--text); font-size: 10px; }
+.beat-grid { display: flex; flex-direction: column; gap: 4px; overflow-x: auto; }
+.beat-row { display: grid; grid-template-columns: 92px 76px 34px minmax(250px, 1fr); align-items: center; gap: 6px; }
+.beat-name { font-size: 13px; }
+.beat-sound { background: #0d1119; color: var(--text); border: 1px solid var(--line2); border-radius: 6px; padding: 3px 4px; font-size: 14px; }
+.beat-steps { display: grid; grid-template-columns: repeat(16, minmax(12px, 1fr)); gap: 3px; }
+.beat-step { height: 26px; border-radius: 5px; border: 1px solid var(--line2); background: #121824; cursor: pointer; padding: 0; }
+.beat-step.beat { background: #182031; }
+.beat-step.on { background: rgba(42, 212, 189, 0.55); border-color: var(--teal); }
+.beat-step.accent { background: var(--amber); border-color: var(--amber); }
+.part-list { display: flex; flex-direction: column; gap: 8px; }
+.part-row { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.part-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.part-name { min-width: 70px; }
+.part-what { flex: 1 1 140px; }
+.part-head .toggle { margin-right: 0; }
+.part-knobs { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0 16px; }
+.part-row.muted-part { opacity: 0.55; }
+.part-voice { background: #0d1119; color: var(--text); border: 1px solid var(--line2); border-radius: 6px; padding: 4px 6px; }
+.part-status { color: var(--teal); }
+@media (min-width: 1101px) {
+  .music { flex: 1; overflow-y: auto; scrollbar-gutter: stable; }
+}
+@media (max-width: 760px) {
+  .beat-row { grid-template-columns: 70px 70px 34px; }
+  .beat-steps { grid-column: 1 / -1; grid-template-columns: repeat(16, minmax(14px, 1fr)); }
+}
 @media (min-width: 1101px) {
   .studio { height: var(--studio-h); align-items: stretch; }
   .studio-lib { position: static; max-height: none; }

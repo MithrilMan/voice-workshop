@@ -165,6 +165,20 @@ Four modes, switchable in the header and remembered in the browser:
   has beyond these measures and beyond the fields of a voice is not carried
   over. The same fit runs from the command line on a list of WAV files and
   their texts (`scripts/fit-voice.ts`).
+  **Sing, Beatbox, Ensemble** (beside Design, above the bar): benches to
+  try the voices on music. Sing: the voice being edited sings notes
+  written as text (`C4 D4:2 r ~E4`) on words in any language, with tempo,
+  transpose and vibrato, and a roll of the notes as sung with the vowel
+  of each. Beatbox: the drums of the voice's own mouth (a kick that is a
+  bilabial ejective, a snare [pf], a hi-hat [ts], a rimshot [kʼ], clicks,
+  a hum bass, each with other ways of making it, heard one at a time) on
+  a grid of sixteen steps, with swing. Ensemble: several voices at once,
+  each part sung or beatboxed by a voice of its own (a starting voice or
+  one of yours), coming in at its beat, at its level and place, over a
+  room: a round of "Frère Jacques" in four languages, four voices on a
+  chord progression, a band of mouths. The parts are made in workers, a
+  few at a time, then mixed; level, place and room change without making
+  them again; the result saves as a stereo WAV.
 
 Who drives the voice is always shown under the header. Your hands (the
 handles, the sliders, the phoneme buttons) drive it unless something else
@@ -236,6 +250,7 @@ src/
     engine/engine.ts      the voice engine (one sample loop, telemetry)
     speech/               phonemes, the IPA chart (ipa.ts) and its reader, sounds from rules (derive.ts), G2P (it/en), the phonemizer of the other languages, sequencer, target approximation, prosodic style
     voice/                a voice as data: its fields (design.ts), the starting voices, the file and link codec, the articulatory setting, an utterance (a voice saying something)
+    music/                notes as text, singing on the speech planner, the beatbox kit and its steps, a stereo mix over a room
     analysis/             LPC formants, YIN pitch, mel filterbank
     data/vowels.ts        reference vowel formants
     data/mri.ts           vowel area functions measured by MRI (Story 2008)
@@ -243,7 +258,8 @@ src/
   audio/worklet.ts        AudioWorkletProcessor wrapping the program runner
   audio/audioEngine.ts    AudioContext, worklet node, microphone (the voice sink)
   ui/voice/               the voice controller, the only door to the sound: hands, performers, filter lanes, locks
-  ui/modes/               Learn, Play, Lab and the voice studio, the view frame, the quick controls
+  ui/modes/               Learn, Play, Lab and the voice studio (with its Sing, Beatbox and Ensemble benches), the view frame, the quick controls
+  ui/songs.ts             the songs, beats and ensembles to try them with (traditional or out of copyright)
   ui/library.ts           your voices, kept in the browser, and a voice received with a link
   ui/ds/                  small design system: card, pills, icon button, value with unit
   ui/                     React 19 views, panels, store, i18n, guided tour
@@ -1600,7 +1616,7 @@ languages, and the copies of a recording, use the rules.
 
 `src/library/index.ts` is everything above without the interface, for
 Node or the browser (`npm run build:lib` makes it one ES module of
-345 KB in `dist-lib/`):
+340 KB in `dist-lib/`):
 
 ```ts
 import { createVoice, speak, dialogue, toWav, setDeliveryModel } from './src/library';
@@ -1626,6 +1642,41 @@ writeFileSync('hello.wav', toWav(s));
   folds, jitter and care of articulation; their sizes are moderate
   choices, not measured here.
 - `dialogue(turns)`: voices taking turns in one recording.
+- `sing(voice, { notes, lyrics, lang, tempo, transpose, vibrato })`: the
+  voice sings. Notes as text (`C4 D4:2 | r:0.5 ~E4`: a name with its
+  octave, a length in beats, `r` a rest, `~` the same syllable on to
+  the next note) or `Note` objects; words as text, [IPA] or phones, one
+  syllable to each note (none: a vowel on every note). The speech
+  planner makes the gestures and singing sets the lengths (src/dsp/music/
+  sing.ts): each vowel starts on its beat and holds its note, the
+  consonants before it come just before the beat at about 80 % of their
+  spoken length (in a legato line the consonants that end a word go
+  with the next syllable; before a rest they close the note, and a long
+  rest is a breath); the pitch glides to each note in 70 ms at the start
+  of its consonants, so that they sound on the new note, and a held
+  note takes on a vibrato after 0.15 s (5.8 Hz, ±0.4 semitone: Sundberg
+  1987, Prame 1994); the lungs push steadily, 2 % more for every
+  semitone above the voice's usual pitch (Titze 1989), and by each
+  note's velocity. A narrow vowel holds air back and the engine's folds
+  slow down under it (a held [u] at C5 comes out 40 cents flat), as a
+  singer's would: by default a first take is measured note by note
+  (`sungPitch`, YIN over the steady part of each vowel) and sung again
+  with each note corrected, which brings every note within 6 cents
+  (Frère Jacques by four voices: 41-50 cents at worst in one take). It
+  returns the samples, the first beat, each syllable and note as sung.
+- `beatbox(voice, tracks, { tempo, swing, repeat })`: the drums of the
+  voice's mouth (`BEATBOX_KIT`: every sound is a sound of speech, as
+  real-time MRI of beatboxers shows, Proctor et al. 2013), each track a
+  sound on a pattern of steps (`x` a hit, `X` an accent, `o` a soft one).
+  Each sound is said three times, cut to itself, and the instant it
+  strikes is set on its step (within 4 ms).
+- `ensemble(parts, { tempo, room })`, or `arrange(performances)` for parts
+  already made: several voices at once, each coming in at its beat, at
+  its level and place, over a room (eight combs and four all-passes a
+  side, Schroeder 1962 and Moorer 1979, with the public-domain tunings of
+  Freeverb); `mix(tracks)` for anything else; `toWav` writes stereo too.
+- Every render starts from lungs at rest: a voice that starts from its
+  own pressure blows a puff and a hum into the first 50 ms.
 - `analyse(clips)`: the measures of a voice over its recordings (pitch
   and range, formants, spectral balance, folds, hiss, pace);
   `voiceFromRecordings(clips, { lang, texts })`: a voice of the

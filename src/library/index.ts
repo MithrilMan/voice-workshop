@@ -1,6 +1,7 @@
 /**
  * The voice workshop as a library: voices made of knobs, that say a text or
- * phonemes, with an emotion, in Node or in the browser, with no interface.
+ * phonemes, with an emotion, sing notes, beatbox, and perform together, in
+ * Node or in the browser, with no interface.
  *
  *   import { createVoice, speak, toWav } from './library';
  *   const v = createVoice('sara', { 'speaking.f0': 230 });
@@ -17,11 +18,16 @@
  * language is set (`setDeliveryModel`, `loadDeliveryModel`).
  */
 import { renderOffline } from '../dsp/engine/engine';
+import type { EngineParams, Score } from '../dsp/engine/params';
 import type { Phone } from '../dsp/speech/g2p';
 import { textToPhones, ipaKind } from '../dsp/speech/g2p';
 import { resolve, PhonemizerSources } from '../dsp/speech/phonemizer';
 import { speechLanguage } from '../dsp/speech/languages';
-import { encodeWav, decodeWav } from '../dsp/util/wav';
+import { encodeWav, encodeWavStereo, decodeWav } from '../dsp/util/wav';
+import { Note, parseNotes } from '../dsp/music/notes';
+import { singScore, sungPitch, SingOptions, SungSyllable, SungNote } from '../dsp/music/sing';
+import { beatHits, BeatTrack, BeatOptions } from '../dsp/music/beat';
+import { mixTracks, MixOptions, Stereo, Track, downmix, arrange, Performance, Placed } from '../dsp/music/mix';
 import { voicePrint, VoicePrint, Clip } from '../dsp/analysis/voiceprint';
 import { VoiceDesign, VOICE_FIELDS, Field, cloneVoice, fieldValue, withField, sanitizeVoice } from '../dsp/voice/design';
 import { BUILTIN_VOICES, builtinVoice } from '../dsp/voice/builtin';
@@ -31,6 +37,13 @@ import { fitVoice, FitProgress, FitResult, Material, PASSAGES } from '../dsp/voi
 import { learntFor } from '../dsp/voice/interpret';
 
 export type { VoiceDesign, Field, Phone, Emotion, VoicePrint, Clip, FitProgress, FitResult };
+export type { Note, SingOptions, SungSyllable, SungNote, BeatTrack, BeatOptions, MixOptions, Stereo, Track };
+export { sungPitch };
+export { parseNotes, noteNumber, noteName, midiHz, transpose } from '../dsp/music/notes';
+export { BEATBOX_KIT, parsePattern, drumHit } from '../dsp/music/beat';
+export type { DrumSound, DrumHit } from '../dsp/music/beat';
+export { mixTracks as mix, downmix, arrange };
+export type { Performance, Placed };
 export { EMOTIONS, withEmotion, withField, sanitizeVoice, decodeWav };
 export { voiceToJson, voiceFromJson, voiceToLink, voiceFromLink } from '../dsp/voice/codec';
 export { setDeliveryModel, loadDeliveryModel, deliveryModel } from '../dsp/voice/interpret';
@@ -105,6 +118,23 @@ export interface Speech {
   delivery: 'learnt' | 'rules';
 }
 
+/**
+ * A score played by the engine, from lungs at rest (as the score starts: a
+ * render that started from the voice's own pressure would blow a puff and
+ * a hum before the first sound, and again after the score ends), its
+ * loudest sample brought to `peak` dBFS if asked.
+ */
+function render(params: EngineParams, score: Score, fs: number, tail: number, peak?: number): Float32Array {
+  const atRest = { ...params, source: { ...params.source, ps: 0 } };
+  const { out } = renderOffline(atRest, score.duration + tail, fs, score);
+  if (peak !== undefined) {
+    let mx = 0;
+    for (const v of out) mx = Math.max(mx, Math.abs(v));
+    if (mx > 0) { const g = 10 ** (peak / 20) / mx; for (let i = 0; i < out.length; i++) out[i] *= g; }
+  }
+  return out;
+}
+
 /** what a text is made of, in a language */
 function phonesOf(input: string | Phone[], lang: string): Phone[] {
   if (Array.isArray(input)) return input;
@@ -126,12 +156,7 @@ export function speak(voice: Readonly<VoiceDesign>, input: string | Phone[], opt
   const fs = opts.fs ?? 48000;
   const d = opts.emotion && opts.emotion !== 'neutral' ? withEmotion(voice, opts.emotion, opts.strength ?? 1) : voice;
   const u = utterance(d, phonesOf(input, lang), lang, opts.seed === undefined ? {} : { seed: opts.seed });
-  const { out } = renderOffline(u.params, u.score.duration + (opts.tail ?? 0.25), fs, u.score);
-  if (opts.peak !== undefined) {
-    let mx = 0;
-    for (const v of out) mx = Math.max(mx, Math.abs(v));
-    if (mx > 0) { const g = 10 ** (opts.peak / 20) / mx; for (let i = 0; i < out.length; i++) out[i] *= g; }
-  }
+  const out = render(u.params, u.score, fs, opts.tail ?? 0.25, opts.peak);
   return {
     samples: out, fs, duration: out.length / fs,
     phones: u.score.phones.map((p) => ({ ipa: p.ipa, t0: p.t0, t1: p.t1 })),
@@ -162,8 +187,96 @@ export function dialogue(turns: Turn[], opts: Omit<SpeakOptions, 'emotion' | 'st
   return { samples: out, fs, phones, duration: n / fs, delivery: said.every((s) => s.delivery === 'learnt') ? 'learnt' : 'rules' };
 }
 
-/** A 16-bit WAV file of what was said. */
-export const toWav = (s: { samples: ArrayLike<number>; fs: number }): Uint8Array => encodeWav(s.samples, s.fs);
+/** A 16-bit WAV file of what was said (mono), or of a mix (stereo). */
+export const toWav = (s: { samples: ArrayLike<number>; fs: number } | Stereo): Uint8Array =>
+  'left' in s ? encodeWavStereo(s.left, s.right, s.fs) : encodeWav(s.samples, s.fs);
+
+// ------------------------------------------------------------- singing and beatbox
+
+/**
+ * A song for one voice: its notes (text as in parseNotes, or Note objects)
+ * and its words (text in a language, [IPA], or phones; none: the vowel of
+ * `vowel` on every note), with how it is sung (SingOptions).
+ */
+export interface Song extends SingOptions {
+  notes: string | Note[];
+  lyrics?: string | Phone[];
+  lang?: string;
+  /** the singer's ear: a first take is measured and the notes sung again in tune (true; false: one take, twice as fast) */
+  tune?: boolean;
+}
+
+export interface Sung extends Performance {
+  /** each syllable: its vowel, when it is sung (from its beat to the end of its notes), its notes */
+  syllables: SungSyllable[];
+  /** each note: its span, its pitch, the span of its vowel */
+  notes: SungNote[];
+  /** what did not fit (more notes than syllables, or the other way round) */
+  warnings: string[];
+}
+
+/** A voice sings a song (see `Song`), with an emotion if asked. */
+export function sing(voice: Readonly<VoiceDesign>, song: Song, opts: Omit<SpeakOptions, 'lang'> = {}): Sung {
+  const lang = song.lang ?? (voice.language || 'it');
+  const fs = opts.fs ?? 48000;
+  const d = opts.emotion && opts.emotion !== 'neutral' ? withEmotion(voice, opts.emotion, opts.strength ?? 1) : voice;
+  const notes = typeof song.notes === 'string' ? parseNotes(song.notes) : song.notes;
+  const words = song.lyrics === undefined || (typeof song.lyrics === 'string' && !song.lyrics.trim()) ? [] : phonesOf(typeof song.lyrics === 'string' ? song.lyrics.replace(/(\p{L})-(?=\p{L})/gu, '$1') : song.lyrics, lang);
+  const how = { ...song, seed: song.seed ?? opts.seed };
+  let s = singScore(d, notes, words, lang, how);
+  let out = render(s.params, s.score, fs, opts.tail ?? 0.4);
+  // the singer's ear: a first take, each note measured, the notes off by more than a few cents sung again corrected
+  if (song.tune !== false) {
+    const off = sungPitch(out, fs, s.notes);
+    const fix = off.map((c) => (Number.isFinite(c) && Math.abs(c) > 6 ? Math.max(-1.5, Math.min(1.5, -c / 100)) : 0));
+    if (fix.some((x) => x !== 0)) {
+      s = singScore(d, notes, words, lang, { ...how, fix });
+      out = render(s.params, s.score, fs, opts.tail ?? 0.4);
+    }
+  }
+  if (opts.peak !== undefined) {
+    let mx = 0;
+    for (const v of out) mx = Math.max(mx, Math.abs(v));
+    if (mx > 0) { const g = 10 ** (opts.peak / 20) / mx; for (let i = 0; i < out.length; i++) out[i] *= g; }
+  }
+  return { samples: out, fs, beat0: s.beat0, duration: out.length / fs, syllables: s.syllables, notes: s.notes, warnings: s.warnings };
+}
+
+/**
+ * A voice beatboxes: each track a sound of its mouth (IPA: see BEATBOX_KIT)
+ * on a pattern of steps (x a hit, X an accent, o a soft one, . nothing), all
+ * in one recording, dry.
+ */
+export function beatbox(voice: Readonly<VoiceDesign>, tracks: readonly BeatTrack[], opts: BeatOptions = {}): Performance {
+  const fs = opts.fs ?? 48000, pre = 0.1;
+  const { hits, length } = beatHits(voice, tracks, { ...opts, fs });
+  if (!hits.length) throw new Error('no hit in the pattern');
+  // the whole pattern lasts its steps, even when its last ones are empty
+  const mono = mixTracks([...hits.map((h) => ({ ...h, at: (h.at ?? 0) + pre })), { samples: new Float32Array(1), fs, at: pre + length }], { room: 0, peak: null, tail: 0.3 });
+  const samples = downmix(mono);
+  return { samples, fs, beat0: pre, duration: samples.length / fs };
+}
+
+/** A part of an ensemble: a voice that sings a song, or beatboxes. */
+export interface Part {
+  voice: Readonly<VoiceDesign>;
+  song?: Song;
+  beat?: BeatTrack[];
+  startBeat?: number;
+  gain?: number;
+  pan?: number;
+}
+
+/** Several voices at once, at one tempo (sung, beatboxed, then arranged): see `arrange`. */
+export function ensemble(parts: readonly Part[], opts: MixOptions & { tempo?: number; fs?: number; seed?: number; repeat?: number; swing?: number } = {}): Stereo {
+  const tempo = opts.tempo ?? 100, fs = opts.fs ?? 48000;
+  return arrange(parts.map((p, i) => ({
+    performance: p.song
+      ? sing(p.voice, { ...p.song, tempo }, { fs, seed: opts.seed === undefined ? undefined : opts.seed + i })
+      : beatbox(p.voice, p.beat ?? [], { tempo, fs, repeat: opts.repeat, swing: opts.swing, seed: opts.seed }),
+    startBeat: p.startBeat, gain: p.gain, pan: p.pan,
+  })), { ...opts, tempo });
+}
 
 /**
  * Finds the words of a text in a language other than Italian and English
