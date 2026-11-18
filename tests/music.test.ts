@@ -10,6 +10,13 @@ const level = (x: Float32Array, a: number, b: number) => {
   for (let i = Math.max(0, a); i < Math.min(x.length, b); i++) s += x[i] * x[i];
   return 10 * Math.log10(s / Math.max(1, b - a) + 1e-20);
 };
+/** how long a sound is heard: from its first to its last millisecond within 30 dB of its loudest, s */
+const heard = (x: Float32Array, fs: number) => {
+  const ms = Math.round(fs / 1000), env: number[] = [];
+  for (let i = 0; i + ms <= x.length; i += ms) env.push(level(x, i, i + ms));
+  const top = Math.max(...env), loud = env.map((e, i) => (e >= top - 30 ? i : -1)).filter((i) => i >= 0);
+  return (loud[loud.length - 1] - loud[0]) / 1000;
+};
 
 describe('notes as text', () => {
   it('reads names, lengths, rests and ties', () => {
@@ -255,6 +262,8 @@ describe('a sound of the mouth from a recording', () => {
     let peak = 0;
     for (const v of h.samples) peak = Math.max(peak, Math.abs(v));
     for (let i = 0; i < len; i++) x[at + i] = h.samples[i] * (i < 0.45 * len ? 1 : 1 - (0.85 * (i / len - 0.45)) / 0.55);
+    // (how long the sound itself is heard, before the thump, 12 dB over it, and the background are added)
+    const said = heard(x, fs);
     const p0 = at + Math.round(h.hit * fs);
     for (let i = 0; i < Math.round(0.08 * fs); i++) { const t = i / fs; x[p0 + i] += 4 * peak * Math.sin(2 * Math.PI * 35 * t) * Math.exp(-t / 0.02); }
     let s = 11;
@@ -264,9 +273,35 @@ describe('a sound of the mouth from a recording', () => {
     expect(r.sound.ipa).toMatch(/^[ptkbdɡʔ]/u);
     expect(r.sound.ipa).toMatch(/s$/u);
     expect(r.sound.hold).toBeGreaterThan(2.5);
-    expect(Math.abs(r.samples.length / r.fs / (r.target.length / r.fs) - 1)).toBeLessThan(0.25);
+    expect(Math.abs(heard(r.samples, r.fs) / said - 1)).toBeLessThan(0.2);
     expect(r.distance).toBeLessThan(3.5);
   }, 120000);
+
+  it('hears an effect of several sounds as sounds in time, and plays it in a beat', () => {
+    // by another voice: five ejective taps 150 ms apart, the last two softer, then a long [ʃ] dying away
+    const at = [0, 0.15, 0.3, 0.45, 0.6, 0.78];
+    const effect = { id: 'x', code: 'x', name: 'x', family: 'fx' as const, ipa: '', alternatives: [], level: 0, hint: '', parts: [
+      ...at.slice(0, 5).map((t, i) => ({ at: t, ipa: 'kʼ', gain: i < 3 ? 0 : -6 })), { at: at[5], ipa: 'ʃ', hold: 6, fade: 0.5, gain: -3 }] };
+    const h = drumHit(createVoice('woman'), effect, 48000, { seed: 5 });
+    const x = new Float32Array(h.samples.length + 19200);
+    x.set(h.samples, 9600);
+    let s = 3;
+    for (let i = 0; i < x.length; i++) { s = (s * 16807) % 2147483647; x[i] += 1e-4 * ((s / 2147483647) * 2 - 1); }
+    const r = imitate(createVoice('man'), x, 48000);
+    // six sounds, each struck within 10 ms of its time
+    expect(r.events?.length).toBe(6);
+    r.events!.forEach((e, i) => expect(Math.abs(e.at - at[i]), `sound ${i}`).toBeLessThan(0.01));
+    // the taps alike, the last one a long hiss
+    expect(new Set(r.events!.slice(0, 5).map((e) => e.ipa)).size).toBeLessThanOrEqual(2);
+    expect(r.events![5].ipa).toMatch(/[ʃɕsçx]/u);
+    expect(r.sound.parts).toHaveLength(6);
+    expect(Math.abs(heard(r.samples, r.fs) / heard(r.target, r.fs) - 1)).toBeLessThan(0.25);
+    expect(r.distance).toBeLessThan(5);
+    // kept as a sound of one's own, it plays in a beat, its sounds at their times
+    const mine = { ...r.sound, id: 'my1', code: 'my1' };
+    const b = beatbox(createVoice('man'), 'my1 . . . . . . .', { sounds: [mine], fs: 24000, tempo: 100 });
+    expect(b.duration).toBeGreaterThan(0.9);
+  }, 240000);
 
   it('plays a sound of its own in a beat, by its code', () => {
     const mine = { ...BEATBOX_KIT.find((k) => k.id === 'hat')!, id: 'my1', code: 'my1', name: 'Yours 1', knobs: { 'body.anatomy.scale': 1.2 } };

@@ -1754,18 +1754,39 @@ writeFileSync('hello.wav', toWav(s));
   of two as near, the one with fewer sounds wins (a tenth of a dB a
   sound). The nearest two, and the nearest single sound, are refined on
   the size of the head, the length of their last sound and how it dies
-  away (the lungs letting go through it, `DrumSound.fade`). It returns a
-  sound for the kit (`BeatOptions.sounds`, written by its code), the
-  distance (dB) and every sound tried, each said the way that brought
-  it nearest; some 20 s. Checked on known answers: our own sounds said
-  again with another seed, another head or another voice come back as
-  their kind of sound (an ejective, a click, a sibilant, a hum on its
-  pitch) and a head 15 % larger as larger; a "ptssss" blown into a
-  microphone (the [p]'s air thumping on it, the [s] dying away) by
-  another voice comes back as a stop, a [ts] and a long [s] held to
-  its length (the stop's place, [p], [t] or [k], is often missed); a
+  away (the lungs letting go through it, `DrumSound.fade`); last, the
+  nearest is held so that it is heard (to 30 dB under its loudest) as
+  long as the recording, if that keeps it within 0.15 dB (near the end
+  of a dying hiss the distance hardly tells a longer from a shorter).
+  It returns a sound for the kit (`BeatOptions.sounds`, written by its
+  code), the distance (dB) and every sound tried, each said the way that
+  brought it nearest; some 20 s. Checked on known answers: our own
+  sounds said again with another seed, another head or another voice
+  come back as their kind of sound (an ejective, a click, a sibilant, a
+  hum on its pitch) and a head 15 % larger as larger; a "ptssss" blown
+  into a microphone (the [p]'s air thumping on it, the [s] dying away)
+  by another voice comes back as a stop, a [ts] and a long [s] heard
+  for as long (the stop's place, [p], [t] or [k], is often missed); a
   whistle (1.4 kHz), which a mouth here cannot make, comes back as a
   voiced trill on half its pitch, 5 dB off.
+- An effect of several sounds (a run of taps, then a roar: 4 s at most)
+  is heard as sounds in time. Where its level, smoothed over 10 ms,
+  climbs 12 dB or more within 30 ms to within 30 dB of its loudest, 70
+  ms or more after the strike before (closer, it is the beating of one
+  trill), a sound strikes; each stretch from one strike to the next is
+  imitated as above, its sounds tried cut where the next one strikes.
+  Stretches alike (within 3 dB, of much the same length) share one
+  search, made on the loudest of them; four searches at most. Every way
+  of saying a sound is said once and kept for all the stretches, so
+  later searches cost little. The sound found has its parts
+  (`DrumSound.parts`: each sound, when it strikes, its level), which
+  `drumHit` and a beat play as one mouth, each part cut where the next
+  strikes. Checked on a known answer: five ejective taps 150 ms apart
+  and a long [ʃ] dying away, by another voice, come back as six sounds
+  each within 10 ms of its time, the taps alike, the last a long hiss.
+  A falling colour within one long sound (a hiss darkening) is not
+  followed: a held hiss gliding into another was tried and came out
+  farther, by measure, than one held hiss.
 - A mouth holding a narrow passage braces itself: the living mouth's
   slow wander (jaw, tongue body, lips) is free at 0.3 cm² and wider, a
   ninth as free at 0.1 cm², still at a closure. The jaw is at its

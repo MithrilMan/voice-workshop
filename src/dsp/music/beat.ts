@@ -52,7 +52,24 @@ export interface DrumSound {
   hum?: boolean;
   /** fields of the voice changed for this sound alone (a path of VOICE_FIELDS: value), as an imitation finds them */
   knobs?: Record<string, number>;
+  /** a sound made of several in time (an effect: a run of taps, then a roar), each said as written there; `ipa` then only names them */
+  parts?: DrumPart[];
   hint: string;
+}
+
+/** one of the sounds of a sound made of several in time */
+export interface DrumPart {
+  /** when it strikes, s after the first one strikes */
+  at: number;
+  /** what the mouth says (IPA), and how, as for a DrumSound */
+  ipa: string;
+  f0?: number;
+  f0End?: number;
+  hold?: number;
+  fade?: number;
+  knobs?: Record<string, number>;
+  /** its loudest 20 ms against the loudest part's, dB (0) */
+  gain?: number;
 }
 
 export const DRUM_FAMILIES: readonly { id: DrumFamily; name: string }[] = [
@@ -175,11 +192,19 @@ export interface DrumHitOptions {
 }
 
 /**
- * A sound of the kit (IPA) said by a voice, cut to itself: from just before
- * the instant it strikes (the first millisecond within 12 dB of its loudest)
- * to where it has died away (50 dB below), with short fades.
+ * A sound of the kit (IPA, or a DrumSound, whose pitch, length, fade and
+ * knobs are taken where `o` gives none) said by a voice, cut to itself:
+ * from just before the instant it strikes (the first millisecond within 12
+ * dB of its loudest) to where it has died away (50 dB below), with short
+ * fades. A sound made of several (`parts`) has each said and set at its
+ * time and level, one mouth: each ends where the next strikes.
  */
-export function drumHit(d: Readonly<VoiceDesign>, ipa: string, fs = 48000, o: DrumHitOptions = {}): DrumHit {
+export function drumHit(d: Readonly<VoiceDesign>, sound: string | Readonly<DrumSound>, fs = 48000, o: DrumHitOptions = {}): DrumHit {
+  if (typeof sound !== 'string') {
+    if (sound.parts?.length) return partsHit(d, sound.parts, fs, o, sound.f0);
+    return drumHit(d, sound.ipa, fs, { ...o, f0: o.f0 ?? sound.f0, f0End: o.f0End ?? sound.f0End, hold: o.hold ?? sound.hold, fade: o.fade ?? sound.fade, knobs: o.knobs ?? sound.knobs });
+  }
+  const ipa = sound;
   let v = cloneVoice(d as VoiceDesign);
   for (const [path, value] of Object.entries(o.knobs ?? {})) v = withField(v, path, value);
   if (o.f0) { v.speaking.f0 = o.f0; v.speaking.accent = 0; }
@@ -222,6 +247,33 @@ export function drumHit(d: Readonly<VoiceDesign>, ipa: string, fs = 48000, o: Dr
   }
   const from = a / fs;
   return { samples: s, fs, hit: (hit * ms - a) / fs, phones: score.phones.filter((p) => p.ipa !== '_').map((p) => ({ ipa: p.ipa, t0: p.t0 - from, t1: p.t1 - from })) };
+}
+
+/**
+ * Sounds in time said as one: each part said (with its own seed) and
+ * brought to its level, set so that it strikes at its time, and cut where
+ * the next one strikes (faded over 8 ms). A pitch given (`o.f0`) moves
+ * every part's pitch as much as it moves the sound's own (`f0`, else the
+ * first pitch of a part).
+ */
+function partsHit(d: Readonly<VoiceDesign>, all: readonly DrumPart[], fs: number, o: DrumHitOptions, f0?: number): DrumHit {
+  const parts = [...all].sort((a, b) => a.at - b.at), seed = o.seed ?? 1, own = f0 ?? parts.find((p) => p.f0)?.f0;
+  const r = o.f0 && own ? o.f0 / own : 1;
+  const hits = parts.map((p, k) => drumHit(d, p.ipa, fs, { seed: seed + 31 * k, f0: p.f0 ? p.f0 * r : undefined, f0End: p.f0End ? p.f0End * r : undefined, hold: p.hold, fade: p.fade, knobs: p.knobs, level: p.gain ?? 0 }));
+  const pre = hits[0].hit, starts = parts.map((p, k) => pre + p.at - hits[k].hit);
+  const ends = hits.map((h, k) => Math.min(starts[k] + h.samples.length / fs, k + 1 < parts.length ? pre + parts[k + 1].at : Infinity));
+  const out = new Float32Array(Math.ceil(Math.max(...ends) * fs) + 1), f8 = Math.round(0.008 * fs);
+  const phones: DrumHit['phones'] = [];
+  hits.forEach((h, k) => {
+    const a = Math.round(starts[k] * fs), n = Math.min(h.samples.length, Math.round(ends[k] * fs) - a), cut = n < h.samples.length;
+    for (let i = Math.max(0, -a); i < n; i++) out[a + i] += h.samples[i] * (cut && i >= n - f8 ? (n - i) / f8 : 1);
+    for (const p of h.phones) phones.push({ ipa: p.ipa, t0: p.t0 + starts[k], t1: p.t1 + starts[k] });
+  });
+  if (o.level !== undefined) {
+    const g = 10 ** ((o.level - loudest(out, fs)) / 20);
+    if (Number.isFinite(g)) for (let i = 0; i < out.length; i++) out[i] *= g;
+  }
+  return { samples: out, fs, hit: pre, phones };
 }
 
 export interface BeatTrack {
@@ -347,8 +399,8 @@ export function beatHits(d: Readonly<VoiceDesign>, tracks: readonly BeatTrack[],
     const f0 = t.f0 === undefined ? kit?.f0 : hzOf(t.f0);
     // a pitch given to a gliding sound moves its glide with it
     const f0End = kit?.f0End && kit.f0 && f0 ? kit.f0End * (f0 / kit.f0) : undefined;
-    const key = `${ipa}|${f0 ?? ''}|${f0End ?? ''}|${kit?.hold ?? ''}|${kit?.fade ?? ''}|${JSON.stringify(kit?.knobs ?? {})}`;
-    if (!cache.has(key)) cache.set(key, [0, 1, 2].map((k) => drumHit(d, ipa, fs, { seed: seed + 17 * k, f0, f0End, hold: kit?.hold, fade: kit?.fade, knobs: kit?.knobs, level: KIT_LEVEL + (kit?.level ?? -4) })));
+    const key = `${ipa}|${f0 ?? ''}|${f0End ?? ''}|${kit?.hold ?? ''}|${kit?.fade ?? ''}|${JSON.stringify(kit?.knobs ?? {})}|${JSON.stringify(kit?.parts ?? [])}`;
+    if (!cache.has(key)) cache.set(key, [0, 1, 2].map((k) => drumHit(d, kit ?? ipa, fs, { seed: seed + 17 * k, f0, f0End, level: KIT_LEVEL + (kit?.level ?? -4) })));
     const takes = cache.get(key)!;
     const hum = !!kit?.hum || /^[mnŋɲɱ]ː?$/.test(ipa), click = /[ʘǀǃǂǁ]/.test(ipa);
     let n = 0;

@@ -43,7 +43,7 @@ export { sungPitch, melodyOf, pitchTrack };
 export type { Melody, MelodyNote, MelodyOptions };
 export { parseNotes, noteNumber, noteName, midiHz, transpose } from '../dsp/music/notes';
 export { BEATBOX_KIT, DRUM_FAMILIES, drumSound, parsePattern, parseBeat, drumHit } from '../dsp/music/beat';
-export type { DrumSound, DrumFamily, DrumHit, DrumHitOptions } from '../dsp/music/beat';
+export type { DrumSound, DrumPart, DrumFamily, DrumHit, DrumHitOptions } from '../dsp/music/beat';
 export { BEAT_PATTERNS } from '../dsp/music/patterns';
 export { imitate } from '../dsp/music/imitate';
 export type { Imitation, ImitateOptions } from '../dsp/music/imitate';
