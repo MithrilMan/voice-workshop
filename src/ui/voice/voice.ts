@@ -81,7 +81,7 @@ export class VoiceController {
   /** the pieces of a stream that come while its audio starts */
   private streamWait: { pieces: Float32Array[]; last: boolean } | null = null;
   /** the posture of each mouth through the loop playing (a beat's), frame by frame */
-  private loopMouths: readonly Motion[] = [];
+  private watched: readonly Motion[] = [];
   private nextId = 1;
   private waiters = new Map<number, { resolve: (r: Result) => void; captured?: (s: Float32Array) => void }>();
   private stopGlide: (() => void) | null = null;
@@ -179,7 +179,7 @@ export class VoiceController {
   /** What is sounding: the engine's parameters, with the posture, glottis, pitch and lung pressure it has reached. */
   sounding(): EngineParams {
     // a beat played round and round moves the head with its first mouth
-    const beat = this.loopMouths.length ? this.loopPosture(0) : null;
+    const beat = this.watched.length ? this.mouthPosture(0) : null;
     if (beat) return beat;
     const base = this.effective();
     const t = this.live();
@@ -382,7 +382,7 @@ export class VoiceController {
     const done = this.wait(id);
     this.loopLength = samples.length / this.sampleRate;
     this.telemetryAt = undefined;
-    this.loopMouths = mouths;
+    this.watched = mouths;
     this.sink!.program({ id, params: this.effective(), after: this._manual, samples, loop: true, from: Math.round(from * this.sampleRate) });
     this.emit();
     return done;
@@ -396,17 +396,23 @@ export class VoiceController {
     // the audio goes on from the same share of the new samples: so does the place last heard of
     if (this.telemetryAt !== undefined) this.telemetryAt = (this.telemetryAt % this.loopLength) * (length / this.loopLength);
     this.loopLength = length;
-    if (mouths) this.loopMouths = mouths;
+    if (mouths) this.watched = mouths;
     this.sink?.swap(p.id, samples);
     return true;
   }
 
   /** Where the loop playing is now, s into its samples, and how long they are; null when no loop plays (or before it is heard). */
   loopPlace(): { at: number; length: number } | null {
+    const at = this.loopLength ? this.heardAt() : null;
+    return at === null ? null : { at, length: this.loopLength };
+  }
+
+  /** Where the samples playing (a loop, round and round, or a stream) are heard now, s into them; null when none play, or before they are heard. */
+  heardAt(): number | null {
     const p = this._lanes.performer;
-    if (p.kind !== 'clip' || !this.loopLength || this.telemetryProgram !== p.id || this.telemetryAt === undefined) return null;
+    if (p.kind !== 'clip' || this.telemetryProgram !== p.id || this.telemetryAt === undefined) return null;
     const at = this.telemetryAt + Math.max(0, Math.min(0.1, (this.clock.now() - this.telemetryTime) / 1000));
-    return { at: at % this.loopLength, length: this.loopLength };
+    return this.loopLength ? at % this.loopLength : at;
   }
 
   /**
@@ -414,7 +420,7 @@ export class VoiceController {
    * given to appendStream(), until the last; `seconds` is how long it will
    * all be (for the progress). It waits, silent, for a piece that is late.
    */
-  async playStream(first: Float32Array, label: string, seconds: number): Promise<Result> {
+  async playStream(first: Float32Array, label: string, seconds: number, mouths: readonly Motion[] = []): Promise<Result> {
     // what comes while the audio starts waits here
     const waiting = { pieces: [first], last: false };
     this.streamWait = waiting;
@@ -422,6 +428,8 @@ export class VoiceController {
     this.streamWait = null;
     const id = this.begin({ kind: 'clip', id: this.nextId++, label, samples: true }, seconds);
     const done = this.wait(id);
+    this.telemetryAt = undefined;
+    this.watched = mouths;
     this.sink!.program({ id, params: this.effective(), after: this._manual, samples: waiting.pieces[0], stream: true });
     for (const s of waiting.pieces.slice(1)) this.sink!.append(id, s);
     if (waiting.last) this.sink!.append(id, new Float32Array(0), true);
@@ -438,21 +446,21 @@ export class VoiceController {
     return true;
   }
 
-  /** How many mouths the loop playing has (a beat whose sounds strike together takes several). */
-  get loopMouthCount(): number { return this.loopMouths.length; }
+  /** How many mouths make what plays (a beat whose sounds strike together takes several, an ensemble one a part). */
+  get mouthCount(): number { return this.watched.length; }
 
-  /** A mouth of the loop playing, in the posture it has where the loop is heard now; null when there is none. */
-  loopPosture(mouth: number): EngineParams | null {
-    const m = this.loopMouths[mouth];
+  /** A mouth of what plays (a loop or a stream), with its own head, in the posture it has where the sound is heard now; null when there is none. */
+  mouthPosture(mouth: number): EngineParams | null {
+    const m = this.watched[mouth];
     if (!m) return null;
-    const pl = this.loopPlace();
-    return { ...this.effective(), articulators: { ...postureAt(m, pl ? pl.at : 0) } };
+    const e = this.effective(), at = this.heardAt();
+    return { ...e, ...(m.head ?? {}), articulators: { ...(m.frames.length ? postureAt(m, at ?? 0) : e.articulators) } };
   }
 
-  /** What the air does in a mouth of the loop playing where the loop is heard now, as its sounds were made; null when the mouth is silent or nothing plays. */
-  loopAir(mouth: number): Air | null {
-    const m = this.loopMouths[mouth], pl = this.loopPlace();
-    return m && pl ? airAt(m, pl.at) : null;
+  /** What the air does in a mouth of what plays where the sound is heard now, as it was made; null when the mouth is silent or nothing plays. */
+  mouthAir(mouth: number): Air | null {
+    const m = this.watched[mouth], at = this.heardAt();
+    return m && at !== null ? airAt(m, at) : null;
   }
 
   /** Glides the pitch from one value to another (a demonstration); the pitch stays at the end value. */
@@ -637,7 +645,7 @@ export class VoiceController {
     if (p.kind === 'glide') { this.stopGlide?.(); this.stopGlide = null; }
     this.clipParams = null;
     this.loopLength = 0;
-    this.loopMouths = [];
+    this.watched = [];
     this.setLanes({ ...this._lanes, performer: { kind: 'hands' } });
     // after a glide the voice still has a whole breath
     if (p.kind === 'glide') this.breathe();

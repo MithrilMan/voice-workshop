@@ -87,6 +87,12 @@ describe('singing', () => {
       let diff = 0;
       for (let i = 0; i < at; i++) diff = Math.max(diff, Math.abs(out[i] - whole.samples[i]));
       expect(diff, song.lyrics).toBe(0);
+      // the mouth of the take heard, its posture and air every 5 ms or so, with the head of the voice
+      const m = s.motion;
+      expect(Math.abs(m.frames.length * m.hop - at / 24000)).toBeLessThan(m.hop);
+      expect(m.air!.length).toBe(m.frames.length);
+      expect(m.head!.anatomy.scale).toBe(v.body.anatomy.scale);
+      expect(Math.max(...m.air!.map((x) => x?.voicingAmp ?? 0))).toBeGreaterThan(0.3);
     }
   }, 120000);
 

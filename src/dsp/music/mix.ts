@@ -4,6 +4,8 @@
  * comb and four all-pass filters a side, after Schroeder 1962 and Moorer
  * 1979, with the tunings of the public-domain Freeverb).
  */
+import type { Motion } from './beat';
+
 export interface Track {
   samples: ArrayLike<number>;
   fs: number;
@@ -264,6 +266,8 @@ export interface Performance {
   fs: number;
   beat0: number;
   duration: number;
+  /** the mouth that made it, from its first sample (when it was kept: a song sung piece by piece) */
+  motion?: Motion;
 }
 
 /** A performance in an ensemble: when it comes in (beats from the start) and where it stands. */

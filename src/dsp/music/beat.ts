@@ -20,7 +20,7 @@
  * out, as a drum machine would.
  */
 import { renderOffline, type Telemetry } from '../engine/engine';
-import type { Articulators } from '../tract/types';
+import type { Anatomy, Articulators, Teeth } from '../tract/types';
 import { textToPhones } from '../speech/g2p';
 import { VoiceDesign, cloneVoice, withField } from '../voice/design';
 import { utterance } from '../voice/utterance';
@@ -152,6 +152,8 @@ export interface Motion {
   start?: number;
   /** what the air does at each frame, as the engine made it (null: the mouth silent) */
   air?: (Air | null)[];
+  /** the head that makes it, when it is not the head of the voice being edited (a part of an ensemble sung by a voice of its own) */
+  head?: { anatomy: Anatomy; teeth: Teeth };
 }
 
 /**

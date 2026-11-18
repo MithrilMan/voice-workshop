@@ -262,6 +262,52 @@ function PitchInput({ value, enabled, label, onCommit }: { value?: number | stri
   );
 }
 
+/**
+ * A face for each mouth of what plays (`mouth`: which of the mouths the
+ * voice follows), each with its caption; a click enlarges one over the
+ * page, where what the faces show is chosen (the same for every face, kept
+ * in this browser).
+ */
+function Faces({ faces }: { faces: { mouth: number; caption: string; long?: string }[] }) {
+  const [big, setBig] = useState<number | null>(null);
+  const [show, setShow] = useState<FaceShow>(() => { try { return { ...FACE_SHOW, ...JSON.parse(localStorage.getItem('voice-workshop.faceShow') ?? '{}') }; } catch { return FACE_SHOW; } });
+  const setShown = (o: Partial<FaceShow>) => setShow((s) => { const n = { ...s, ...o }; try { localStorage.setItem('voice-workshop.faceShow', JSON.stringify(n)); } catch { /* not kept */ } return n; });
+  useEffect(() => {
+    if (big === null) return;
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setBig(null); };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, [big]);
+  if (!faces.length) return null;
+  const b = big !== null && big < faces.length ? faces[big] : null;
+  return (
+    <>
+      <div className="beat-faces">
+        {faces.map((x, k) => (
+          <figure key={x.mouth} className="beat-face ds-card" title="Click to enlarge" onClick={() => setBig(k)}>
+            <HeadView mouth={x.mouth} show={show} />
+            <figcaption>{x.caption}</figcaption>
+          </figure>
+        ))}
+      </div>
+      {b && (
+        <div className="beat-face-big" role="dialog" aria-label={`${b.caption}, enlarged`} onClick={() => setBig(null)}>
+          <figure className="ds-card">
+            <div className="beat-face-tools" onClick={(e) => e.stopPropagation()}>
+              <Seg value={show.field} options={[['off', 'No field'], ['pressure', 'Pressure'], ['velocity', 'Velocity'], ['air', 'Airflow']]} onChange={(v) => setShown({ field: v })} />
+              {([['flow', 'Flow', 'the air flowing, as dots'], ['noise', 'Noise', 'sparks where the air hisses'], ['handles', 'Handles', 'the points that move the head in the Lab'], ['labels', 'Names', 'the name of each part']] as const).map(([k, name, hint]) => (
+                <button key={k} className={show[k] ? 'chip on' : 'chip'} title={hint} onClick={() => setShown({ [k]: !show[k] })}>{name}</button>
+              ))}
+            </div>
+            <HeadView mouth={b.mouth} show={show} />
+            <figcaption>{b.long ?? b.caption} · a click or Esc closes it</figcaption>
+          </figure>
+        </div>
+      )}
+    </>
+  );
+}
+
 function BeatBench({ voice }: { voice: VoiceDesign }) {
   const [preset, setPreset] = useState(BEAT_PATTERNS[0].id);
   const b = BEAT_PATTERNS.find((x) => x.id === preset) ?? BEAT_PATTERNS[0];
@@ -284,17 +330,7 @@ function BeatBench({ voice }: { voice: VoiceDesign }) {
   const asked = useRef(0), playing = useRef(0);
   // the faces: a mouth each, with the sounds it makes; one enlarged over the page
   const [faces, setFaces] = useState<string[][]>([]);
-  const [big, setBig] = useState<number | null>(null);
-  // what the faces show (the same for every face), kept in this browser
-  const [show, setShow] = useState<FaceShow>(() => { try { return { ...FACE_SHOW, ...JSON.parse(localStorage.getItem('voice-workshop.faceShow') ?? '{}') }; } catch { return FACE_SHOW; } });
-  const setShown = (o: Partial<FaceShow>) => setShow((s) => { const n = { ...s, ...o }; try { localStorage.setItem('voice-workshop.faceShow', JSON.stringify(n)); } catch { /* not kept */ } return n; });
   const took = (l: MadeLoop, t: BeatTrack[]) => setFaces(l.mouths.map((_, m) => t.filter((_, i) => l.trackMouths[i] === m).map((x) => drumSound(x.sound, own)?.name ?? `[${x.sound}]`)));
-  useEffect(() => {
-    if (big === null) return;
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setBig(null); };
-    window.addEventListener('keydown', key);
-    return () => window.removeEventListener('keydown', key);
-  }, [big]);
   const job = useJob();
   const speaking = useLanes().performer.kind !== 'hands';
   const steps = Math.max(16, ...rows.map((r) => r.pattern.length));
@@ -470,30 +506,7 @@ function BeatBench({ voice }: { voice: VoiceDesign }) {
         <Slider label="Human" value={humanize} min={0} max={1} step={0.05} onChange={setHumanize} format={(v) => v.toFixed(2)} hint="hits a few milliseconds early or late, a little louder or softer, as a person plays" />
         <Toggle label="One mouth" value={oneMouth} onChange={setOneMouth} hint="one sound at a time, each cut by the next, as a beatboxer makes them (a hum goes on under the clicks); off: every hit rings out, as a drum machine" />
       </div>
-      {faces.length > 0 && (
-        <div className="beat-faces">
-          {faces.map((names, m) => (
-            <figure key={m} className="beat-face ds-card" title="Click to enlarge" onClick={() => setBig(m)}>
-              <HeadView mouth={m} show={show} />
-              <figcaption>{faces.length > 1 ? `Mouth ${m + 1}: ` : ''}{names.join(', ')}</figcaption>
-            </figure>
-          ))}
-        </div>
-      )}
-      {big !== null && big < faces.length && (
-        <div className="beat-face-big" role="dialog" aria-label={`Mouth ${big + 1}, enlarged`} onClick={() => setBig(null)}>
-          <figure className="ds-card">
-            <div className="beat-face-tools" onClick={(e) => e.stopPropagation()}>
-              <Seg value={show.field} options={[['off', 'No field'], ['pressure', 'Pressure'], ['velocity', 'Velocity'], ['air', 'Airflow']]} onChange={(v) => setShown({ field: v })} />
-              {([['flow', 'Flow', 'the air flowing, as dots'], ['noise', 'Noise', 'sparks where the air hisses'], ['handles', 'Handles', 'the points that move the head in the Lab'], ['labels', 'Names', 'the name of each part']] as const).map(([k, name, hint]) => (
-                <button key={k} className={show[k] ? 'chip on' : 'chip'} title={hint} onClick={() => setShown({ [k]: !show[k] })}>{name}</button>
-              ))}
-            </div>
-            <HeadView mouth={big} show={show} />
-            <figcaption>{faces.length > 1 ? `Mouth ${big + 1} of ${faces.length}: ` : ''}{faces[big].join(', ')} · a click or Esc closes it</figcaption>
-          </figure>
-        </div>
-      )}
+      <Faces faces={faces.map((names, m) => ({ mouth: m, caption: `${faces.length > 1 ? `Mouth ${m + 1}: ` : ''}${names.join(', ')}`, long: `${faces.length > 1 ? `Mouth ${m + 1} of ${faces.length}: ` : ''}${names.join(', ')}` }))} />
       <div className="music-row">
         <Seg value={view} options={[['grid', 'Grid'], ['text', 'Text']]} onChange={setView} />
         <span className="muted small">{view === 'grid' ? 'Click a step: a hit, an accent, a soft one, nothing.' : 'A step to a word: b kick · pf snare · ts hi-hat · ^k inward snare · . nothing · b+ts together · pf! accent · t? soft · m:C2 a hum on C2 · [kʼ] any sound · a line starting with > is a layer.'}</span>
@@ -652,6 +665,11 @@ function EnsembleBench() {
     return m;
   };
 
+  // a face for each part that sings, while the parts are heard
+  const [faces, setFaces] = useState<{ mouth: number; caption: string }[]>([]);
+  const heard = useLanes().performer.kind !== 'hands';
+  useEffect(() => { if (!heard) setFaces([]); }, [heard]);
+
   const perform = async () => {
     wakeSound();
     job.setProblem(''); job.setBusy('Getting the words…');
@@ -673,14 +691,17 @@ function EnsembleBench() {
           next[i] = { key: keys[i], out: o };
           setStatus((st) => st.map((x, j) => (j === i ? (o.performance ? 'ready' : `failed: ${o.error ?? ''}`) : x)));
         },
-        onStart: () => job.setBusy(''),
+        onStart: () => {
+          job.setBusy('');
+          setFaces(parts.map((p, i) => ({ p, i })).filter(({ p }) => !p.mute && !p.beat).map(({ p, i }) => ({ mouth: i, caption: `${p.name} · ${voices.find((v) => v.id === p.voice)?.name ?? p.voice}` })));
+        },
       });
       job.stop.current = run.stop;
       await run.done;
       job.setBusy('');
       setMade(next);
       remix(next);
-    } catch (err) { job.setBusy(''); job.setProblem((err as Error).message); }
+    } catch (err) { setFaces([]); job.setBusy(''); job.setProblem((err as Error).message); }
   };
 
   // a change of level, place or room is heard again from the parts already made
@@ -706,6 +727,7 @@ function EnsembleBench() {
         <Slider label="Tempo" value={tempo} min={40} max={200} step={1} onChange={setTempo} format={(v) => `${Math.round(v)} bpm`} />
         <Slider label="Room" value={room} min={0} max={0.6} step={0.01} onChange={setRoom} format={(v) => v.toFixed(2)} hint="how much of the room is heard" />
       </div>
+      <Faces faces={faces} />
       <div className="part-list">
         {parts.map((p, i) => (
           <div key={i} className={p.mute ? 'part-row muted-part' : 'part-row'}>

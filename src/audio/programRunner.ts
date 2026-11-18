@@ -17,7 +17,8 @@
  *       that streams (heard after those before; it ends after the last)
  * Messages out:
  *   { type: 'telemetry', telemetry, program, at? } about 60 per second
- *       (`at`: where a looping program is in its samples, s)
+ *       (`at`: where a looping program is in its samples, or how much of
+ *       its samples a program that streams has played, s)
  *   { type: 'stream', out, flow, noise }      blocks of STREAM samples
  *   { type: 'ended', id, reason, captured? }  once per program
  */
@@ -87,8 +88,8 @@ export class ProgramRunner {
   /** the samples a loop played before a swap, heard fading out from where they were */
   private old: { samples: Float32Array; pos: number; left: number } | null = null;
   private readonly fadeLength: number;
-  /** what a program that streams has still to play, piece by piece (`at` in the first), and whether the last has come */
-  private streams = new Map<number, { q: Float32Array[]; at: number; last: boolean }>();
+  /** what a program that streams has still to play, piece by piece (`at` in the first), how much of it it has played, and whether the last has come */
+  private streams = new Map<number, { q: Float32Array[]; at: number; played: number; last: boolean }>();
 
   constructor(readonly fs: number, private readonly post: (m: RunnerOut, transfer?: Transferable[]) => void) {
     this.engine = new VoiceEngine(fs);
@@ -123,7 +124,7 @@ export class ProgramRunner {
         const p = m.program;
         if (this.prog) this.end('replaced');
         if (this.queued) { this.post({ type: 'ended', id: this.queued.id, reason: 'replaced' }); this.streams.delete(this.queued.id); this.queued = null; }
-        if (p.stream) this.streams.set(p.id, { q: p.samples?.length ? [p.samples] : [], at: 0, last: false });
+        if (p.stream) this.streams.set(p.id, { q: p.samples?.length ? [p.samples] : [], at: 0, played: 0, last: false });
         if ((p.snap || p.samples || p.stream) && this.started && this.gain > 0) {
           this.queued = p;
           this.gainTarget = 0;
@@ -219,7 +220,7 @@ export class ProgramRunner {
         const q = this.streams.get(p.id);
         for (let i = 0; i < n; i++) {
           while (q && q.q.length && q.at >= q.q[0].length) { q.q.shift(); q.at = 0; }
-          out[i] = q && q.q.length ? q.q[0][q.at++] * g : 0;
+          if (q && q.q.length) { out[i] = q.q[0][q.at++] * g; q.played++; } else out[i] = 0;
         }
       } else {
         for (let i = 0; i < n; i++) {
@@ -266,7 +267,7 @@ export class ProgramRunner {
     if (++this.blocks >= TELEMETRY_BLOCKS) {
       this.blocks = 0;
       const lp = this.prog;
-      this.post({ type: 'telemetry', telemetry: this.engine.telemetry(), program: this.playing, ...(lp?.loop ? { at: this.pos / this.fs } : {}) });
+      this.post({ type: 'telemetry', telemetry: this.engine.telemetry(), program: this.playing, ...(lp?.loop ? { at: this.pos / this.fs } : lp?.stream ? { at: (this.streams.get(lp.id)?.played ?? 0) / this.fs } : {}) });
     }
   }
 }

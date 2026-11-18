@@ -135,7 +135,7 @@ describe('the program runner (audio thread)', () => {
   });
 
   it('plays samples that come in pieces, silent while one is late, and ends after the last', () => {
-    const { r, run, ended } = runner();
+    const { r, run, ended, out } = runner();
     const hands = vowel('a', false);
     hands.volume = 0;
     r.handle({ type: 'params', params: hands, after: hands, program: 0 });
@@ -150,6 +150,9 @@ describe('the program runner (audio thread)', () => {
     expect(heard.slice(b - 50, b).every((x) => Math.abs(x - 0.1) < 1e-6)).toBe(true);
     expect(heard.slice(b, b + n).every((x) => Math.abs(x - 0.2) < 1e-6)).toBe(true);
     expect(heard.slice(b + n, b + n + 400).every((x) => x === 0)).toBe(true);
+    // it says how much of its samples it has played: the two pieces, not the silence while the third is late
+    const tel = out.filter((m): m is Extract<RunnerOut, { type: 'telemetry' }> => m.type === 'telemetry' && m.at !== undefined).at(-1)!;
+    expect(tel.at).toBeCloseTo(0.1, 6);
     expect(ended()).toEqual([]);
     r.handle({ type: 'append', id: 7, samples: piece(0.3, 0.05), last: true });
     const more: number[] = [];

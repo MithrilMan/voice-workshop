@@ -294,6 +294,28 @@ describe('the voice controller', () => {
     expect(v.appendStream(c)).toBe(false);
   });
 
+  it('moves a face with each part of a stream, each with its own head', async () => {
+    const pose = (lipOpen: number) => ({ ...v.manual.articulators, lipOpen });
+    const big = { ...v.manual.anatomy, scale: 1.2 };
+    // a part from 1 s into the stream, frames every 0.5 s, with a head of its own; another with no frames yet
+    const mouths = [{ hop: 0.5, frames: [pose(-0.4), pose(0.6)], start: 1, head: { anatomy: big, teeth: v.manual.teeth } }, { hop: 0.5, frames: [] }];
+    void v.playStream(new Float32Array(48000), L, 3, mouths);
+    await settle();
+    const p = sink.programs().at(-1)!;
+    expect(v.mouthCount).toBe(2);
+    sink.onTelemetry(telemetryAt(0.5, 120), p.id, 1.6);
+    expect(v.heardAt()).toBeCloseTo(1.6, 1);
+    expect(v.mouthPosture(0)!.articulators.lipOpen).toBe(0.6);
+    expect(v.mouthPosture(0)!.anatomy.scale).toBe(1.2);
+    // a part with no frames yet stands at rest, in the head being edited
+    expect(v.mouthPosture(1)!.articulators).toEqual(v.manual.articulators);
+    // the stream goes on past the length of its first piece: not round
+    sink.onTelemetry(telemetryAt(0.5, 120), p.id, 2.5);
+    expect(v.heardAt()).toBeGreaterThan(2.4);
+    v.stop();
+    expect(v.mouthCount).toBe(0);
+  });
+
   it('moves the head with each mouth of a beat that plays round', async () => {
     const pose = (lipOpen: number) => ({ ...v.manual.articulators, lipOpen });
     // two mouths over a round of 1 s, frames every 0.5 s
@@ -303,22 +325,22 @@ describe('the voice controller', () => {
     void v.playLoop(new Float32Array(48000), L, 0, mouths);
     await settle();
     const p = sink.programs().at(-1)!;
-    expect(v.loopMouthCount).toBe(2);
+    expect(v.mouthCount).toBe(2);
     // before the audio says where it is: the first posture of each
-    expect(v.loopPosture(0)!.articulators.lipOpen).toBe(-0.4);
+    expect(v.mouthPosture(0)!.articulators.lipOpen).toBe(-0.4);
     sink.onTelemetry(telemetryAt(0.5, 120), p.id, 0.6);
-    expect(v.loopPosture(0)!.articulators.lipOpen).toBe(0.6);
-    expect(v.loopPosture(1)!.articulators.lipOpen).toBe(0.2);
-    expect(v.loopPosture(2)).toBeNull();
-    expect(v.loopAir(0)).toBe(blow);
-    expect(v.loopAir(1)).toBeNull();
+    expect(v.mouthPosture(0)!.articulators.lipOpen).toBe(0.6);
+    expect(v.mouthPosture(1)!.articulators.lipOpen).toBe(0.2);
+    expect(v.mouthPosture(2)).toBeNull();
+    expect(v.mouthAir(0)).toBe(blow);
+    expect(v.mouthAir(1)).toBeNull();
     // any head shows the first mouth
     expect(v.sounding().articulators.lipOpen).toBe(0.6);
     v.stop();
-    expect(v.loopMouthCount).toBe(0);
-    expect(v.loopPosture(0)).toBeNull();
+    expect(v.mouthCount).toBe(0);
+    expect(v.mouthPosture(0)).toBeNull();
     expect(v.sounding().articulators.lipOpen).not.toBe(0.6);
-    expect(v.loopAir(0)).toBeNull();
+    expect(v.mouthAir(0)).toBeNull();
   });
 });
 

@@ -206,7 +206,9 @@ Four modes, switchable in the header and remembered in the browser:
   round, all four parts made again, after some 3 s, the time to plan
   them, against 38 s for all of it), its level set from what is made by
   then; level, place and room change without making
-  the parts again; the result saves as a stereo WAV.
+  the parts again; the result saves as a stereo WAV. While the parts are
+  heard, a face for each voice that sings moves as it sings, with the head
+  of its own voice and its air as it was made (a click enlarges one).
 
 Who drives the voice is always shown under the header. Your hands (the
 handles, the sliders, the phoneme buttons) drive it unless something else
@@ -1702,7 +1704,9 @@ writeFileSync('hello.wav', toWav(s));
   swapped, the engine running on: `VoiceEngine.swapScore`). The notes,
   syllables and length are known before the first piece. About twice
   as fast as it is heard (the gestures are planned once: a correction
-  plans only the pitch again, `Sung.retuned`).
+  plans only the pitch again, `Sung.retuned`). `motion` is the mouth of
+  the take heard, with the head of the voice: its posture and its air
+  every 5 ms, frames added as the pieces are made.
 - `melodyOf(samples, fs)`: the melody of a recording of someone singing,
   humming or whistling (src/dsp/music/transcribe.ts): the pitch every
   10 ms (YIN on the sound brought to 16 kHz, octave slips taken back),
@@ -1852,7 +1856,8 @@ writeFileSync('hello.wav', toWav(s));
   goes as far as every track still coming has reached, the room running
   on through it. The studio plays it through the audio thread as a
   `stream` program: samples appended as they are made, silence while a
-  piece is late, the end after the last.
+  piece is late, the end after the last; the telemetry says how much of
+  its samples it has played, which the faces of the parts follow.
 - Every render starts from lungs at rest: a voice that starts from its
   own pressure blows a puff and a hum into the first 50 ms.
 - `analyse(clips)`: the measures of a voice over its recordings (pitch

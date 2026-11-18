@@ -4,7 +4,7 @@
  * are), or beatboxes its pattern. The samples come back as they are. Also
  * the melody of a recording, found here.
  */
-import { sing, singing, beatbox, beatLoop, melodyOf, imitate, type Song, type BeatTrack, type BeatOptions, type BeatLoopOptions, type BeatTakes, type Motion, type SungNote, type SungSyllable, type Melody, type Imitation } from '../../library';
+import { sing, singing, beatbox, beatLoop, melodyOf, imitate, type Song, type BeatTrack, type BeatOptions, type BeatLoopOptions, type BeatTakes, type Motion, type Air, type SungNote, type SungSyllable, type Melody, type Imitation } from '../../library';
 import type { VoiceDesign } from '../../dsp/voice/design';
 
 export type MusicRequest =
@@ -41,8 +41,9 @@ export interface LoopReply { id: number; ok: boolean; reason?: string; samples?:
 export interface StreamRequest { kind: 'stream'; part: MusicRequest }
 
 export type StreamReply =
-  | { type: 'info'; fs: number; beat0: number; duration: number; warnings: string[]; notes?: SungNote[]; syllables?: SungSyllable[] }
-  | { type: 'piece'; samples: Float32Array }
+  | { type: 'info'; fs: number; beat0: number; duration: number; warnings: string[]; notes?: SungNote[]; syllables?: SungSyllable[]; motion?: Omit<Motion, 'frames' | 'air'> }
+  // with a song, the frames of its mouth made with the piece
+  | { type: 'piece'; samples: Float32Array; frames?: Motion['frames']; air?: (Air | null)[] }
   | { type: 'end' }
   | { type: 'error'; reason: string };
 
@@ -58,8 +59,14 @@ ctx.onmessage = (e) => {
       const q = r.part;
       if (q.kind === 'sing') {
         const s = singing(q.voice, q.song, { fs: q.fs, seed: q.seed });
-        ctx.postMessage({ type: 'info', fs: s.fs, beat0: s.beat0, duration: s.duration, warnings: s.warnings, notes: s.notes, syllables: s.syllables } satisfies StreamReply);
-        for (let p = s.next(0.1); p; p = s.next(0.1)) ctx.postMessage({ type: 'piece', samples: p } satisfies StreamReply, [p.buffer]);
+        const { hop, start, head } = s.motion;
+        ctx.postMessage({ type: 'info', fs: s.fs, beat0: s.beat0, duration: s.duration, warnings: s.warnings, notes: s.notes, syllables: s.syllables, motion: { hop, start, head } } satisfies StreamReply);
+        let n = 0;
+        for (let p = s.next(0.1); p; p = s.next(0.1)) {
+          const frames = s.motion.frames.slice(n), air = s.motion.air!.slice(n);
+          n = s.motion.frames.length;
+          ctx.postMessage({ type: 'piece', samples: p, frames, air } satisfies StreamReply, [p.buffer]);
+        }
       } else {
         const p = beatbox(q.voice, q.tracks, q.opts);
         ctx.postMessage({ type: 'info', fs: p.fs, beat0: p.beat0, duration: p.duration, warnings: [] } satisfies StreamReply);

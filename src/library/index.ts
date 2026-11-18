@@ -27,7 +27,7 @@ import { encodeWav, encodeWavStereo, decodeWav } from '../dsp/util/wav';
 import { Note, parseNotes } from '../dsp/music/notes';
 import { singScore, sungPitch, meantNotes, SingOptions, SungSyllable, SungNote } from '../dsp/music/sing';
 import { melodyOf, pitchTrack, Melody, MelodyNote, MelodyOptions } from '../dsp/music/transcribe';
-import { beatHits, mouthsOf, parseBeat, parsePattern, BeatTrack, BeatOptions, BeatTakes, Motion } from '../dsp/music/beat';
+import { beatHits, mouthsOf, parseBeat, parsePattern, airOf, BeatTrack, BeatOptions, BeatTakes, Motion, MOTION_HOP } from '../dsp/music/beat';
 import { mixTracks, loopMix, MixOptions, Stereo, Track, downmix, arrange, Performance, Placed } from '../dsp/music/mix';
 import { voicePrint, VoicePrint, Clip } from '../dsp/analysis/voiceprint';
 import { VoiceDesign, VOICE_FIELDS, Field, cloneVoice, fieldValue, withField, sanitizeVoice } from '../dsp/voice/design';
@@ -43,7 +43,7 @@ export { sungPitch, melodyOf, pitchTrack };
 export type { Melody, MelodyNote, MelodyOptions };
 export { parseNotes, noteNumber, noteName, midiHz, transpose } from '../dsp/music/notes';
 export { BEATBOX_KIT, DRUM_FAMILIES, drumSound, parsePattern, parseBeat, drumHit } from '../dsp/music/beat';
-export type { DrumSound, DrumPart, DrumFamily, DrumHit, DrumHitOptions, BeatTakes, Motion } from '../dsp/music/beat';
+export type { DrumSound, DrumPart, DrumFamily, DrumHit, DrumHitOptions, BeatTakes, Motion, Air } from '../dsp/music/beat';
 export { BEAT_PATTERNS } from '../dsp/music/patterns';
 export { imitate } from '../dsp/music/imitate';
 export type { Imitation, ImitateOptions } from '../dsp/music/imitate';
@@ -257,6 +257,8 @@ export interface SongStream {
   syllables: SungSyllable[];
   notes: SungNote[];
   warnings: string[];
+  /** the mouth that sings it (with its head), frames added as the pieces are made: the posture and the air of the take heard */
+  motion: Motion;
   /** the next piece, about `seconds` long (0.1); null once the song is all out */
   next(seconds?: number): Float32Array | null;
 }
@@ -302,8 +304,18 @@ export function singing(voice: Readonly<VoiceDesign>, song: Song, opts: Omit<Spe
     }
   };
   const corrected = () => (changed ? s0.retuned(fix) : s0);
+  // the mouth of the take heard: its posture and its air every few blocks (the time at the end of the block)
+  const k = Math.max(1, Math.round((MOTION_HOP * fs) / B)), hop = (k * B) / fs;
+  const motion: Motion = { hop, frames: [], air: [], start: hop, head: { anatomy: { ...s0.params.anatomy }, teeth: { ...s0.params.teeth } } };
+  const hear = (e: VoiceEngine, out: Float32Array, from: number) => {
+    for (let i = 0; i < out.length; i += B) {
+      const m = Math.min(B, out.length - i);
+      e.process(out.subarray(i, i + m), m);
+      if (((from + i) / B + 1) % k === 0) { motion.frames.push({ ...e.art }); motion.air!.push(airOf(e.telemetry())); }
+    }
+  };
   return {
-    fs, beat0: s0.beat0, duration: total / fs, syllables: s0.syllables, notes: s0.notes, warnings: s0.warnings,
+    fs, beat0: s0.beat0, duration: total / fs, syllables: s0.syllables, notes: s0.notes, warnings: s0.warnings, motion,
     next(seconds = 0.1) {
       if (at >= total) return null;
       const to = Math.min(total, at + Math.max(1, Math.round((seconds * fs) / B)) * B);
@@ -312,7 +324,7 @@ export function singing(voice: Readonly<VoiceDesign>, song: Song, opts: Omit<Spe
       if (!heard) { heard = engineFor(corrected()); changed = false; }
       else if (changed) { heard.swapScore(corrected().score); changed = false; }
       const out = new Float32Array(to - at);
-      run(heard, out, 0, to - at);
+      hear(heard, out, at);
       at = to;
       return out;
     },

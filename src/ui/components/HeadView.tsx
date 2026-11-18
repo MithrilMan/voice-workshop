@@ -48,7 +48,7 @@ export const FACE_SHOW: FaceShow = { field: 'air', flow: true, noise: true, hand
 /**
  * The head, its posture as it sounds; its handles drag the hands' posture. With
  * `mouth`, a head that only watches a mouth of the beat playing (see
- * VoiceController.loopPosture and loopAir), its air as it was made, with
+ * VoiceController.mouthPosture and mouthAir), its air as it was made, with
  * nothing over it and only what `show` asks for.
  */
 export function HeadView({ guide, mouth, show = FACE_SHOW }: { guide?: Guide; mouth?: number; show?: FaceShow } = {}) {
@@ -79,13 +79,13 @@ export function HeadView({ guide, mouth, show = FACE_SHOW }: { guide?: Guide; mo
 
   const ref = useAnimatedCanvas(({ ctx, w, h, dt, t: time, dpr }) => {
     // what sounds: a sentence or a clip moves the head by itself
-    const p = (mouth === undefined ? null : voice.loopPosture(mouth)) ?? voice.sounding();
+    const p = (mouth === undefined ? null : voice.mouthPosture(mouth)) ?? voice.sounding();
     const an = p.anatomy;
     const a = p.articulators;
-    // the geometry of the posture shown: the shared one, or its own for a mouth of a beat other than the first
-    const geom = mouth ? geomOf(p) : store.derived().geom;
+    // the geometry of the posture shown: the shared one, or its own for a mouth that watches (its own head)
+    const geom = mouth !== undefined ? geomOf(p) : store.derived().geom;
     // what the air does: as the engine plays it, or as the mouth of the beat made it where the beat is heard
-    const tel: Heard | null = mouth === undefined ? (store.ui.audioOn ? store.telemetry : null) : voice.loopAir(mouth);
+    const tel: Heard | null = mouth === undefined ? (store.ui.audioOn ? store.telemetry : null) : voice.mouthAir(mouth);
     const sh: FaceShow = mouth === undefined ? { field: store.ui.field, flow: true, noise: true, handles: true, labels } : shown.current;
     const s = an.scale * 0.9;
     // fixed frame (for scale 1) so a child's head looks smaller; a tall view shows the whole head

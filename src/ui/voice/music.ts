@@ -142,6 +142,8 @@ export function performLive(parts: readonly LivePart[], o: { tempo: number; room
   const mixer = new MixStream(parts.map((p) => ({ gain: p.gain, pan: p.pan })), fs, { room: o.room, size: o.size });
   const outs: PartOutcome[] = parts.map(() => ({ performance: null, warnings: [] }));
   const ends = parts.map(() => NaN);
+  // the mouth of each part, in the time of the mix, its frames added as its pieces come (the faces follow them)
+  const mouths: Motion[] = parts.map(() => ({ hop: 0.005, frames: [] }));
   const workers = new Set<Worker>();
   // of each part made in a worker: when it was asked for, where it starts in the mix, how much of it is made, whether it is over
   const asked = parts.map(() => 0), s0 = parts.map(() => 0), got = parts.map(() => 0), over = parts.map(() => false);
@@ -197,7 +199,7 @@ export function performLive(parts: readonly LivePart[], o: { tempo: number; room
       waiting.length = 0;
       started = true;
       o.onStart?.();
-      void voice.playStream(first, o.label, known ? total() : first.length / fs).then((r) => { if (r === 'stopped' && !mixer.done) close(); });
+      void voice.playStream(first, o.label, known ? total() : first.length / fs, mouths).then((r) => { if (r === 'stopped' && !mixer.done) close(); });
       if (last) { voice.appendStream(new Float32Array(0), true); close(); }
       return;
     }
@@ -211,6 +213,7 @@ export function performLive(parts: readonly LivePart[], o: { tempo: number; room
     if (p.made) {
       mixer.place(i, at(p.made.beat0)); mixer.feed(i, p.made.samples); mixer.end(i);
       ends[i] = at(p.made.beat0) + p.made.duration;
+      if (p.made.motion) mouths[i] = { ...p.made.motion, start: at(p.made.beat0) + (p.made.motion.start ?? 0) };
       over[i] = true;
       outs[i] = { performance: p.made, warnings: [] };
       return;
@@ -236,17 +239,19 @@ export function performLive(parts: readonly LivePart[], o: { tempo: number; room
         s0[i] = at(m.beat0);
         mixer.place(i, s0[i]);
         ends[i] = s0[i] + m.duration;
+        if (m.motion) Object.assign(mouths[i], m.motion, { start: s0[i] + (m.motion.start ?? 0), air: [] });
         o.onInfo?.(i, m);
       } else if (m.type === 'piece') {
         if (!firstAt[i]) { firstAt[i] = performance.now(); firstGot[i] = m.samples.length; }
         got[i] += m.samples.length;
+        if (m.frames) { mouths[i].frames.push(...m.frames); mouths[i].air?.push(...(m.air ?? [])); }
         pieces.push(m.samples);
         mixer.feed(i, m.samples);
       } else if (m.type === 'end') {
         const n = pieces.reduce((s, x) => s + x.length, 0), samples = new Float32Array(n);
         let k = 0;
         for (const x of pieces) { samples.set(x, k); k += x.length; }
-        ended({ performance: { samples, fs: info?.fs ?? fs, beat0: info?.beat0 ?? 0, duration: n / fs }, warnings: info?.warnings ?? [], notes: info?.notes, syllables: info?.syllables });
+        ended({ performance: { samples, fs: info?.fs ?? fs, beat0: info?.beat0 ?? 0, duration: n / fs, ...(info?.motion ? { motion: { ...info.motion, frames: mouths[i].frames, air: mouths[i].air } } : {}) }, warnings: info?.warnings ?? [], notes: info?.notes, syllables: info?.syllables });
         return;
       } else {
         ended({ performance: null, warnings: [], error: m.reason });
