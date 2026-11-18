@@ -330,7 +330,8 @@ function BeatBench({ voice }: { voice: VoiceDesign }) {
   const asked = useRef(0), playing = useRef(0);
   // the faces: a mouth each, with the sounds it makes; one enlarged over the page
   const [faces, setFaces] = useState<string[][]>([]);
-  const took = (l: MadeLoop, t: BeatTrack[]) => setFaces(l.mouths.map((_, m) => t.filter((_, i) => l.trackMouths[i] === m).map((x) => drumSound(x.sound, own)?.name ?? `[${x.sound}]`)));
+  // the sounds of each mouth, each named once (a hum on several notes is one sound)
+  const took = (l: MadeLoop, t: BeatTrack[]) => setFaces(l.mouths.map((_, m) => [...new Set(t.filter((_, i) => l.trackMouths[i] === m).map((x) => drumSound(x.sound, own)?.name ?? `[${x.sound}]`))]));
   const job = useJob();
   const speaking = useLanes().performer.kind !== 'hands';
   const steps = Math.max(16, ...rows.map((r) => r.pattern.length));
