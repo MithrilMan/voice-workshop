@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { createVoice, speak, sing, beatbox, arrange, mix, toWav, parseNotes, noteNumber, sungPitch, BEATBOX_KIT, BEAT_PATTERNS, drumHit, drumSound, parseBeat, melodyOf, pitchTrack, imitate, beatLoop } from '../src/library';
+import { createVoice, speak, sing, beatbox, arrange, mix, toWav, parseNotes, noteNumber, sungPitch, BEATBOX_KIT, BEAT_PATTERNS, drumHit, drumSound, parseBeat, melodyOf, pitchTrack, imitate, beatLoop, singing, downmix } from '../src/library';
 import { beatHits, postureAt } from '../src/dsp/music/beat';
+import { MixStream } from '../src/dsp/music/mix';
 import { textToPhones } from '../src/dsp/speech/g2p';
 import { utterance } from '../src/dsp/voice/utterance';
 import { VoiceEngine } from '../src/dsp/engine/engine';
@@ -67,6 +68,26 @@ describe('singing', () => {
     const a = sungPitch(once.samples, once.fs, once.notes)[0], b = sungPitch(tuned.samples, tuned.fs, tuned.notes)[0];
     expect(a).toBeLessThan(-15);
     expect(Math.abs(b)).toBeLessThan(8);
+  }, 120000);
+
+  it('sings piece by piece the samples it sings whole, the ear correcting each note just ahead', () => {
+    // a flat [u] the ear corrects, notes it leaves alone, and a take with no ear
+    for (const song of [
+      { notes: 'C5:3', lyrics: 'tu', lang: 'it', tempo: 100, vibrato: 0 },
+      { notes: 'G4 C5:2 A4 F4:2', lyrics: 'tu u si u', lang: 'it', tempo: 100 },
+      { notes: 'C4 D4 E4', lyrics: 'la la la', lang: 'it', tempo: 140, tune: false },
+    ]) {
+      const v = createVoice('woman'), whole = sing(v, song, { fs: 24000 }), s = singing(v, song, { fs: 24000 });
+      expect(s.duration).toBeCloseTo(whole.duration, 6);
+      expect(s.notes).toEqual(whole.notes);
+      const out = new Float32Array(whole.samples.length);
+      let at = 0;
+      for (let p = s.next(0.1); p; p = s.next(0.07)) { out.set(p, at); at += p.length; }
+      expect(at).toBe(whole.samples.length);
+      let diff = 0;
+      for (let i = 0; i < at; i++) diff = Math.max(diff, Math.abs(out[i] - whole.samples[i]));
+      expect(diff, song.lyrics).toBe(0);
+    }
   }, 120000);
 
   it('shares out syllables and notes that do not match, and says so', () => {
@@ -387,5 +408,34 @@ describe('mixing', () => {
     const first = m.left.findIndex((v) => v !== 0) / fs, second = (m.left.subarray(Math.round(0.9 * fs)).findIndex((v) => v !== 0) + Math.round(0.9 * fs)) / fs;
     expect(first).toBeCloseTo(0.45, 2);
     expect(second).toBeCloseTo(1.45, 2);
+  });
+
+  it('mixes tracks as they come, in pieces, as it mixes them whole', () => {
+    const fs = 8000, rand = (n: number, s: number) => Float32Array.from({ length: n }, (_, i) => Math.sin(i * s) * Math.exp(-i / n));
+    const tracks = [
+      { samples: rand(3000, 0.31), fs, at: 0.1, gain: -3, pan: -0.5 },
+      { samples: rand(5000, 0.17), fs, at: 0.4, gain: 2, pan: 0.8 },
+      { samples: rand(800, 0.9), fs, at: 1.5, pan: 0 },
+    ];
+    const whole = downmix(mix(tracks, { room: 0.3, size: 0.5, peak: null }));
+    const m = new MixStream(tracks.map((t) => ({ gain: t.gain, pan: t.pan })), fs, { room: 0.3, size: 0.5, gain: 0.5 });
+    const got: Float32Array[] = [], sent = tracks.map(() => 0);
+    // the first track placed at once, the others when they start to come; pieces of every size, in turns
+    m.place(0, tracks[0].at);
+    for (let turn = 0; !m.done; turn++) {
+      const k = turn % 3, t = tracks[k], n = Math.min(t.samples.length - sent[k], 97 + 211 * k);
+      if (sent[k] === 0 && k > 0) m.place(k, t.at);
+      if (n > 0) { m.feed(k, t.samples.subarray(sent[k], sent[k] + n)); sent[k] += n; }
+      if (sent[k] >= t.samples.length) m.end(k);
+      got.push(m.take());
+      expect(turn).toBeLessThan(500);
+    }
+    const out = new Float32Array(got.reduce((s, x) => s + x.length, 0));
+    let at = 0;
+    for (const x of got) { out.set(x, at); at += x.length; }
+    expect(out.length).toBe(whole.length);
+    let d = 0, top = 0;
+    for (let i = 0; i < out.length; i++) { d = Math.max(d, Math.abs(out[i] - 0.5 * whole[i])); top = Math.max(top, Math.abs(whole[i])); }
+    expect(d / top).toBeLessThan(1e-6);
   });
 });

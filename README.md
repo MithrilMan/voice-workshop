@@ -172,7 +172,11 @@ Four modes, switchable in the header and remembered in the browser:
   of each; or a tune of your own, sung, hummed or whistled into the
   microphone (or opened from a file): its notes, tempo and tuning are
   found and put in the song, or the voice sings your own pitch and
-  timing, slides and vibrato included. Beatbox: the drums of the voice's
+  timing, slides and vibrato included. The song is heard as it is sung:
+  the voice sings it in a worker, a tenth of a second at a time, its ear
+  correcting each note just ahead of it, and the sound starts once what
+  is left will be sung before it is due (about two seconds, for a song
+  twenty seconds long). Beatbox: the drums of the voice's
   own mouth, a kit of 37 sounds in seven families (kicks, among them an
   808 kick that rings on as a falling hum and an inward one; snares,
   among them the inward K snare a beatboxer breathes on; hi-hats,
@@ -192,9 +196,14 @@ Four modes, switchable in the header and remembered in the browser:
   each part sung or beatboxed by a voice of its own (a starting voice or
   one of yours), coming in at its beat, at its level and place, over a
   room: a round of "Frère Jacques" in four languages, four voices on a
-  chord progression, a band of mouths. The parts are made in workers, a
-  few at a time, then mixed; level, place and room change without making
-  them again; the result saves as a stereo WAV.
+  chord progression, a band of mouths. The parts are made in workers,
+  all at once, mixed over the room as they come and heard as they are
+  made: the sound starts once every part, at the pace it has kept, will
+  be made before the sound gets to its end (four voices singing at once
+  are made slower than they are heard: then the start waits that long,
+  some 14 s for the round, against 35 s for all of it), its level set
+  from what is made by then; level, place and room change without making
+  the parts again; the result saves as a stereo WAV.
 
 Who drives the voice is always shown under the header. Your hands (the
 handles, the sliders, the phoneme buttons) drive it unless something else
@@ -270,7 +279,7 @@ src/
     analysis/             LPC formants, YIN pitch, mel filterbank
     data/vowels.ts        reference vowel formants
     data/mri.ts           vowel area functions measured by MRI (Story 2008)
-  audio/programRunner.ts  what the worklet runs: live parameters, sentences, melodies, clips and samples as programs
+  audio/programRunner.ts  what the worklet runs: live parameters, sentences, melodies, clips and samples (whole, round and round, or in pieces as they are made) as programs
   audio/worklet.ts        AudioWorkletProcessor wrapping the program runner
   audio/audioEngine.ts    AudioContext, worklet node, microphone (the voice sink)
   ui/voice/               the voice controller, the only door to the sound: hands, performers, filter lanes, locks
@@ -1682,6 +1691,14 @@ writeFileSync('hello.wav', toWav(s));
   returns the samples, the first beat, each syllable and note as sung.
   With `contour` (Hz every few milliseconds) the voice sings that pitch
   as it is in place of the notes' steps.
+- `singing(voice, song, opts)`: the same song sung a piece at a time
+  (`next(seconds)` until it returns nothing), sample for sample the
+  song `sing` returns: the first take runs ahead in an engine of its
+  own, each note measured as soon as it is sung, and the heard take
+  takes every correction known before its note begins (its score
+  swapped, the engine running on: `VoiceEngine.swapScore`). The notes,
+  syllables and length are known before the first piece. About 1.5
+  times as fast as it is heard, in a browser.
 - `melodyOf(samples, fs)`: the melody of a recording of someone singing,
   humming or whistling (src/dsp/music/transcribe.ts): the pitch every
   10 ms (YIN on the sound brought to 16 kHz, octave slips taken back),
@@ -1822,6 +1839,13 @@ writeFileSync('hello.wav', toWav(s));
   its level and place, over a room (eight combs and four all-passes a
   side, Schroeder 1962 and Moorer 1979, with the public-domain tunings of
   Freeverb); `mix(tracks)` for anything else; `toWav` writes stereo too.
+- `MixStream` (src/dsp/music/mix.ts): the same mix (both ears as one,
+  `mixTracks` then `downmix`) made as the tracks come, in pieces: each
+  track placed when its start is known, fed as it is made, ended; the mix
+  goes as far as every track still coming has reached, the room running
+  on through it. The studio plays it through the audio thread as a
+  `stream` program: samples appended as they are made, silence while a
+  piece is late, the end after the last.
 - Every render starts from lungs at rest: a voice that starts from its
   own pressure blows a puff and a hum into the first 50 ms.
 - `analyse(clips)`: the measures of a voice over its recordings (pitch

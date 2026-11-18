@@ -3,7 +3,7 @@ import { store } from '../store';
 import { useLibrary } from '../library';
 import { Slider, Toggle, Seg } from '../components/controls';
 import { LanguagePick } from '../components/LanguagePick';
-import { makeParts, musicRate, arrangeParts, playMix, stopPlaying, saveWav, wakeSound, findMelody, imitateSound, recordMicrophone, decodeRecording, playRecording, makeLoop, playLoop, swapLoop, loopPlace, type MusicRequest, type PartOutcome, type Recording, type MadeLoop } from '../voice/music';
+import { makeParts, musicRate, arrangeParts, playMix, stopPlaying, saveWav, wakeSound, findMelody, imitateSound, recordMicrophone, decodeRecording, playRecording, makeLoop, playLoop, swapLoop, loopPlace, performLive, type MusicRequest, type PartOutcome, type Recording, type MadeLoop } from '../voice/music';
 import type { Melody } from '../../dsp/music/transcribe';
 import { useLanes } from '../voice/hooks';
 import { HeadView } from '../components/HeadView';
@@ -118,18 +118,21 @@ function SingBench({ voice }: { voice: VoiceDesign }) {
     job.setProblem(''); job.setBusy('Getting the words…');
     try {
       const words = await wordsOf(lyrics, lang);
-      job.setBusy(tune ? 'Singing (a first take, then again in tune)…' : 'Singing…');
+      job.setBusy('Starting to sing…');
       const own = exact && melody ? { notes: melody.exact, contour: melody.contour, tempo: melody.tempo } : { notes, tempo };
       const req: MusicRequest = { kind: 'sing', voice, fs: musicRate(), song: { ...own, lyrics: words, lang, transpose, vibrato, tune, vowel: 'a' } };
-      const run = makeParts([req]);
+      // heard as it is sung: the singer's ear corrects each note just ahead of it
+      const run = performLive([{ req }], {
+        tempo: own.tempo, room: 0.15, label: `${voice.name || 'The voice'} sings`,
+        onInfo: (_, info) => setOut({ performance: null, warnings: info.warnings, notes: info.notes, syllables: info.syllables }),
+        onStart: () => job.setBusy(''),
+      });
       job.stop.current = run.stop;
-      const [o] = await run.done;
+      const { parts: [o], mix: m } = await run.done;
       job.setBusy('');
       if (!o.performance) { if (o.error) job.setProblem(o.error); return; }
       setOut(o);
-      const m = arrangeParts([{ performance: o.performance }], { tempo: own.tempo, room: 0.15 });
       setMix(m);
-      void playMix(m, `${voice.name || 'The voice'} sings`);
     } catch (e) { job.setBusy(''); job.setProblem((e as Error).message); }
   };
 
@@ -646,23 +649,28 @@ function EnsembleBench() {
     try {
       const reqs = await Promise.all(parts.map(requestOf));
       const keys = reqs.map((r) => JSON.stringify(r));
-      const next: (Made | null)[] = parts.map((_, i) => (made[i]?.key === keys[i] ? made[i] : null));
-      const todo = next.map((m, i) => (m ? -1 : i)).filter((i) => i >= 0);
-      setStatus(parts.map((_, i) => (next[i] ? 'ready' : 'waiting')));
-      job.setBusy(todo.length ? `Making ${todo.length} part${todo.length > 1 ? 's' : ''} (a few at a time)…` : '');
-      if (todo.length) {
-        const run = makeParts(todo.map((i) => reqs[i]), (k, o) => {
-          const i = todo[k];
+      // the parts already made (and still the same) are heard as they are, the others as they are made
+      const next: (Made | null)[] = parts.map((_, i) => (made[i]?.key === keys[i] && made[i]?.out.performance ? made[i] : null));
+      const todo = next.filter((m) => !m).length;
+      setStatus(parts.map((_, i) => (next[i] ? 'ready' : 'making…')));
+      job.setBusy(todo ? `Starting ${todo} part${todo > 1 ? 's' : ''}, each in its own worker…` : '');
+      const run = performLive(parts.map((p, i) => ({
+        req: next[i] ? undefined : reqs[i], made: next[i]?.out.performance ?? undefined,
+        // a muted part is made too (to be heard again without making it), but not heard
+        startBeat: p.startBeat, gain: p.mute ? -300 : p.gain, pan: p.pan,
+      })), {
+        tempo, room, label: e.name,
+        onPart: (i, o) => {
           next[i] = { key: keys[i], out: o };
           setStatus((st) => st.map((x, j) => (j === i ? (o.performance ? 'ready' : `failed: ${o.error ?? ''}`) : x)));
-        });
-        job.stop.current = run.stop;
-        await run.done;
-      }
+        },
+        onStart: () => job.setBusy(''),
+      });
+      job.stop.current = run.stop;
+      await run.done;
       job.setBusy('');
       setMade(next);
-      const m = remix(next);
-      if (m) void playMix(m, e.name);
+      remix(next);
     } catch (err) { job.setBusy(''); job.setProblem((err as Error).message); }
   };
 
@@ -684,7 +692,7 @@ function EnsembleBench() {
         <button className="btn" disabled={!mix} onClick={() => mix && void playMix(mix, 'Again')}>▶ Again</button>
         <button className="btn" disabled={!mix} onClick={() => mix && saveWav(mix, e.name)}>⇩ WAV</button>
       </div>
-      <p className="muted small">{e.hint}. Each part is made by its own voice (yours too, from the library) away from the page, a few at a time; then they are heard together. Level, place and room change without making the parts again.</p>
+      <p className="muted small">{e.hint}. Each part is made by its own voice (yours too, from the library) away from the page, all at once, and heard together as they are made. Level, place and room change without making the parts again.</p>
       <div className="music-grid2">
         <Slider label="Tempo" value={tempo} min={40} max={200} step={1} onChange={setTempo} format={(v) => `${Math.round(v)} bpm`} />
         <Slider label="Room" value={room} min={0} max={0.6} step={0.01} onChange={setRoom} format={(v) => v.toFixed(2)} hint="how much of the room is heard" />

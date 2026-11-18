@@ -7,7 +7,8 @@ export type SinkMsg =
   | { type: 'params'; params: EngineParams; after: EngineParams; program: number }
   | { type: 'program'; program: Program }
   | { type: 'stop'; id: number }
-  | { type: 'swap'; id: number; samples: Float32Array };
+  | { type: 'swap'; id: number; samples: Float32Array }
+  | { type: 'append'; id: number; samples: Float32Array; last?: boolean };
 
 /** A sink that records what the controller sends, in order. */
 export class FakeSink implements VoiceSink {
@@ -28,6 +29,7 @@ export class FakeSink implements VoiceSink {
   program(p: Program): void { this.sent.push({ type: 'program', program: p }); }
   stop(id: number): void { this.sent.push({ type: 'stop', id }); }
   swap(id: number, samples: Float32Array): void { this.sent.push({ type: 'swap', id, samples }); }
+  append(id: number, samples: Float32Array, last?: boolean): void { this.sent.push({ type: 'append', id, samples, last }); }
   async enableMic(): Promise<AnalyserNode> { throw new Error('no microphone in the tests'); }
   disableMic(): void {}
 

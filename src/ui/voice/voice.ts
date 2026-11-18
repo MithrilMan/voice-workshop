@@ -78,6 +78,8 @@ export class VoiceController {
   private telemetryAt: number | undefined;
   /** how long the samples of the loop playing are, s */
   private loopLength = 0;
+  /** the pieces of a stream that come while its audio starts */
+  private streamWait: { pieces: Float32Array[]; last: boolean } | null = null;
   /** the posture of each mouth through the loop playing (a beat's), frame by frame */
   private loopMouths: readonly Motion[] = [];
   private nextId = 1;
@@ -407,6 +409,35 @@ export class VoiceController {
     return { at: at % this.loopLength, length: this.loopLength };
   }
 
+  /**
+   * Plays samples made elsewhere as they are made: these first, then those
+   * given to appendStream(), until the last; `seconds` is how long it will
+   * all be (for the progress). It waits, silent, for a piece that is late.
+   */
+  async playStream(first: Float32Array, label: string, seconds: number): Promise<Result> {
+    // what comes while the audio starts waits here
+    const waiting = { pieces: [first], last: false };
+    this.streamWait = waiting;
+    if (!(await this.ensureAudio()) || this.streamWait !== waiting) return 'stopped';
+    this.streamWait = null;
+    const id = this.begin({ kind: 'clip', id: this.nextId++, label, samples: true }, seconds);
+    const done = this.wait(id);
+    this.sink!.program({ id, params: this.effective(), after: this._manual, samples: waiting.pieces[0], stream: true });
+    for (const s of waiting.pieces.slice(1)) this.sink!.append(id, s);
+    if (waiting.last) this.sink!.append(id, new Float32Array(0), true);
+    this.emit();
+    return done;
+  }
+
+  /** More samples for the stream playing (see playStream); `last`: no more come. False if no stream plays. */
+  appendStream(samples: Float32Array, last = false): boolean {
+    if (this.streamWait) { this.streamWait.pieces.push(samples); if (last) this.streamWait.last = true; return true; }
+    const p = this._lanes.performer;
+    if (p.kind !== 'clip' || !p.samples || this.loopLength) return false;
+    this.sink?.append(p.id, samples, last);
+    return true;
+  }
+
   /** How many mouths the loop playing has (a beat whose sounds strike together takes several). */
   get loopMouthCount(): number { return this.loopMouths.length; }
 
@@ -439,6 +470,7 @@ export class VoiceController {
 
   /** Stops the performer: the hands are back, with the lungs off. */
   stop(): void {
+    this.streamWait = null;
     if (this._lanes.performer.kind === 'hands') return;
     this.endPerformer('stopped');
     this.push();

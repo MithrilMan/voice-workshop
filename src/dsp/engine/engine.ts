@@ -653,6 +653,17 @@ export class VoiceEngine {
     };
   }
 
+  /**
+   * Goes on with another score from where this one is: the same utterance
+   * with something changed ahead of here (a note sung again in tune). Its
+   * time, its wander and its time constants are kept.
+   */
+  swapScore(score: Score): void {
+    if (!this.score) return;
+    this.score = score;
+    this.scoreIdx = 0;
+  }
+
   stopScore(): void { this.score = null; this.restoreTau(); }
 
   /** the time constants of the hands, when a score ends or is stopped */

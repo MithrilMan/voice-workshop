@@ -115,6 +115,8 @@ export interface Sung {
   syllables: SungSyllable[];
   /** every note that is not a rest, in order */
   notes: SungNote[];
+  /** for every note, the time from which a change of its pitch (`fix`) changes the score, s */
+  fixFrom: number[];
   /** time of the first beat, s, and length of a beat, s */
   beat0: number;
   beat: number;
@@ -343,5 +345,7 @@ export function singScore(d: Readonly<VoiceDesign>, notesIn: readonly Note[], ph
     const v = placed[nuclei[e.syl]];
     return { t0: e.t0, t1: e.t1, midi: e.midi as number, v0: Math.max(e.t0, v.t0), v1: Math.min(e.t1, v.t1) };
   });
-  return { params, score: sc, syllables, notes: asSung, beat0: lead, beat: spb, warnings };
+  // a note's pitch reaches back to the start of its glide (and of its syllable's consonants), and the frames look ahead
+  const fixFrom = marks.map((m) => Math.min(m.t, m.e.t0) - glide / 2 - ahead - 0.01);
+  return { params, score: sc, syllables, notes: asSung, fixFrom, beat0: lead, beat: spb, warnings };
 }

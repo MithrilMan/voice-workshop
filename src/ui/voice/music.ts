@@ -2,9 +2,10 @@
  * Songs on the page: the parts are made in workers, a few at a time, then
  * put together over a room, played through the voice, and saved as WAV.
  */
+import { MixStream } from '../../dsp/music/mix';
 import { arrange, downmix, type Performance, type Placed, type Stereo, type MixOptions } from '../../dsp/music/mix';
 import { encodeWavStereo } from '../../dsp/util/wav';
-import type { MusicRequest, MusicReply, LoopRequest, LoopReply } from './music.worker';
+import type { MusicRequest, MusicReply, LoopRequest, LoopReply, StreamRequest, StreamReply } from './music.worker';
 import type { BeatTrack, Motion } from '../../dsp/music/beat';
 import type { BeatLoopOptions } from '../../library';
 import type { Melody } from '../../dsp/music/transcribe';
@@ -108,6 +109,151 @@ export function imitateSound(voice: VoiceDesign, r: { samples: Float32Array; fs:
   });
   w.postMessage({ kind: 'imitate', voice, samples: r.samples, fs: r.fs });
   return { done, stop: () => { w.terminate(); fail(new Error('stopped')); } };
+}
+
+// ------------------------------------------------------------- parts heard as they are made
+
+/** A part to hear: one to make (`req`) or one made before (`made`), where it comes in and how it stands. */
+export interface LivePart { req?: MusicRequest; made?: Performance; startBeat?: number; gain?: number; pan?: number }
+
+/** What a part came to: as makeParts says it, and what it says before it is made (its notes and syllables). */
+export interface LiveRun {
+  /** every part as it ended, and the whole mix (brought to its peak, as arrange makes it) once all are made */
+  done: Promise<{ parts: PartOutcome[]; mix: Stereo | null }>;
+  stop: () => void;
+}
+
+/** how much is made ahead before the sound starts, s */
+const AHEAD = 0.6;
+
+/**
+ * Parts made and heard at once: each made in its own worker, in pieces (a
+ * song sung piece by piece, see singing), mixed as they come over the room
+ * (MixStream: the mix arrange makes, both ears as one) and played as soon
+ * as enough is made ahead that the rest will come in time. The level is
+ * set from what is made before the start, with room to spare (a later
+ * peak meets the limiter); the mix kept for Again and the WAV is the one
+ * arrange makes, brought to its peak. `onInfo` hears each part's notes and
+ * syllables before it is made, `onPart` each part made, `onStart` the
+ * moment the sound starts.
+ */
+export function performLive(parts: readonly LivePart[], o: { tempo: number; room: number; size?: number; label: string; onInfo?: (i: number, info: Extract<StreamReply, { type: 'info' }>) => void; onPart?: (i: number, out: PartOutcome) => void; onStart?: () => void }): LiveRun {
+  const fs = musicRate(), spb = 60 / o.tempo, pre = 0.5;
+  const mixer = new MixStream(parts.map((p) => ({ gain: p.gain, pan: p.pan })), fs, { room: o.room, size: o.size });
+  const outs: PartOutcome[] = parts.map(() => ({ performance: null, warnings: [] }));
+  const ends = parts.map(() => NaN);
+  const workers = new Set<Worker>();
+  // of each part made in a worker: when it was asked for, where it starts in the mix, how much of it is made, whether it is over
+  const asked = parts.map(() => 0), s0 = parts.map(() => 0), got = parts.map(() => 0), over = parts.map(() => false);
+  let started = false, stopped = false, gain = 1;
+  const waiting: Float32Array[] = [];
+  let finish: (r: { parts: PartOutcome[]; mix: Stereo | null }) => void = () => {};
+  const done = new Promise<{ parts: PartOutcome[]; mix: Stereo | null }>((res) => { finish = res; });
+  const total = () => Math.max(...ends) + 1.2;
+  const buffered = () => waiting.reduce((s, x) => s + x.length, 0) / fs;
+  const close = () => {
+    if (stopped) return;
+    stopped = true;
+    for (const w of workers) w.terminate();
+    workers.clear();
+    const placed: Placed[] = [];
+    outs.forEach((out, i) => { if (out.performance) placed.push({ performance: out.performance, startBeat: parts[i].startBeat, gain: parts[i].gain, pan: parts[i].pan }); });
+    finish({ parts: outs, mix: placed.length ? arrangeParts(placed, { tempo: o.tempo, room: o.room, size: o.size }) : null });
+  };
+  const pump = () => {
+    if (stopped) return;
+    const piece = mixer.take(), last = mixer.done;
+    if (!started) {
+      if (piece.length) waiting.push(piece);
+      // all parts placed, and each part still coming, at the pace it has kept since it was asked for, made to its end before the sound gets there
+      const known = ends.every((x) => !Number.isNaN(x));
+      if (!last && (!known || buffered() < AHEAD)) return;
+      const now = performance.now();
+      let late = 0;
+      parts.forEach((_, i) => {
+        if (over[i]) return;
+        const took = (now - asked[i]) / 1000, made = got[i] / fs, pace = took > 0.2 ? made / took : 0;
+        const left = Math.max(0, ends[i] - s0[i] - made);
+        late = Math.max(late, pace > 0 ? 1.1 * (left / pace) + 0.4 - ends[i] : Infinity);
+      });
+      if (!last && late > 0) return;
+      // and half a second of sound past the silence before it, to set the level from
+      let peak = 0, loud = -1, k0 = 0;
+      for (const x of waiting) for (const v of x) peak = Math.max(peak, Math.abs(v));
+      for (const x of waiting) { const j = loud < 0 ? x.findIndex((v) => Math.abs(v) > 0.1 * peak) : -1; if (loud < 0 && j >= 0) loud = k0 + j; k0 += x.length; }
+      const heard = loud < 0 ? 0 : buffered() - loud / fs;
+      if (!last && heard < 0.5) return;
+      // the level, from what is made so far, with room to spare
+      gain = peak > 0 ? 10 ** (-1 / 20) / (1.4 * peak) : 1;
+      const first = new Float32Array(waiting.reduce((s, x) => s + x.length, 0));
+      let k = 0;
+      for (const x of waiting) { first.set(x, k); k += x.length; }
+      for (let i = 0; i < first.length; i++) first[i] *= gain;
+      waiting.length = 0;
+      started = true;
+      o.onStart?.();
+      void voice.playStream(first, o.label, known ? total() : first.length / fs).then((r) => { if (r === 'stopped' && !mixer.done) close(); });
+      if (last) { voice.appendStream(new Float32Array(0), true); close(); }
+      return;
+    }
+    if (!piece.length && !last) return;
+    for (let i = 0; i < piece.length; i++) piece[i] *= gain;
+    if (!voice.appendStream(piece, last) && !last) { close(); return; }
+    if (last) close();
+  };
+  parts.forEach((p, i) => {
+    const at = (beat0: number) => pre + (p.startBeat ?? 0) * spb - beat0;
+    if (p.made) {
+      mixer.place(i, at(p.made.beat0)); mixer.feed(i, p.made.samples); mixer.end(i);
+      ends[i] = at(p.made.beat0) + p.made.duration;
+      over[i] = true;
+      outs[i] = { performance: p.made, warnings: [] };
+      return;
+    }
+    if (!p.req) { mixer.end(i); ends[i] = 0; over[i] = true; return; }
+    const w = new Worker(new URL('./music.worker.ts', import.meta.url), { type: 'module' });
+    workers.add(w);
+    const pieces: Float32Array[] = [];
+    let info: Extract<StreamReply, { type: 'info' }> | null = null;
+    const ended = (out: PartOutcome) => {
+      w.terminate(); workers.delete(w);
+      over[i] = true;
+      mixer.end(i);
+      if (Number.isNaN(ends[i])) ends[i] = 0;
+      outs[i] = out;
+      o.onPart?.(i, out);
+      pump();
+    };
+    w.onmessage = (e: MessageEvent<StreamReply>) => {
+      const m = e.data;
+      if (m.type === 'info') {
+        info = m;
+        s0[i] = at(m.beat0);
+        mixer.place(i, s0[i]);
+        ends[i] = s0[i] + m.duration;
+        o.onInfo?.(i, m);
+      } else if (m.type === 'piece') {
+        got[i] += m.samples.length;
+        pieces.push(m.samples);
+        mixer.feed(i, m.samples);
+      } else if (m.type === 'end') {
+        const n = pieces.reduce((s, x) => s + x.length, 0), samples = new Float32Array(n);
+        let k = 0;
+        for (const x of pieces) { samples.set(x, k); k += x.length; }
+        ended({ performance: { samples, fs: info?.fs ?? fs, beat0: info?.beat0 ?? 0, duration: n / fs }, warnings: info?.warnings ?? [], notes: info?.notes, syllables: info?.syllables });
+        return;
+      } else {
+        ended({ performance: null, warnings: [], error: m.reason });
+        return;
+      }
+      pump();
+    };
+    w.onerror = (e) => ended({ performance: null, warnings: [], error: e.message || 'failed' });
+    asked[i] = performance.now();
+    w.postMessage({ kind: 'stream', part: p.req } satisfies StreamRequest);
+  });
+  pump();
+  return { done, stop: () => { if (started) voice.stop(); close(); } };
 }
 
 // ------------------------------------------------------------- a beat played live

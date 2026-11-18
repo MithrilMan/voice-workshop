@@ -277,6 +277,23 @@ describe('the voice controller', () => {
     expect(v.loopPlace()).toBeNull();
   });
 
+  it('plays samples as they are made, keeping those that come while the sound starts', async () => {
+    const a = new Float32Array(10), b = new Float32Array(20), c = new Float32Array(5);
+    const done = v.playStream(a, L, 3);
+    // before the sound has started: kept, then sent after the first
+    expect(v.appendStream(b)).toBe(true);
+    await settle();
+    const p = sink.programs().at(-1)!;
+    expect([p.stream, p.samples]).toEqual([true, a]);
+    expect(sink.sent.at(-1)).toMatchObject({ type: 'append', id: p.id, samples: b });
+    expect(v.progress()!.seconds).toBe(3);
+    expect(v.appendStream(c, true)).toBe(true);
+    expect(sink.sent.at(-1)).toMatchObject({ type: 'append', id: p.id, samples: c, last: true });
+    v.stop();
+    expect(await done).toBe('stopped');
+    expect(v.appendStream(c)).toBe(false);
+  });
+
   it('moves the head with each mouth of a beat that plays round', async () => {
     const pose = (lipOpen: number) => ({ ...v.manual.articulators, lipOpen });
     // two mouths over a round of 1 s, frames every 0.5 s

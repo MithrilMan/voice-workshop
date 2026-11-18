@@ -22,6 +22,8 @@ export interface VoiceSink {
   stop(id: number): void;
   /** new samples for a looping program that plays (see Program.loop) */
   swap(id: number, samples: Float32Array): void;
+  /** more samples for a program that streams (see Program.stream); `last`: no more come */
+  append(id: number, samples: Float32Array, last?: boolean): void;
   /** `at`: where a looping program is in its samples, s */
   onTelemetry: (t: Telemetry, program: number, at?: number) => void;
   onStream: (s: StreamBlock) => void;

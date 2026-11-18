@@ -17,7 +17,7 @@
  * words. A voice with a learnt way of saying uses it once the model of the
  * language is set (`setDeliveryModel`, `loadDeliveryModel`).
  */
-import { renderOffline } from '../dsp/engine/engine';
+import { renderOffline, VoiceEngine } from '../dsp/engine/engine';
 import type { EngineParams, Score } from '../dsp/engine/params';
 import type { Phone } from '../dsp/speech/g2p';
 import { textToPhones, ipaKind } from '../dsp/speech/g2p';
@@ -246,6 +246,77 @@ export function sing(voice: Readonly<VoiceDesign>, song: Song, opts: Omit<SpeakO
     if (mx > 0) { const g = 10 ** (opts.peak / 20) / mx; for (let i = 0; i < out.length; i++) out[i] *= g; }
   }
   return { samples: out, fs, beat0: s.beat0, duration: out.length / fs, syllables: s.syllables, notes: s.notes, warnings: s.warnings };
+}
+
+/** A song sung piece by piece (see `singing`). */
+export interface SongStream {
+  fs: number;
+  /** when its first beat falls and how long it all is, s (known before a piece is made) */
+  beat0: number;
+  duration: number;
+  syllables: SungSyllable[];
+  notes: SungNote[];
+  warnings: string[];
+  /** the next piece, about `seconds` long (0.1); null once the song is all out */
+  next(seconds?: number): Float32Array | null;
+}
+
+/**
+ * A voice sings a song piece by piece, to be heard as it is made: the
+ * pieces in a row are the samples `sing` gives (but `peak`). The singer's
+ * ear goes in front: a first take runs ahead, each of its notes measured as
+ * soon as it is sung, and the take heard follows, each note corrected
+ * before it gets to it (the score taken up again where it is). The two
+ * takes cost about twice one, always.
+ */
+export function singing(voice: Readonly<VoiceDesign>, song: Song, opts: Omit<SpeakOptions, 'lang' | 'peak'> = {}): SongStream {
+  const lang = song.lang ?? (voice.language || 'it');
+  const fs = opts.fs ?? 48000;
+  const d = opts.emotion && opts.emotion !== 'neutral' ? withEmotion(voice, opts.emotion, opts.strength ?? 1) : voice;
+  const notes = typeof song.notes === 'string' ? parseNotes(song.notes) : song.notes;
+  const words = song.lyrics === undefined || (typeof song.lyrics === 'string' && !song.lyrics.trim()) ? [] : phonesOf(typeof song.lyrics === 'string' ? song.lyrics.replace(/(\p{L})-(?=\p{L})/gu, '$1') : song.lyrics, lang);
+  const how = { ...song, seed: song.seed ?? opts.seed };
+  const s0 = singScore(d, notes, words, lang, how);
+  const total = Math.round((s0.score.duration + (opts.tail ?? 0.4)) * fs), B = 128;
+  // as render does: from lungs at rest, in blocks of 128 samples from the start
+  const engineFor = (s: { params: EngineParams; score: Score }) => {
+    const e = new VoiceEngine(fs, { ...s.params, source: { ...s.params.source, ps: 0 } });
+    e.snapArticulators(); e.snapPressure(); e.playScore(s.score);
+    return e;
+  };
+  const run = (e: VoiceEngine, out: Float32Array, from: number, to: number) => { for (let i = from; i < to; i += B) { const m = Math.min(B, to - i); e.process(out.subarray(i, i + m), m); } };
+  const tune = song.tune !== false;
+  const meant = song.contour?.length ? meantNotes(s0.notes, song.contour, s0.beat0, song.transpose ?? 0) : s0.notes;
+  const first = tune ? { e: engineFor(s0), out: new Float32Array(total), at: 0 } : null;
+  const fix = s0.notes.map(() => 0);
+  let known = first ? 0 : fix.length, changed = false, heard: VoiceEngine | null = null, at = 0;
+  // the ear: every note whose correction reaches back before `upTo` s is measured on the first take
+  const learn = (upTo: number) => {
+    while (first && known < fix.length && s0.fixFrom[known] < upTo) {
+      const n = meant[known], to = Math.min(total, Math.ceil(((n.v1 + 0.06) * fs) / B) * B);
+      if (to > first.at) { run(first.e, first.out, first.at, to); first.at = to; }
+      const c = sungPitch(first.out.subarray(0, first.at), fs, [n])[0];
+      fix[known] = Number.isFinite(c) && Math.abs(c) > 6 ? Math.max(-1.5, Math.min(1.5, -c / 100)) : 0;
+      if (fix[known] !== 0) changed = true;
+      known++;
+    }
+  };
+  const corrected = () => (changed ? singScore(d, notes, words, lang, { ...how, fix: [...fix] }) : s0);
+  return {
+    fs, beat0: s0.beat0, duration: total / fs, syllables: s0.syllables, notes: s0.notes, warnings: s0.warnings,
+    next(seconds = 0.1) {
+      if (at >= total) return null;
+      const to = Math.min(total, at + Math.max(1, Math.round((seconds * fs) / B)) * B);
+      // the frame after this piece too; the first note before the take starts (its pitch starts the take)
+      learn(Math.max(to / fs + 0.05, heard ? 0 : (s0.fixFrom[0] ?? 0) + 1e-6));
+      if (!heard) { heard = engineFor(corrected()); changed = false; }
+      else if (changed) { heard.swapScore(corrected().score); changed = false; }
+      const out = new Float32Array(to - at);
+      run(heard, out, 0, to - at);
+      at = to;
+      return out;
+    },
+  };
 }
 
 /**

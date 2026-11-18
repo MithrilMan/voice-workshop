@@ -102,6 +102,7 @@ export class AudioBridge implements VoiceSink {
   program(p: Program): void { this.send({ type: 'program', program: p }); }
   stop(id: number): void { this.send({ type: 'stop', id }); }
   swap(id: number, samples: Float32Array): void { this.send({ type: 'swap', id, samples }); }
+  append(id: number, samples: Float32Array, last?: boolean): void { this.send({ type: 'append', id, samples, last }); }
 
   /** Opt-in microphone analysis (never routed to the speakers). */
   async enableMic(): Promise<AnalyserNode> {

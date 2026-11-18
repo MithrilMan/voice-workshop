@@ -134,6 +134,30 @@ describe('the program runner (audio thread)', () => {
     expect(ended()).toEqual([{ type: 'ended', id: 6, reason: 'stopped' }]);
   });
 
+  it('plays samples that come in pieces, silent while one is late, and ends after the last', () => {
+    const { r, run, ended } = runner();
+    const hands = vowel('a', false);
+    hands.volume = 0;
+    r.handle({ type: 'params', params: hands, after: hands, program: 0 });
+    run(0.02);
+    const piece = (v: number, s: number) => new Float32Array(Math.round(s * FS)).fill(v);
+    r.handle({ type: 'program', program: prog(7, { params: hands, after: hands, samples: piece(0.1, 0.05), stream: true }) });
+    r.handle({ type: 'append', id: 7, samples: piece(0.2, 0.05) });
+    const heard: number[] = [];
+    run(0.15, heard);
+    // after the fade in: the first piece, the second, then silence while the third is late
+    const n = Math.round(0.05 * FS), b = heard.findIndex((x) => Math.abs(x - 0.2) < 1e-6);
+    expect(heard.slice(b - 50, b).every((x) => Math.abs(x - 0.1) < 1e-6)).toBe(true);
+    expect(heard.slice(b, b + n).every((x) => Math.abs(x - 0.2) < 1e-6)).toBe(true);
+    expect(heard.slice(b + n, b + n + 400).every((x) => x === 0)).toBe(true);
+    expect(ended()).toEqual([]);
+    r.handle({ type: 'append', id: 7, samples: piece(0.3, 0.05), last: true });
+    const more: number[] = [];
+    run(0.1, more);
+    expect(more.filter((x) => Math.abs(x - 0.3) < 1e-6).length).toBe(Math.round(0.05 * FS));
+    expect(ended()).toEqual([{ type: 'ended', id: 7, reason: 'done' }]);
+  });
+
   it('a score without articulators leaves the tract to the parameters (the hands)', () => {
     const { r, run, out } = runner();
     const hands = vowel('a', false);

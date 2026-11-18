@@ -13,6 +13,8 @@
  *   { type: 'stop', id }         stops that program (ignored if it is over)
  *   { type: 'swap', id, samples } new samples for that looping program,
  *       heard from the same share of their length (crossfaded)
+ *   { type: 'append', id, samples, last? } more samples for that program
+ *       that streams (heard after those before; it ends after the last)
  * Messages out:
  *   { type: 'telemetry', telemetry, program, at? } about 60 per second
  *       (`at`: where a looping program is in its samples, s)
@@ -39,6 +41,8 @@ export interface Program {
   loop?: boolean;
   /** the sample the samples start from (0) */
   from?: number;
+  /** more samples come with 'append' messages (as they are made); it ends once the last is heard */
+  stream?: boolean;
   /** a hold of `params` for this long, s */
   seconds?: number;
   /** jump the articulators to the program's posture (a short fade hides the jump) */
@@ -53,7 +57,8 @@ export type RunnerIn =
   | { type: 'params'; params: EngineParams; after: EngineParams; program: number }
   | { type: 'program'; program: Program }
   | { type: 'stop'; id: number }
-  | { type: 'swap'; id: number; samples: Float32Array };
+  | { type: 'swap'; id: number; samples: Float32Array }
+  | { type: 'append'; id: number; samples: Float32Array; last?: boolean };
 
 export type RunnerOut =
   | { type: 'telemetry'; telemetry: Telemetry; program: number; at?: number }
@@ -64,6 +69,7 @@ export const STREAM = 1024;
 const TELEMETRY_BLOCKS = 6; // 6 x 128 samples = 16 ms at 48 kHz
 /** fade over a jump of the posture or a switch to samples, s */
 const FADE = 0.005;
+const NONE = new Float32Array(0);
 
 export class ProgramRunner {
   readonly engine: VoiceEngine;
@@ -81,6 +87,8 @@ export class ProgramRunner {
   /** the samples a loop played before a swap, heard fading out from where they were */
   private old: { samples: Float32Array; pos: number; left: number } | null = null;
   private readonly fadeLength: number;
+  /** what a program that streams has still to play, piece by piece (`at` in the first), and whether the last has come */
+  private streams = new Map<number, { q: Float32Array[]; at: number; last: boolean }>();
 
   constructor(readonly fs: number, private readonly post: (m: RunnerOut, transfer?: Transferable[]) => void) {
     this.engine = new VoiceEngine(fs);
@@ -114,8 +122,9 @@ export class ProgramRunner {
       case 'program': {
         const p = m.program;
         if (this.prog) this.end('replaced');
-        if (this.queued) { this.post({ type: 'ended', id: this.queued.id, reason: 'replaced' }); this.queued = null; }
-        if ((p.snap || p.samples) && this.started && this.gain > 0) {
+        if (this.queued) { this.post({ type: 'ended', id: this.queued.id, reason: 'replaced' }); this.streams.delete(this.queued.id); this.queued = null; }
+        if (p.stream) this.streams.set(p.id, { q: p.samples?.length ? [p.samples] : [], at: 0, last: false });
+        if ((p.snap || p.samples || p.stream) && this.started && this.gain > 0) {
           this.queued = p;
           this.gainTarget = 0;
         } else this.begin(p);
@@ -125,10 +134,18 @@ export class ProgramRunner {
         if (this.prog?.id === m.id) this.end('stopped');
         else if (this.queued?.id === m.id) {
           this.post({ type: 'ended', id: m.id, reason: 'stopped' });
+          this.streams.delete(m.id);
           this.queued = null;
           this.gainTarget = 1;
         }
         break;
+      case 'append': {
+        const s = this.streams.get(m.id);
+        if (!s) break;
+        if (m.samples.length) s.q.push(m.samples);
+        if (m.last) s.last = true;
+        break;
+      }
       case 'swap': {
         const p = this.prog?.id === m.id ? this.prog : this.queued?.id === m.id ? this.queued : null;
         if (!p?.loop || !p.samples || !m.samples.length) break;
@@ -152,7 +169,7 @@ export class ProgramRunner {
     this.engine.setParams(p.params);
     if (p.snap || !this.started) { this.engine.snapArticulators(); this.started = true; }
     if (p.score) this.engine.playScore(p.score);
-    this.length = p.loop ? 0 : p.samples ? p.samples.length : p.seconds ? Math.round(p.seconds * this.fs) : 0;
+    this.length = p.loop || p.stream ? 0 : p.samples ? p.samples.length : p.seconds ? Math.round(p.seconds * this.fs) : 0;
     const cap = this.length || (p.score ? Math.ceil((p.score.duration + 0.5) * this.fs) : 0);
     this.captured = p.capture && cap > 0 ? new Float32Array(cap) : null;
     this.gainTarget = 1;
@@ -161,6 +178,7 @@ export class ProgramRunner {
   private end(reason: EndReason): void {
     const p = this.prog;
     if (!p) return;
+    this.streams.delete(p.id);
     if (p.score && this.engine.isPlaying) this.engine.stopScore();
     this.engine.setParams(p.after);
     this.prog = null;
@@ -181,9 +199,9 @@ export class ProgramRunner {
     this.engine.process(out, n);
     const written = this.engine.streamPos - k0;
     const p = this.prog;
-    if (p?.samples) {
+    if (p?.samples || p?.stream) {
       const g = Math.pow(10, this.engine.params.volume / 20);
-      const s = p.samples, fl = p.flow;
+      const s = p.samples ?? NONE, fl = p.flow;
       if (p.loop) {
         for (let i = 0; i < n; i++) out[i] = s[(this.pos + i) % s.length] * g;
         const o = this.old;
@@ -195,6 +213,13 @@ export class ProgramRunner {
           }
           o.pos = (o.pos + n) % o.samples.length;
           if (o.left <= 0) this.old = null;
+        }
+      } else if (p.stream) {
+        // the pieces as they have come; silence while the next one is late
+        const q = this.streams.get(p.id);
+        for (let i = 0; i < n; i++) {
+          while (q && q.q.length && q.at >= q.q[0].length) { q.q.shift(); q.at = 0; }
+          out[i] = q && q.q.length ? q.q[0][q.at++] * g : 0;
         }
       } else {
         for (let i = 0; i < n; i++) {
@@ -223,7 +248,11 @@ export class ProgramRunner {
       if (cap) for (let i = 0; i < n && this.pos + i < cap.length; i++) cap[this.pos + i] = out[i];
       this.pos += n;
       if (p.loop && p.samples) this.pos %= p.samples.length;
-      if (p.score ? !this.engine.isPlaying : this.length > 0 && this.pos >= this.length) this.end('done');
+      const sq = p.stream ? this.streams.get(p.id) : undefined;
+      const over = p.score ? !this.engine.isPlaying
+        : p.stream ? !sq || (sq.last && sq.q.every((c, k) => (k === 0 ? sq.at >= c.length : !c.length)))
+        : this.length > 0 && this.pos >= this.length;
+      if (over) this.end('done');
     }
     if (this.queued && this.gain === 0) {
       const q = this.queued;

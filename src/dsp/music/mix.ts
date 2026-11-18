@@ -64,6 +64,129 @@ function reverberate(inL: Float32Array, inR: Float32Array, fs: number, size: num
   return [side(inL, 0), side(inR, SPREAD)];
 }
 
+/** The reverberator of `reverberate`, sample by sample: what it gives in a row is what it gives on the whole. */
+class Room {
+  private readonly sides: { combs: { buf: Float32Array; p: number; store: number }[]; aps: { buf: Float32Array; p: number }[] }[];
+  private readonly feedback: number;
+  constructor(fs: number, size: number) {
+    const k = fs / 44100;
+    this.feedback = 0.7 + 0.28 * Math.max(0, Math.min(1, size));
+    this.sides = [0, SPREAD].map((spread) => ({
+      combs: COMBS.map((len0) => ({ buf: new Float32Array(Math.max(1, Math.round((len0 + spread) * k))), p: 0, store: 0 })),
+      aps: ALLPASS.map((len0) => ({ buf: new Float32Array(Math.max(1, Math.round((len0 + spread) * k))), p: 0 })),
+    }));
+  }
+  /** one sample in on each side, the room's on each side out */
+  step(l: number, r: number, out: [number, number]): void {
+    const damp = 0.25;
+    for (let s = 0; s < 2; s++) {
+      const side = this.sides[s], input = s === 0 ? l : r;
+      let o = 0;
+      for (const c of side.combs) {
+        const y = c.buf[c.p];
+        c.store = y * (1 - damp) + c.store * damp;
+        c.buf[c.p] = input * 0.015 + c.store * this.feedback;
+        o += y;
+        if (++c.p === c.buf.length) c.p = 0;
+      }
+      for (const a of side.aps) {
+        const b = a.buf[a.p], x = o;
+        o = b - x;
+        a.buf[a.p] = x + b * 0.5;
+        if (++a.p === a.buf.length) a.p = 0;
+      }
+      out[s] = o;
+    }
+  }
+}
+
+/**
+ * Tracks mixed as they come, in pieces, over a room, both ears as one:
+ * the samples `mixTracks` and `downmix` give, but for the level, set at the
+ * start (`gain`, linear) instead of brought to a peak at the end. A track's
+ * place (`at`, s) may come after it starts to come; the mix goes only as
+ * far as every track still coming has come (a track placed later than that
+ * does not hold it), and ends with the room's tail.
+ */
+export class MixStream {
+  private readonly parts: { at: number | null; gl: number; gr: number; buf: Float32Array; got: number; ended: boolean }[];
+  private pos = 0;
+  private readonly room: Room | null;
+  private readonly wet: number;
+  private readonly tail: number;
+  private readonly gain: number;
+  private readonly two: [number, number] = [0, 0];
+
+  constructor(tracks: readonly { at?: number; gain?: number; pan?: number }[], readonly fs: number, o: Omit<MixOptions, 'peak'> & { gain?: number } = {}) {
+    this.parts = tracks.map((t) => {
+      const g = 10 ** ((t.gain ?? 0) / 20), pan = Math.max(-1, Math.min(1, t.pan ?? 0));
+      const a = ((pan + 1) * Math.PI) / 4;
+      return { at: t.at ?? null, gl: g * Math.cos(a) * Math.SQRT2, gr: g * Math.sin(a) * Math.SQRT2, buf: new Float32Array(fs), got: 0, ended: false };
+    });
+    this.wet = Math.max(0, Math.min(1, o.room ?? 0.18));
+    this.room = this.wet > 0 ? new Room(fs, o.size ?? 0.6) : null;
+    this.tail = Math.round(Math.max(0, o.tail ?? 1.2) * fs);
+    this.gain = o.gain ?? 1;
+  }
+
+  /** where track k starts, s */
+  place(k: number, at: number): void { this.parts[k].at = at; }
+
+  /** the next samples of track k */
+  feed(k: number, samples: Float32Array): void {
+    const p = this.parts[k];
+    if (p.got + samples.length > p.buf.length) {
+      const b = new Float32Array(Math.max(2 * p.buf.length, p.got + samples.length));
+      b.set(p.buf.subarray(0, p.got));
+      p.buf = b;
+    }
+    p.buf.set(samples, p.got);
+    p.got += samples.length;
+  }
+
+  /** track k has come whole (a track that never comes is ended too) */
+  end(k: number): void { this.parts[k].ended = true; if (this.parts[k].at === null) this.parts[k].at = 0; }
+
+  /** how far the mix can go now, samples (all of it, with the room's tail, once every track has ended) */
+  private ready(): number {
+    let r = Infinity, last = 0;
+    for (const p of this.parts) {
+      const s0 = p.at === null ? 0 : Math.max(0, Math.round(p.at * this.fs));
+      if (p.ended) last = Math.max(last, (p.at === null ? 0 : Math.round(p.at * this.fs)) + p.got);
+      else r = Math.min(r, p.at === null ? this.pos : s0 + p.got);
+    }
+    return r === Infinity ? last + this.tail : r;
+  }
+
+  /** whether all of it is out */
+  get done(): boolean { return this.parts.every((p) => p.ended) && this.pos >= this.ready(); }
+
+  /** samples mixed so far, s */
+  get time(): number { return this.pos / this.fs; }
+
+  /** the samples that can be mixed now (none, while a track is behind) */
+  take(): Float32Array {
+    const to = this.ready(), n = Math.max(0, to - this.pos), out = new Float32Array(n);
+    const dry = 1 - 0.5 * this.wet, w = this.wet * 3, two = this.two;
+    for (let i = 0; i < n; i++) {
+      const at = this.pos + i;
+      let l = 0, r = 0;
+      for (const p of this.parts) {
+        if (p.at === null) continue;
+        const j = at - Math.max(0, Math.round(p.at * this.fs));
+        if (j >= 0 && j < p.got) { const v = p.buf[j]; l += v * p.gl; r += v * p.gr; }
+      }
+      if (this.room) {
+        this.room.step(l, r, two);
+        l = l * dry + two[0] * w; r = r * dry + two[1] * w;
+      }
+      out[i] = 0.5 * (l + r) * this.gain;
+    }
+    this.pos = to > this.pos ? to : this.pos;
+    return out;
+  }
+}
+
 /** Mixes tracks into one stereo recording, over a room. All tracks must share a sample rate. */
 export function mixTracks(tracks: readonly Track[], o: MixOptions = {}): Stereo {
   if (!tracks.length) throw new Error('nothing to mix');
