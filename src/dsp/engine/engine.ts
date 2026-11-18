@@ -1250,8 +1250,19 @@ export class VoiceEngine {
     this.periodAmp = Math.max(0, amp);
     const effort = Math.max(-PRESSURE.octaves, Math.min(PRESSURE.octaves, Math.log2(Math.max(this.psCur, 1) / (8 * CMH2O))));
     const shape = this.live > 0 ? this.live * WANDER.rdPeriod * this.rng.gauss() : 0;
-    const rd = Math.max(0.3, Math.min(2.7, s.rd + this.rdOffset + shape + THIN.rd * thinness(s) - PRESSURE.rd * effort));
-    const timing: LFTiming = s.advanced ? timingFromQuotients(s.oq, s.alphaM, s.ra) : withReturnPhase(rdToTiming(rd), s.returnPhase);
+    const steady = Math.max(0.3, Math.min(2.7, s.rd + this.rdOffset + THIN.rd * thinness(s) - PRESSURE.rd * effort));
+    const rd = Math.max(0.3, Math.min(2.7, steady + shape));
+    let timing: LFTiming;
+    if (s.advanced) timing = timingFromQuotients(s.oq, s.alphaM, s.ra);
+    else if (shape === 0) timing = withReturnPhase(rdToTiming(rd), s.returnPhase);
+    else {
+      // each pulse its own shape, but its excitation where the steady Rd puts it: te moves 0.3 of a period per unit
+      // of Rd, so a shape drawn afresh every pulse (sd 0.1) moved the closures by 3 % of a period at random, a
+      // jitter of 4 %, ten times a voice's: a low note, a few pulses long, was heard a third of a semitone off,
+      // differently in every take, and the singer's ear could not mend it
+      const t = rdToTiming(rd), te = rdToTiming(steady).te;
+      timing = withReturnPhase({ tp: t.tp * (te / t.te), te, ta: Math.min(t.ta, 0.9 * (1 - te)) }, s.returnPhase);
+    }
     src.setShape(timing);
     // measured F0 (for display)
     this.measuredF0 = src.periodF0;

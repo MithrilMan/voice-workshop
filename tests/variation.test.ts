@@ -5,6 +5,7 @@ import { Score } from '../src/dsp/engine/params';
 import { renderOffline } from '../src/dsp/engine/engine';
 import { defaultParams } from '../src/dsp/engine/params';
 import { Wander } from '../src/dsp/util/wander';
+import { yin } from '../src/dsp/analysis/pitch';
 import { note } from './helpers';
 
 const TEXT = 'ieri sera, sulla spiaggia, abbiamo guardato la luna piena salire sopra il mare.';
@@ -90,5 +91,29 @@ describe('a living voice', () => {
     let diff = 0;
     for (let i = 0; i < Math.min(a.length, c.length); i++) diff += Math.abs(a[i] - c[i]);
     expect(diff).toBeGreaterThan(0);
+  });
+
+  it('changes the shape of its pulses, not their time: a low held note stays steady', () => {
+    // a long "a" at 75 Hz, pressed (as the deep voice sings it): the pitch heard every 10 ms over its middle
+    const fs = 16000, F0 = 75;
+    const spread = (seed: number, variation: number) => {
+      const sc = buildScore(textToPhones('[aːːː]', 'it'), { lang: 'it', seed });
+      sc.variation = variation;
+      for (const f of sc.frames) f.f0 = F0;
+      const p = defaultParams();
+      p.source.rd = 0.85;
+      const { out } = renderOffline(p, sc.duration, fs, sc);
+      const c: number[] = [], win = Math.round(0.06 * fs);
+      for (let t = 0.25 * sc.duration; t < 0.75 * sc.duration; t += 0.01) {
+        const i = Math.round(t * fs), r = yin(out.subarray(i, i + win), fs, F0 * 0.7, F0 * 1.4);
+        if (r.f0 > 0) c.push(1200 * Math.log2(r.f0 / F0));
+      }
+      return sd(c);
+    };
+    // each pulse a shape of its own used to move its closure too: 16-26 cents of spread, where a still voice has 3-7
+    // (and a bass sung by the deep voice came out a third of a semitone off, the singer's ear unable to mend it)
+    const got = [3, 5, 9].map((seed) => [spread(seed, 1), spread(seed, 0)].map((x) => +x.toFixed(1)));
+    note('living voice, pitch spread of a low held note (living, still), cents', JSON.stringify(got));
+    for (const [living] of got) expect(living).toBeLessThan(10);
   });
 });
