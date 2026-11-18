@@ -42,6 +42,8 @@ export interface DrumSound {
   f0End?: number;
   /** its last sound held this many times its spoken length (a crash, a long roll) */
   hold?: number;
+  /** the share of the lungs' push let go through its last sound, so that it dies away (0) */
+  fade?: number;
   /** its level in the kit, dB against a kick (0) */
   level: number;
   /** the air drawn in by the lungs */
@@ -114,6 +116,8 @@ export interface DrumHit {
   fs: number;
   /** where it strikes, s from its start */
   hit: number;
+  /** its sounds, s from its start */
+  phones: { ipa: string; t0: number; t1: number }[];
 }
 
 /** the level of each millisecond, dB */
@@ -166,6 +170,8 @@ export interface DrumHitOptions {
   level?: number;
   /** fields of the voice changed for this sound alone */
   knobs?: Record<string, number>;
+  /** the share of the lungs' push let go through its last sound (0: none; 0.8: it dies away) */
+  fade?: number;
 }
 
 /**
@@ -191,6 +197,15 @@ export function drumHit(d: Readonly<VoiceDesign>, ipa: string, fs = 48000, o: Dr
     const r = o.f0End / o.f0;
     score = { ...score, f0Tau: 0.004, frames: score.frames.map((f) => ({ ...f, f0: o.f0! * r ** Math.max(0, Math.min(1, (f.t - t0) / Math.max(0.01, t1 - t0))) })) };
   }
+  const fade = Math.max(0, Math.min(0.95, o.fade ?? 0));
+  if (fade > 0) {
+    // the lungs let go through the last sound: it dies away instead of stopping
+    const last = score.phones.filter((p) => p.ipa !== '_').pop();
+    if (last) {
+      const share = (t: number) => 1 - fade * Math.max(0, Math.min(1, (t - last.t0) / Math.max(0.01, last.t1 - last.t0)));
+      score = { ...score, frames: score.frames.map((f) => ({ ...f, ps: f.ps * share(f.t) })) };
+    }
+  }
   const params = { ...u.params, source: { ...u.params.source, ps: 0 } };
   const { out } = renderOffline(params, score.duration + 0.2, fs, score);
   const env = envelope(out, fs);
@@ -205,7 +220,8 @@ export function drumHit(d: Readonly<VoiceDesign>, ipa: string, fs = 48000, o: Dr
     const g = 10 ** ((o.level - loudest(s, fs)) / 20);
     if (Number.isFinite(g)) for (let i = 0; i < s.length; i++) s[i] *= g;
   }
-  return { samples: s, fs, hit: (hit * ms - a) / fs };
+  const from = a / fs;
+  return { samples: s, fs, hit: (hit * ms - a) / fs, phones: score.phones.filter((p) => p.ipa !== '_').map((p) => ({ ipa: p.ipa, t0: p.t0 - from, t1: p.t1 - from })) };
 }
 
 export interface BeatTrack {
@@ -331,8 +347,8 @@ export function beatHits(d: Readonly<VoiceDesign>, tracks: readonly BeatTrack[],
     const f0 = t.f0 === undefined ? kit?.f0 : hzOf(t.f0);
     // a pitch given to a gliding sound moves its glide with it
     const f0End = kit?.f0End && kit.f0 && f0 ? kit.f0End * (f0 / kit.f0) : undefined;
-    const key = `${ipa}|${f0 ?? ''}|${f0End ?? ''}|${kit?.hold ?? ''}|${JSON.stringify(kit?.knobs ?? {})}`;
-    if (!cache.has(key)) cache.set(key, [0, 1, 2].map((k) => drumHit(d, ipa, fs, { seed: seed + 17 * k, f0, f0End, hold: kit?.hold, knobs: kit?.knobs, level: KIT_LEVEL + (kit?.level ?? -4) })));
+    const key = `${ipa}|${f0 ?? ''}|${f0End ?? ''}|${kit?.hold ?? ''}|${kit?.fade ?? ''}|${JSON.stringify(kit?.knobs ?? {})}`;
+    if (!cache.has(key)) cache.set(key, [0, 1, 2].map((k) => drumHit(d, ipa, fs, { seed: seed + 17 * k, f0, f0End, hold: kit?.hold, fade: kit?.fade, knobs: kit?.knobs, level: KIT_LEVEL + (kit?.level ?? -4) })));
     const takes = cache.get(key)!;
     const hum = !!kit?.hum || /^[mnŋɲɱ]ː?$/.test(ipa), click = /[ʘǀǃǂǁ]/.test(ipa);
     let n = 0;

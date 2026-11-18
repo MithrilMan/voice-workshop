@@ -598,6 +598,8 @@ export class VoiceEngine {
   private score: Score | null = null;
   /** the wanders of a living voice, while a score with a seed plays */
   private wander: { f0: Wander; ps: Wander; rd: Wander; mouth: Wander[] } | null = null;
+  /** how freely the mouth wanders now (0-1): a mouth holding a narrow passage braces itself (see control) */
+  private brace = 1;
   private scoreTime = 0;
   private scoreIdx = 0;
   private scoreHold = 0.25;
@@ -708,11 +710,16 @@ export class VoiceEngine {
     if (this.score) this.scoreTime += dt;
     const artT = fr?.art ?? p.articulators;
     for (const k of ARTICULATOR_KEYS) this.art[k] = this.tam[k].step(artT[k], dt);
-    // a living mouth wanders a little under every sound
+    // a living mouth wanders a little under every sound, but braces itself to hold a narrow passage: the
+    // jaw is at its highest and stillest for an [s] (Mooshammer, Hoole & Geumann 2007), else the jaw and
+    // the tongue body carry the tip with them and a held hiss opens and shuts by 30 dB (still at 0.3 cm²
+    // and wider, a ninth as free at 0.1, held at a closure; over some 10 ms)
     if (this.score && this.wander) {
       const live = this.score.variation ?? 1;
+      const free = Math.min(1, Math.max(0, this.fineMinArea) / 0.3) ** 2;
+      this.brace += (free - this.brace) * Math.min(1, dt / 0.01);
       MOUTH_WANDER.forEach(([k, size], i) => {
-        this.art[k] = within(k, this.art[k], this.art[k] + live * size * this.wander!.mouth[i].step(dt));
+        this.art[k] = within(k, this.art[k], this.art[k] + live * this.brace * size * this.wander!.mouth[i].step(dt));
       });
     }
     // taps: the contacts of the tongue tip are ballistic, added on top of the

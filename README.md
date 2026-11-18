@@ -1739,17 +1739,39 @@ writeFileSync('hello.wav', toWav(s));
   inward sounds, the kit's; hums and vowels on the recording's own pitch
   when it holds one for 60 ms or more) are said and cut the same way,
   and the nearest wins: the rms difference of their spectra (24 mel
-  bands, each the power of 25 ms every 5 ms, floored at the recording's
-  background, loud moments counting most) along the best alignment in
-  time within 30 ms. The best three are refined on the size of the head
-  and the length of their last sound. It returns a sound for the kit
-  (`BeatOptions.sounds`, written by its code), the distance (dB) and
-  every sound tried. Checked on known answers: our own sounds said again
-  with another seed, another head or another voice come back as their
-  kind of sound (an ejective, a click, a sibilant, a hum on its pitch)
-  and a head 15 % larger as larger; the exact place (a [kʼ] heard as a
-  [pʼ]) is often missed, and a whistle, which a mouth here cannot make,
-  stays far (9 dB).
+  bands from 100 Hz, each the power of 25 ms every 5 ms, floored at the
+  recording's background and 30 dB under the loudest band of the
+  moment; the level of a whole moment counting a third as much as its
+  colour; louder moments counting more, a moment 20 dB down a third as
+  much) along the best alignment in time within 60 ms. The nearest are
+  then held as long as the recording; a recording that goes on 100 ms
+  or more after its strike is taken as a strike going into something
+  held: every sound that goes on (hisses, hums, vowels, trills) is held
+  as long as the rest and measured against it, every other sound is
+  joined to the nearest three on paper (their prints put end to end,
+  nothing said) and the nearest six pairs are said; a stop is tried
+  before the nearest (a hiss or a hum after it too, for a short sound);
+  of two as near, the one with fewer sounds wins (a tenth of a dB a
+  sound). The nearest two, and the nearest single sound, are refined on
+  the size of the head, the length of their last sound and how it dies
+  away (the lungs letting go through it, `DrumSound.fade`). It returns a
+  sound for the kit (`BeatOptions.sounds`, written by its code), the
+  distance (dB) and every sound tried, each said the way that brought
+  it nearest; some 20 s. Checked on known answers: our own sounds said
+  again with another seed, another head or another voice come back as
+  their kind of sound (an ejective, a click, a sibilant, a hum on its
+  pitch) and a head 15 % larger as larger; a "ptssss" blown into a
+  microphone (the [p]'s air thumping on it, the [s] dying away) by
+  another voice comes back as a stop, a [ts] and a long [s] held to
+  its length (the stop's place, [p], [t] or [k], is often missed); a
+  whistle (1.4 kHz), which a mouth here cannot make, comes back as a
+  voiced trill on half its pitch, 5 dB off.
+- A mouth holding a narrow passage braces itself: the living mouth's
+  slow wander (jaw, tongue body, lips) is free at 0.3 cm² and wider, a
+  ninth as free at 0.1 cm², still at a closure. The jaw is at its
+  highest and stillest for an [s] (Mooshammer, Hoole & Geumann 2007);
+  without this a held [s] opened and shut by 30 dB as the wandering jaw
+  carried the tip with it.
 - `ensemble(parts, { tempo, room })`, or `arrange(performances)` for parts
   already made: several voices at once, each coming in at its beat, at
   its level and place, over a room (eight combs and four all-passes a

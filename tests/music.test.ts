@@ -247,6 +247,27 @@ describe('a sound of the mouth from a recording', () => {
     expect(() => imitate(man, new Float32Array(48000), 48000)).toThrow(/no sound/);
   }, 120000);
 
+  it('hears a stop going into a long hiss that dies away as sounds in a row, held as long', () => {
+    // "ptssss" into a microphone, by another voice: a [p], a [t], a long [s] fading over its second half,
+    // the [p]'s air thumping on the capsule (35 Hz, four times as loud as the sound), a little background
+    const fs = 48000, h = drumHit(createVoice('woman'), 'ptss', fs, { seed: 5, hold: 5 }), len = h.samples.length;
+    const x = new Float32Array(len + Math.round(0.4 * fs)), at = Math.round(0.2 * fs);
+    let peak = 0;
+    for (const v of h.samples) peak = Math.max(peak, Math.abs(v));
+    for (let i = 0; i < len; i++) x[at + i] = h.samples[i] * (i < 0.45 * len ? 1 : 1 - (0.85 * (i / len - 0.45)) / 0.55);
+    const p0 = at + Math.round(h.hit * fs);
+    for (let i = 0; i < Math.round(0.08 * fs); i++) { const t = i / fs; x[p0 + i] += 4 * peak * Math.sin(2 * Math.PI * 35 * t) * Math.exp(-t / 0.02); }
+    let s = 11;
+    for (let i = 0; i < x.length; i++) { s = (s * 16807) % 2147483647; x[i] += 0.0015 * peak * ((s / 2147483647) * 2 - 1); }
+    const r = imitate(createVoice('man'), x, fs);
+    // not the [p] alone: a stop striking, then the hiss, its last sound held to the recording's length
+    expect(r.sound.ipa).toMatch(/^[ptkbdɡʔ]/u);
+    expect(r.sound.ipa).toMatch(/s$/u);
+    expect(r.sound.hold).toBeGreaterThan(2.5);
+    expect(Math.abs(r.samples.length / r.fs / (r.target.length / r.fs) - 1)).toBeLessThan(0.25);
+    expect(r.distance).toBeLessThan(3.5);
+  }, 120000);
+
   it('plays a sound of its own in a beat, by its code', () => {
     const mine = { ...BEATBOX_KIT.find((k) => k.id === 'hat')!, id: 'my1', code: 'my1', name: 'Yours 1', knobs: { 'body.anatomy.scale': 1.2 } };
     const t = parseBeat('b my1 b my1', [mine]);

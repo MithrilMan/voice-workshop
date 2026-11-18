@@ -301,10 +301,10 @@ function BeatBench({ voice }: { voice: VoiceDesign }) {
     try { await listenTo(await decodeRecording(f)); } catch (e) { job.setProblem(`That file could not be read: ${(e as Error).message}`); }
   };
   /** keeps the sound found (or one of the others tried) as a sound of one's own, written my1, my2… */
-  const keep = (im: Imitation, ipa?: string) => {
+  const keep = (found: DrumSound) => {
     let n = 1;
     while (own.some((s) => s.code === `my${n}`)) n++;
-    const s: DrumSound = { ...im.sound, id: `my${n}`, code: `my${n}`, name: `Yours ${n}`, ...(ipa && ipa !== im.sound.ipa ? { ipa, knobs: undefined, hold: undefined, hint: `the mouth's attempt at a recording: [${ipa}]` } : {}) };
+    const s: DrumSound = { ...found, id: `my${n}`, code: `my${n}`, name: `Yours ${n}` };
     const next = [...own, s];
     setOwn(next); saveOwnSounds(next);
     return s;
@@ -438,21 +438,21 @@ function BeatBench({ voice }: { voice: VoiceDesign }) {
             : <button className="btn" disabled={!!job.busy} onClick={() => void startSound()}>● Record a sound</button>}
           <label className="btn music-file">Open a sound file…<input type="file" accept="audio/*" onChange={(e) => { void openSound(e.target.files?.[0]); e.target.value = ''; }} /></label>
         </div>
-        {recordingSound && <p className="music-busy">Recording: make one short sound (a click, a pop, a hiss, a hum), then stop.</p>}
+        {recordingSound && <p className="music-busy">Recording: make one sound (a click, a pop, a hiss, a hum, or a few run together, like a p going into a long ss), then stop.</p>}
         {found && (
           <div className="music-found">
-            <p className="small">{`Nearest: [${found.imitation.sound.ipa}]${found.imitation.sound.knobs ? `, the head ×${(found.imitation.sound.knobs['body.anatomy.scale'] / (voice.body.anatomy.scale || 1)).toFixed(2)}` : ''}${found.imitation.sound.hold ? `, held ×${found.imitation.sound.hold}` : ''}${found.imitation.f0 ? `, on ${found.imitation.f0} Hz` : ''}: ${found.imitation.distance} dB from yours (0 would be the same; under 3 near, over 6 far: a sound the mouth cannot quite make).`}</p>
+            <p className="small">{`Nearest: [${found.imitation.sound.ipa}]${found.imitation.sound.knobs ? `, the head ×${(found.imitation.sound.knobs['body.anatomy.scale'] / (voice.body.anatomy.scale || 1)).toFixed(2)}` : ''}${found.imitation.sound.hold ? `, its last sound held ×${found.imitation.sound.hold}` : ''}${found.imitation.sound.fade ? ', dying away' : ''}${found.imitation.f0 ? `, on ${found.imitation.f0} Hz` : ''}: ${found.imitation.distance} dB from yours (0 would be the same; under 3 near, over 6 far: a sound the mouth cannot quite make).`}</p>
             <div className="music-row">
               <button className="btn" onClick={() => void playRecording(found.rec, 'Your sound')}>▶ Yours</button>
               <button className="btn" onClick={() => audition({ sound: 'own' }, [found.imitation.sound])}>▶ The voice’s</button>
-              <button className="btn primary" onClick={() => { const s = keep(found.imitation); setFound(null); setView('grid'); setRows((rs) => { const next = [...rs, { sound: s.code, pattern: '.'.repeat(steps) }]; setText(beatText(next, [...own, s])); return next; }); }}>+ Keep it, add a row</button>
+              <button className="btn primary" onClick={() => { const s = keep(found.imitation.sound); setFound(null); setView('grid'); setRows((rs) => { const next = [...rs, { sound: s.code, pattern: '.'.repeat(steps) }]; setText(beatText(next, [...own, s])); return next; }); }}>+ Keep it, add a row</button>
             </div>
             <div className="chips">
               <span className="muted small">or another near one:</span>
               {found.imitation.tried.filter((t) => t.ipa !== found.imitation.sound.ipa).slice(0, 5).map((t) => (
                 <span key={t.ipa} className="beat-kit-sound">
-                  <button className="chip" title={`${t.distance} dB from yours`} onClick={() => audition({ sound: t.ipa })}>[{t.ipa}] <small>{t.distance}</small></button>
-                  <button className="chip" aria-label={`Keep [${t.ipa}]`} title="Keep this one instead" onClick={() => { const s = keep(found.imitation, t.ipa); setFound(null); setView('grid'); setRows((rs) => { const next = [...rs, { sound: s.code, pattern: '.'.repeat(steps) }]; setText(beatText(next, [...own, s])); return next; }); }}>+</button>
+                  <button className="chip" title={`${t.sound.hint}; ${t.distance} dB from yours`} onClick={() => audition({ sound: 'own' }, [t.sound])}>[{t.ipa}] <small>{t.distance}</small></button>
+                  <button className="chip" aria-label={`Keep [${t.ipa}]`} title="Keep this one instead" onClick={() => { const s = keep(t.sound); setFound(null); setView('grid'); setRows((rs) => { const next = [...rs, { sound: s.code, pattern: '.'.repeat(steps) }]; setText(beatText(next, [...own, s])); return next; }); }}>+</button>
                 </span>
               ))}
             </div>
