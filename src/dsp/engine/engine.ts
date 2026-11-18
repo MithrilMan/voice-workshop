@@ -1587,8 +1587,8 @@ export class VoiceEngine {
   get tractRate(): number { return this.fsT; }
 }
 
-/** Offline rendering helper (tests, export). */
-export function renderOffline(params: EngineParams, seconds: number, fs = 48000, score?: Score): { out: Float32Array; engine: VoiceEngine } {
+/** Offline rendering helper (tests, export). `watch`, if given, sees the engine after every block of 128 samples (the posture of its mouth, say). */
+export function renderOffline(params: EngineParams, seconds: number, fs = 48000, score?: Score, watch?: (e: VoiceEngine) => void): { out: Float32Array; engine: VoiceEngine } {
   const e = new VoiceEngine(fs, params);
   e.snapArticulators();
   e.snapPressure();
@@ -1600,6 +1600,7 @@ export function renderOffline(params: EngineParams, seconds: number, fs = 48000,
     const m = Math.min(block, n - i);
     const view = out.subarray(i, i + m);
     e.process(view, m);
+    watch?.(e);
   }
   return { out, engine: e };
 }

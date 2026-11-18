@@ -7,7 +7,7 @@ import type { ControlId } from '../voice/controls';
 import { lockText } from './DriverBar';
 import { useAnimatedCanvas, C, fieldColor, label } from '../canvas';
 import {
-  canonToWorld, tongueOffsetFromWorld, tipOffsetFromWorld, velumFromWorld, velumTip, GEOMETRY_CONST, TractGeometry, Solid,
+  canonToWorld, tongueOffsetFromWorld, tipOffsetFromWorld, velumFromWorld, velumTip, GEOMETRY_CONST, TractGeometry, Solid, computeGeometry,
 } from '../../dsp/tract/geometry';
 import { Anatomy, Articulators, ARTICULATOR_RANGES, Teeth } from '../../dsp/tract/types';
 import { N_SECTIONS } from '../../dsp/tract/areaFunction';
@@ -32,12 +32,17 @@ interface Particle { s: number; off: number; nose: boolean; age: number }
 
 const clampArt = (k: keyof Articulators, v: number) => Math.max(ARTICULATOR_RANGES[k][0], Math.min(ARTICULATOR_RANGES[k][1], v));
 
-export function HeadView({ guide }: { guide?: Guide } = {}) {
+/**
+ * The head, its posture as it sounds; its handles drag the hands' posture. With
+ * `mouth`, a head that only watches a mouth of the beat playing (see
+ * VoiceController.loopPosture), with no handles and nothing over it.
+ */
+export function HeadView({ guide, mouth }: { guide?: Guide; mouth?: number } = {}) {
   const t = useT();
   const ui = useUi();
   const sound = useSoundOn();
   const postureLock = useVoice((v) => v.lock('posture'));
-  const [labels, setLabels] = useState(true);
+  const [labels, setLabels] = useState(mouth === undefined);
   // the hint that was followed: it stays hidden until another one comes
   const followed = useRef<string | null>(null);
   const drag = useRef<{ id: HandleId; x0: number; y0: number; a0: Articulators; t0: Teeth; ang0: number } | null>(null);
@@ -48,13 +53,20 @@ export function HeadView({ guide }: { guide?: Guide } = {}) {
   const sparks = useRef<{ x: number; y: number; vx: number; vy: number; life: number; c: string }[]>([]);
   // the painted head on a layer of its own, painted again only when the posture or the view changes
   const layer = useRef<{ cv: HTMLCanvasElement; key: string; sc: HeadScene | null }>({ cv: document.createElement('canvas'), key: '', sc: null });
+  const own = useRef<{ key: string; geom: TractGeometry | null }>({ key: '', geom: null });
+  const geomOf = (p: { articulators: Articulators; anatomy: Anatomy; teeth: Teeth }): TractGeometry => {
+    const key = JSON.stringify([p.articulators, p.anatomy, p.teeth]);
+    if (own.current.key !== key || !own.current.geom) own.current = { key, geom: computeGeometry(p.articulators, p.anatomy, p.teeth) };
+    return own.current.geom!;
+  };
 
   const ref = useAnimatedCanvas(({ ctx, w, h, dt, t: time, dpr }) => {
     // what sounds: a sentence or a clip moves the head by itself
-    const p = voice.sounding();
+    const p = (mouth === undefined ? null : voice.loopPosture(mouth)) ?? voice.sounding();
     const an = p.anatomy;
     const a = p.articulators;
-    const { geom } = store.derived();
+    // the geometry of the posture shown: the shared one, or its own for a mouth of a beat other than the first
+    const geom = mouth ? geomOf(p) : store.derived().geom;
     const tel = store.ui.audioOn ? store.telemetry : null;
     const s = an.scale * 0.9;
     // fixed frame (for scale 1) so a child's head looks smaller; a tall view shows the whole head
@@ -309,7 +321,8 @@ export function HeadView({ guide }: { guide?: Guide } = {}) {
   const fields: [FieldMode, string][] = [['pressure', t('fieldPressure')], ['velocity', t('fieldVelocity')], ['air', t('fieldAir')]];
   return (
     <div className="head-view">
-      <canvas ref={ref} className="fill" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} />
+      {mouth !== undefined ? <canvas ref={ref} className="fill" /> : <canvas ref={ref} className="fill" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} />}
+      {mouth === undefined && <>
       <div className="overlay-top">
         <div className="seg">
           {fields.map(([id, name]) => (
@@ -323,6 +336,7 @@ export function HeadView({ guide }: { guide?: Guide } = {}) {
           : !sound ? <span className="sound-note">Silent: press “▶ Sound” or drag a handle to hear it.</span>
           : t('headHint')}
       </div>
+      </>}
     </div>
   );
 }

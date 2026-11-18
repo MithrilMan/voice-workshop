@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createVoice, speak, sing, beatbox, arrange, mix, toWav, parseNotes, noteNumber, sungPitch, BEATBOX_KIT, BEAT_PATTERNS, drumHit, drumSound, parseBeat, melodyOf, pitchTrack, imitate, beatLoop } from '../src/library';
-import { beatHits } from '../src/dsp/music/beat';
+import { beatHits, postureAt } from '../src/dsp/music/beat';
 import { textToPhones } from '../src/dsp/speech/g2p';
 import { utterance } from '../src/dsp/voice/utterance';
 import { VoiceEngine } from '../src/dsp/engine/engine';
@@ -252,6 +252,30 @@ describe('beatbox', () => {
     const diff = (a: Float32Array, b: Float32Array) => { let d = 0, t = 0; for (let i = 0; i < 0.06 * fs; i++) { d = Math.max(d, Math.abs(a[i] - b[i])); t = Math.max(t, Math.abs(b[i])); } return d / t; };
     expect(diff(cut.samples, alone.samples)).toBeLessThan(1e-6);
     expect(diff(rings.samples, alone.samples)).toBeGreaterThan(0.01);
+  });
+
+  it('gives sounds struck together a mouth each (a hum may go under a click), each moved by its own sounds', () => {
+    const v = createVoice('man'), fs = 24000, tempo = 120;
+    const l = beatLoop(v, [
+      { sound: 'b', pattern: 'x...x...' }, { sound: 'ts', pattern: '..x...x.' }, { sound: 'pf', pattern: 'x.......' },
+      { sound: 'ǃ', pattern: '....x...' }, { sound: 'm', pattern: '....x...' },
+    ], { tempo, fs, passes: 1 });
+    // the snare strikes with the kick: a second mouth, which also clicks and hums under the click
+    expect(l.mouths.length).toBe(2);
+    expect(l.trackMouths).toEqual([0, 0, 1, 1, 1]);
+    const m = l.mouths[0];
+    expect(m.frames.length).toBe(Math.ceil(l.length / m.hop));
+    const at = (t: number) => postureAt(m, ((t % l.length) + l.length) % l.length);
+    for (const kick of [0, 0.5]) {
+      // the lips shut before the kick is heard (from 40 ms before it), open again after it
+      for (const dt of [-0.04, -0.02, -0.01]) expect(at(kick + dt).lipOpen, `${kick}${dt}`).toBeLessThan(0);
+      expect(at(kick + 0.1).lipOpen).toBeGreaterThan(0.1);
+    }
+    // the tip of the tongue up for the hi-hat (struck at 0.25 and 0.75 s), the lips apart
+    for (const hat of [0.25, 0.75]) {
+      expect(Math.max(...[-0.04, -0.02, 0].map((dt) => at(hat + dt).tipY))).toBeGreaterThan(0.5);
+      expect(at(hat).lipOpen).toBeGreaterThan(0.1);
+    }
   });
 });
 

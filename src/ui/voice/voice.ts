@@ -36,6 +36,7 @@ import { loadDeliveryModel, planSpeech } from '../../dsp/voice/interpret';
 import { ControlId, touched, cloneParams, DeepReadonly } from './controls';
 import { Filter, Lanes, Lock, lockOf, Performer } from './drivers';
 import type { VoiceSink, StreamBlock, EndReason } from './sink';
+import { postureAt, type Motion } from '../../dsp/music/beat';
 
 export type Result = 'done' | 'stopped';
 
@@ -77,6 +78,8 @@ export class VoiceController {
   private telemetryAt: number | undefined;
   /** how long the samples of the loop playing are, s */
   private loopLength = 0;
+  /** the posture of each mouth through the loop playing (a beat's), frame by frame */
+  private loopMouths: readonly Motion[] = [];
   private nextId = 1;
   private waiters = new Map<number, { resolve: (r: Result) => void; captured?: (s: Float32Array) => void }>();
   private stopGlide: (() => void) | null = null;
@@ -173,6 +176,9 @@ export class VoiceController {
 
   /** What is sounding: the engine's parameters, with the posture, glottis, pitch and lung pressure it has reached. */
   sounding(): EngineParams {
+    // a beat played round and round moves the head with its first mouth
+    const beat = this.loopMouths.length ? this.loopPosture(0) : null;
+    if (beat) return beat;
     const base = this.effective();
     const t = this.live();
     if (!t) return base;
@@ -368,25 +374,27 @@ export class VoiceController {
    * voice, until stopped, from `from` s into them; swapLoop() changes them
    * as they play.
    */
-  async playLoop(samples: Float32Array, label: string, from = 0): Promise<Result> {
+  async playLoop(samples: Float32Array, label: string, from = 0, mouths: readonly Motion[] = []): Promise<Result> {
     if (!(await this.ensureAudio())) return 'stopped';
     const id = this.begin({ kind: 'clip', id: this.nextId++, label, samples: true }, 0);
     const done = this.wait(id);
     this.loopLength = samples.length / this.sampleRate;
     this.telemetryAt = undefined;
+    this.loopMouths = mouths;
     this.sink!.program({ id, params: this.effective(), after: this._manual, samples, loop: true, from: Math.round(from * this.sampleRate) });
     this.emit();
     return done;
   }
 
   /** New samples for the loop playing, heard from the same share of their length; false if no loop plays. */
-  swapLoop(samples: Float32Array): boolean {
+  swapLoop(samples: Float32Array, mouths?: readonly Motion[]): boolean {
     const p = this._lanes.performer;
     if (p.kind !== 'clip' || !p.samples || !this.loopLength || !samples.length) return false;
     const length = samples.length / this.sampleRate;
     // the audio goes on from the same share of the new samples: so does the place last heard of
     if (this.telemetryAt !== undefined) this.telemetryAt = (this.telemetryAt % this.loopLength) * (length / this.loopLength);
     this.loopLength = length;
+    if (mouths) this.loopMouths = mouths;
     this.sink?.swap(p.id, samples);
     return true;
   }
@@ -397,6 +405,17 @@ export class VoiceController {
     if (p.kind !== 'clip' || !this.loopLength || this.telemetryProgram !== p.id || this.telemetryAt === undefined) return null;
     const at = this.telemetryAt + Math.max(0, Math.min(0.1, (this.clock.now() - this.telemetryTime) / 1000));
     return { at: at % this.loopLength, length: this.loopLength };
+  }
+
+  /** How many mouths the loop playing has (a beat whose sounds strike together takes several). */
+  get loopMouthCount(): number { return this.loopMouths.length; }
+
+  /** A mouth of the loop playing, in the posture it has where the loop is heard now; null when there is none. */
+  loopPosture(mouth: number): EngineParams | null {
+    const m = this.loopMouths[mouth];
+    if (!m) return null;
+    const pl = this.loopPlace();
+    return { ...this.effective(), articulators: { ...postureAt(m, pl ? pl.at : 0) } };
   }
 
   /** Glides the pitch from one value to another (a demonstration); the pitch stays at the end value. */
@@ -580,6 +599,7 @@ export class VoiceController {
     if (p.kind === 'glide') { this.stopGlide?.(); this.stopGlide = null; }
     this.clipParams = null;
     this.loopLength = 0;
+    this.loopMouths = [];
     this.setLanes({ ...this._lanes, performer: { kind: 'hands' } });
     // after a glide the voice still has a whole breath
     if (p.kind === 'glide') this.breathe();

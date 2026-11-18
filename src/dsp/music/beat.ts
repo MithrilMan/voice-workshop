@@ -15,10 +15,12 @@
  * its step, so that every hit lands on the beat whatever its closure.
  * One mouth makes one sound at a time: by default each hit cuts the one
  * before it, as in a beatboxer's mouth (a hum through the nose goes on
- * under the clicks of the tongue); `layered` lets every hit ring out, as
- * a drum machine would.
+ * under the clicks of the tongue); sounds struck on the same step take a
+ * mouth each, as few as the beat needs; `layered` lets every hit ring
+ * out, as a drum machine would.
  */
 import { renderOffline } from '../engine/engine';
+import type { Articulators } from '../tract/types';
 import { textToPhones } from '../speech/g2p';
 import { VoiceDesign, cloneVoice, withField } from '../voice/design';
 import { utterance } from '../voice/utterance';
@@ -135,6 +137,25 @@ export interface DrumHit {
   hit: number;
   /** its sounds, s from its start */
   phones: { ipa: string; t0: number; t1: number }[];
+  /** the posture of the mouth as it makes it, from its start */
+  motion?: Motion;
+}
+
+/**
+ * The posture of a mouth over time: frame k at `start` + k × hop s from the
+ * start of the sound it goes with (`start` 0 or less: the mouth gets ready
+ * before the sound is heard).
+ */
+export interface Motion { hop: number; frames: Articulators[]; start?: number }
+
+/** how often a motion holds a posture, s */
+export const MOTION_HOP = 0.005;
+/** how long before a sound its motion starts (the mouth closing for a kick, silent), s */
+export const MOTION_LEAD = 0.08;
+
+/** the posture at time t (s from the start of the sound; held at the ends of the motion) */
+export function postureAt(m: Motion, t: number): Articulators {
+  return m.frames[Math.max(0, Math.min(m.frames.length - 1, Math.round((t - (m.start ?? 0)) / m.hop)))];
 }
 
 /** the level of each millisecond, dB */
@@ -232,7 +253,9 @@ export function drumHit(d: Readonly<VoiceDesign>, sound: string | Readonly<DrumS
     }
   }
   const params = { ...u.params, source: { ...u.params.source, ps: 0 } };
-  const { out } = renderOffline(params, score.duration + 0.2, fs, score);
+  // the posture of the mouth after every block of 128 samples
+  const poses: Articulators[] = [];
+  const { out } = renderOffline(params, score.duration + 0.2, fs, score, (e) => poses.push({ ...e.art }));
   const env = envelope(out, fs);
   const { hit, end } = strikeOf(env, Math.max(0, Math.floor((score.phones[0]?.t0 ?? 0) * 1000) - 5));
   const ms = fs / 1000, pre = 12;
@@ -246,7 +269,13 @@ export function drumHit(d: Readonly<VoiceDesign>, sound: string | Readonly<DrumS
     if (Number.isFinite(g)) for (let i = 0; i < s.length; i++) s[i] *= g;
   }
   const from = a / fs;
-  return { samples: s, fs, hit: (hit * ms - a) / fs, phones: score.phones.filter((p) => p.ipa !== '_').map((p) => ({ ipa: p.ipa, t0: p.t0 - from, t1: p.t1 - from })) };
+  // its motion from a little before it is heard: the mouth getting ready
+  const frames: Articulators[] = [], lead = -Math.min(MOTION_LEAD, from);
+  for (let t = lead; t < s.length / fs; t += MOTION_HOP) frames.push(poses[Math.max(0, Math.min(poses.length - 1, Math.round(((from + t) * fs) / 128) - 1))]);
+  return {
+    samples: s, fs, hit: (hit * ms - a) / fs, phones: score.phones.filter((p) => p.ipa !== '_').map((p) => ({ ipa: p.ipa, t0: p.t0 - from, t1: p.t1 - from })),
+    motion: { hop: MOTION_HOP, frames, start: lead },
+  };
 }
 
 /**
@@ -273,7 +302,14 @@ function partsHit(d: Readonly<VoiceDesign>, all: readonly DrumPart[], fs: number
     const g = 10 ** ((o.level - loudest(out, fs)) / 20);
     if (Number.isFinite(g)) for (let i = 0; i < out.length; i++) out[i] *= g;
   }
-  return { samples: out, fs, hit: pre, phones };
+  // one mouth: the posture of the part begun last (each getting ready before it is heard)
+  const lead = hits[0].motion?.start ?? 0, frames: Articulators[] = [];
+  for (let t = lead, k = 0; t < out.length / fs; t += MOTION_HOP) {
+    while (k + 1 < parts.length && starts[k + 1] + (hits[k + 1].motion?.start ?? 0) <= t) k++;
+    const m = hits[k].motion;
+    if (m) frames.push(postureAt(m, t - starts[k]));
+  }
+  return { samples: out, fs, hit: pre, phones, ...(frames.length ? { motion: { hop: MOTION_HOP, frames, start: lead } } : {}) };
 }
 
 export interface BeatTrack {
@@ -377,22 +413,26 @@ function rng(seed: number): () => number {
  * Every hit of a beat as a track placed in time (s from the first step, a
  * hit set early by the time its sound takes to strike), ready to mix.
  * Each sound is said three times (three seeds) and the hits take turns;
- * the sounds of the kit are set to their levels in it. With one mouth (the
- * default), each hit is cut where the next one strikes, except a hum under
- * a click.
+ * the sounds of the kit are set to their levels in it. A mouth makes one
+ * sound at a time: sounds struck on the same step are made by different
+ * mouths (but a hum goes on under a click in one mouth), as few as the
+ * beat needs. With one mouth each (the default), each hit is cut where
+ * the next one of its mouth strikes.
  */
-export function beatHits(d: Readonly<VoiceDesign>, tracks: readonly BeatTrack[], o: BeatOptions = {}, more: { loop?: boolean; takes?: BeatTakes } = {}): { hits: Track[]; length: number } {
+export function beatHits(d: Readonly<VoiceDesign>, tracks: readonly BeatTrack[], o: BeatOptions = {}, more: { loop?: boolean; takes?: BeatTakes } = {}): BeatHits {
   const fs = o.fs ?? 48000, spb = 60 / Math.max(20, Math.min(400, o.tempo ?? 100)), per = Math.max(1, Math.round(o.stepsPerBeat ?? 4));
   const step = spb / per, swing = Math.max(0, Math.min(0.6, o.swing ?? 0)), rep = Math.max(1, Math.round(o.repeat ?? 1));
   const human = Math.max(0, Math.min(1, o.humanize ?? 0));
   const seed = o.seed ?? 1, rand = rng(seed * 7919 + 13);
   const gauss = () => { let a = 0; for (let k = 0; k < 4; k++) a += rand(); return (a - 2) * Math.sqrt(3); };
-  const placed: { track: Track; samples: Float32Array; at: number; hum: boolean; click: boolean }[] = [];
-  let steps = 0;
+  const placed: { track: Track; samples: Float32Array; at: number; hum: boolean; click: boolean; mouth: number; motion?: Motion }[] = [];
   const cache = more.takes ?? new Map<string, DrumHit[]>();
-  for (const t of tracks) {
+  const steps = Math.max(0, ...tracks.map((t) => parsePattern(t.pattern).length));
+  // the mouths: a track joins the first whose tracks never strike on its steps (a hum and a click may)
+  const mouths: { struck: Set<number>; hum: boolean; click: boolean }[][] = [];
+  const trackMouths = tracks.map(() => -1);
+  for (const [ti, t] of tracks.entries()) {
     const pat = parsePattern(t.pattern);
-    steps = Math.max(steps, pat.length);
     if (!pat.some((v) => v > 0)) continue;
     const kit = drumSound(t.sound, o.sounds);
     const ipa = kit ? kit.ipa : t.sound;
@@ -403,6 +443,14 @@ export function beatHits(d: Readonly<VoiceDesign>, tracks: readonly BeatTrack[],
     if (!cache.has(key)) cache.set(key, [0, 1, 2].map((k) => drumHit(d, kit ?? ipa, fs, { seed: seed + 17 * k, f0, f0End, level: KIT_LEVEL + (kit?.level ?? -4) })));
     const takes = cache.get(key)!;
     const hum = !!kit?.hum || /^[mnŋɲɱ]ː?$/.test(ipa), click = /[ʘǀǃǂǁ]/.test(ipa);
+    const struck = new Set<number>();
+    for (let r = 0; r < rep; r++) pat.forEach((v, i) => { if (v > 0) struck.add(r * pat.length + i); });
+    const me = { struck, hum, click };
+    const apart = (q: typeof me) => (me.hum && q.click) || (q.hum && me.click) || ![...struck].some((s) => q.struck.has(s));
+    let mouth = mouths.findIndex((m) => m.every(apart));
+    if (mouth < 0) { mouth = mouths.length; mouths.push([]); }
+    mouths[mouth].push(me);
+    trackMouths[ti] = mouth;
     let n = 0;
     for (let r = 0; r < rep; r++) {
       pat.forEach((v, i) => {
@@ -412,20 +460,20 @@ export function beatHits(d: Readonly<VoiceDesign>, tracks: readonly BeatTrack[],
         const t0 = s * step + (s % 2 === 1 ? swing * 0.5 * step : 0) + late;
         const take = takes[n++ % takes.length];
         const gain = (t.gain ?? 0) + 20 * Math.log10(v) + (human > 0 ? 1.5 * human * gauss() : 0);
-        placed.push({ track: { samples: take.samples, fs, at: t0 - take.hit, gain }, samples: take.samples, at: t0, hum, click });
+        placed.push({ track: { samples: take.samples, fs, at: t0 - take.hit, gain }, samples: take.samples, at: t0, hum, click, mouth, motion: take.motion });
       });
     }
   }
   placed.sort((a, b) => a.at - b.at);
   const length = steps * rep * step;
   if (!o.layered) {
-    // one mouth: a sound ends where the next one strikes (faded over 8 ms), a hum goes on under the clicks;
+    // a sound ends where the next one of its mouth strikes (faded over 8 ms), a hum goes on under the clicks;
     // going round a loop, the last sounds end where the first strike again
     const fade = Math.round(0.008 * fs);
     placed.forEach((p, k) => {
-      const mouth = (q: (typeof placed)[number]) => !(p.hum && q.click) && !(q.hum && p.click);
-      const later = placed.slice(k + 1).find((q) => q.at > p.at + 1e-4 && mouth(q));
-      const round = more.loop && !later ? placed.slice(0, k + 1).find(mouth) : undefined;
+      const next = (q: (typeof placed)[number]) => q.mouth === p.mouth && !(p.hum && q.click) && !(q.hum && p.click);
+      const later = placed.slice(k + 1).find((q) => q.at > p.at + 1e-4 && next(q));
+      const round = more.loop && !later ? placed.slice(0, k + 1).find(next) : undefined;
       const at = later ? later.at : round ? round.at + length : undefined;
       if (at === undefined) return;
       const keep = Math.round((at - (p.track.at ?? 0)) * fs);
@@ -435,7 +483,45 @@ export function beatHits(d: Readonly<VoiceDesign>, tracks: readonly BeatTrack[],
       p.track = { ...p.track, samples: s };
     });
   }
-  return { hits: placed.map((p) => p.track), length };
+  return {
+    hits: placed.map((p) => p.track), length, mouths: mouths.length, trackMouths,
+    moves: placed.map((p) => ({ mouth: p.mouth, at: p.track.at ?? 0, end: (p.track.at ?? 0) + p.track.samples.length / fs, motion: p.motion })),
+  };
+}
+
+/** The hits of a beat (see beatHits). */
+export interface BeatHits {
+  hits: Track[];
+  /** its length, s */
+  length: number;
+  /** how many mouths it takes, and the mouth of each track (-1: no hit) */
+  mouths: number;
+  trackMouths: number[];
+  /** each hit's mouth, where its sound starts and ends (s, as cut) and the posture of the mouth through it */
+  moves: { mouth: number; at: number; end: number; motion?: Motion }[];
+}
+
+/**
+ * The posture of each mouth of a beat played round and round (`length` s a
+ * round), frame by frame: the sound it began last, its last posture held
+ * until the next.
+ */
+export function mouthsOf(b: Readonly<BeatHits>, length: number): Motion[] {
+  const n = Math.max(1, Math.ceil(length / MOTION_HOP));
+  const out: Motion[] = [];
+  for (let m = 0; m < b.mouths; m++) {
+    const mine = b.moves.filter((x) => x.mouth === m && x.motion);
+    const frames: Articulators[] = [];
+    for (let k = 0; k < n; k++) {
+      const t = k * MOTION_HOP;
+      // the move begun last (getting ready for its sound), going round
+      let best: (typeof mine)[number] | undefined, since = Infinity;
+      for (const x of mine) { const d = (((t - x.at - (x.motion?.start ?? 0)) % length) + length) % length; if (d < since) { since = d; best = x; } }
+      if (best?.motion) frames.push(postureAt(best.motion, since + (best.motion.start ?? 0)));
+    }
+    if (frames.length === n) out.push({ hop: MOTION_HOP, frames });
+  }
+  return out;
 }
 
 /**

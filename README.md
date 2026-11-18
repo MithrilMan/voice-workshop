@@ -184,7 +184,9 @@ Four modes, switchable in the header and remembered in the browser:
   round, the step heard lit on the grid, every change (a step, a sound,
   the tempo, the swing) heard from the same step as it plays (the
   sounds of a beat are said once, in a worker that keeps them, and a
-  changed beat is mixed again in milliseconds); and sounds of your own:
+  changed beat is mixed again in milliseconds), with a face for each
+  mouth that makes it moving as the beat is heard (sounds struck on the
+  same step take a mouth each; a click enlarges a face); and sounds of your own:
   make a noise into the microphone and the voice's mouth finds the
   nearest sound it can make, to keep in the kit. Ensemble: several voices at once,
   each part sung or beatboxed by a voice of its own (a starting voice or
@@ -1723,8 +1725,12 @@ writeFileSync('hello.wav', toWav(s));
   (its first moment within 12 dB of its loudest, after any tick of the
   mouth closing 60 ms or more before) is set on its step (within 4 ms).
   One mouth makes one sound at a time: each hit is cut where the next
-  strikes (a hum through the nose goes on under the clicks); `layered`
-  lets every hit ring out. `humanize` (0-1) moves hits by a few
+  of its mouth strikes (a hum through the nose goes on under the
+  clicks); sounds struck on the same step are made by different mouths,
+  as few as the beat needs (`trackMouths`); `layered` lets every hit
+  ring out. Each hit keeps the posture of its mouth as the engine said
+  it (`DrumHit.motion`, every 5 ms, from 80 ms before it is heard: the
+  lips shut for a kick before its burst). `humanize` (0-1) moves hits by a few
   milliseconds (8 ms rms at 1) and their level by 1.5 dB rms.
 - `beatLoop(voice, beat, { passes, room, ... }, takes?)`: the same beat
   as a loop to play round and round while it is edited: `passes` times
@@ -1732,7 +1738,10 @@ writeFileSync('hello.wav', toWav(s));
   heard at its start, one mouth's last sound cut where the first
   strikes again, the room with the tail of the round before (mixed twice
   round, the second kept). Away from its seam a round is the beatbox
-  played on, sample for sample. `takes`, kept between calls for one
+  played on, sample for sample. `mouths` holds the posture of each mouth
+  through the round (the sound it began last, getting ready for it, its
+  last posture held until the next), which the studio's faces show where
+  the round is heard. `takes`, kept between calls for one
   voice at one rate, holds the sounds already said. The studio plays it
   through the audio thread as samples that go round (a `loop` program),
   swapped as the beat changes at the same share of the round (crossfaded

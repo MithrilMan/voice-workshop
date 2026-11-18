@@ -27,7 +27,7 @@ import { encodeWav, encodeWavStereo, decodeWav } from '../dsp/util/wav';
 import { Note, parseNotes } from '../dsp/music/notes';
 import { singScore, sungPitch, meantNotes, SingOptions, SungSyllable, SungNote } from '../dsp/music/sing';
 import { melodyOf, pitchTrack, Melody, MelodyNote, MelodyOptions } from '../dsp/music/transcribe';
-import { beatHits, parseBeat, parsePattern, BeatTrack, BeatOptions, BeatTakes } from '../dsp/music/beat';
+import { beatHits, mouthsOf, parseBeat, parsePattern, BeatTrack, BeatOptions, BeatTakes, Motion } from '../dsp/music/beat';
 import { mixTracks, loopMix, MixOptions, Stereo, Track, downmix, arrange, Performance, Placed } from '../dsp/music/mix';
 import { voicePrint, VoicePrint, Clip } from '../dsp/analysis/voiceprint';
 import { VoiceDesign, VOICE_FIELDS, Field, cloneVoice, fieldValue, withField, sanitizeVoice } from '../dsp/voice/design';
@@ -43,7 +43,7 @@ export { sungPitch, melodyOf, pitchTrack };
 export type { Melody, MelodyNote, MelodyOptions };
 export { parseNotes, noteNumber, noteName, midiHz, transpose } from '../dsp/music/notes';
 export { BEATBOX_KIT, DRUM_FAMILIES, drumSound, parsePattern, parseBeat, drumHit } from '../dsp/music/beat';
-export type { DrumSound, DrumPart, DrumFamily, DrumHit, DrumHitOptions, BeatTakes } from '../dsp/music/beat';
+export type { DrumSound, DrumPart, DrumFamily, DrumHit, DrumHitOptions, BeatTakes, Motion } from '../dsp/music/beat';
 export { BEAT_PATTERNS } from '../dsp/music/patterns';
 export { imitate } from '../dsp/music/imitate';
 export type { Imitation, ImitateOptions } from '../dsp/music/imitate';
@@ -276,6 +276,10 @@ export interface BeatLoop {
   passes: number;
   /** steps of the pattern in one pass (its first strikes at sample 0) */
   steps: number;
+  /** the posture of each mouth through the round (sounds struck together take a mouth each, a hum may go with clicks) */
+  mouths: Motion[];
+  /** the mouth of each track (-1: no hit) */
+  trackMouths: number[];
 }
 
 export interface BeatLoopOptions extends Omit<BeatOptions, 'repeat'>, Pick<MixOptions, 'room' | 'size' | 'peak'> {
@@ -296,10 +300,10 @@ export interface BeatLoopOptions extends Omit<BeatOptions, 'repeat'>, Pick<MixOp
 export function beatLoop(voice: Readonly<VoiceDesign>, beat: string | readonly BeatTrack[], opts: BeatLoopOptions = {}, takes?: BeatTakes): BeatLoop {
   const fs = opts.fs ?? 48000, passes = Math.max(1, Math.round(opts.passes ?? 4));
   const tracks = typeof beat === 'string' ? parseBeat(beat, opts.sounds) : beat;
-  const { hits, length } = beatHits(voice, tracks, { ...opts, fs, repeat: passes }, { loop: true, takes });
-  if (!hits.length) throw new Error('no hit in the pattern');
-  const samples = loopMix(hits, length, { room: opts.room ?? 0, size: opts.size, peak: opts.peak });
-  return { samples, fs, length: samples.length / fs, passes, steps: Math.max(...tracks.map((t) => parsePattern(t.pattern).length)) };
+  const b = beatHits(voice, tracks, { ...opts, fs, repeat: passes }, { loop: true, takes });
+  if (!b.hits.length) throw new Error('no hit in the pattern');
+  const samples = loopMix(b.hits, b.length, { room: opts.room ?? 0, size: opts.size, peak: opts.peak });
+  return { samples, fs, length: samples.length / fs, passes, steps: Math.max(...tracks.map((t) => parsePattern(t.pattern).length)), mouths: mouthsOf(b, samples.length / fs), trackMouths: b.trackMouths };
 }
 
 /** A part of an ensemble: a voice that sings a song, or beatboxes. */

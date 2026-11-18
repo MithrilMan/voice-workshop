@@ -3,9 +3,10 @@ import { store } from '../store';
 import { useLibrary } from '../library';
 import { Slider, Toggle, Seg } from '../components/controls';
 import { LanguagePick } from '../components/LanguagePick';
-import { makeParts, musicRate, arrangeParts, playMix, stopPlaying, saveWav, wakeSound, findMelody, imitateSound, recordMicrophone, decodeRecording, playRecording, makeLoop, playLoop, swapLoop, loopPlace, type MusicRequest, type PartOutcome, type Recording } from '../voice/music';
+import { makeParts, musicRate, arrangeParts, playMix, stopPlaying, saveWav, wakeSound, findMelody, imitateSound, recordMicrophone, decodeRecording, playRecording, makeLoop, playLoop, swapLoop, loopPlace, type MusicRequest, type PartOutcome, type Recording, type MadeLoop } from '../voice/music';
 import type { Melody } from '../../dsp/music/transcribe';
 import { useLanes } from '../voice/hooks';
+import { HeadView } from '../components/HeadView';
 import { SONGS, ENSEMBLES, type PartPreset } from '../songs';
 import { BEATBOX_KIT, DRUM_FAMILIES, drumSound, parseBeat, type BeatTrack, type DrumSound } from '../../dsp/music/beat';
 import type { Imitation } from '../../dsp/music/imitate';
@@ -278,6 +279,16 @@ function BeatBench({ voice }: { voice: VoiceDesign }) {
   const [now, setNow] = useState(-1);
   const shape = useRef<{ passes: number; steps: number; made: string } | null>(null);
   const asked = useRef(0), playing = useRef(0);
+  // the faces: a mouth each, with the sounds it makes; one enlarged over the page
+  const [faces, setFaces] = useState<string[][]>([]);
+  const [big, setBig] = useState<number | null>(null);
+  const took = (l: MadeLoop, t: BeatTrack[]) => setFaces(l.mouths.map((_, m) => t.filter((_, i) => l.trackMouths[i] === m).map((x) => drumSound(x.sound, own)?.name ?? `[${x.sound}]`)));
+  useEffect(() => {
+    if (big === null) return;
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setBig(null); };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, [big]);
   const job = useJob();
   const speaking = useLanes().performer.kind !== 'hands';
   const steps = Math.max(16, ...rows.map((r) => r.pattern.length));
@@ -364,10 +375,11 @@ function BeatBench({ voice }: { voice: VoiceDesign }) {
       job.setBusy('');
       if (id !== asked.current) return;
       shape.current = { passes: l.passes, steps: l.steps, made: key };
+      took(l, t);
       const token = ++playing.current;
       setLive(true);
       // from a little before the end of the round: the first strike comes 120 ms after the press, its start heard whole
-      await playLoop(l.samples, `${voice.name || 'The voice'} beatboxes`, Math.max(0, l.samples.length / musicRate() - 0.12));
+      await playLoop(l.samples, `${voice.name || 'The voice'} beatboxes`, Math.max(0, l.samples.length / musicRate() - 0.12), l.mouths);
       if (playing.current === token) { setLive(false); setNow(-1); }
     } catch (e) {
       job.setBusy('');
@@ -392,7 +404,8 @@ function BeatBench({ voice }: { voice: VoiceDesign }) {
       makeLoop(voice, t, loopOpts).then((l) => {
         if (id !== asked.current) return;
         shape.current = { passes: l.passes, steps: l.steps, made: key };
-        swapLoop(l.samples);
+        took(l, t);
+        swapLoop(l.samples, l.mouths);
       }).catch((e: Error) => job.setProblem(e.message));
     }, 30);
     return () => clearTimeout(timer);
@@ -402,7 +415,7 @@ function BeatBench({ voice }: { voice: VoiceDesign }) {
     if (live) return;
     const t = hits();
     if (!t.length) return;
-    const timer = setTimeout(() => { makeLoop(voice, t, loopOpts).catch(() => {}); }, 400);
+    const timer = setTimeout(() => { makeLoop(voice, t, loopOpts).then((l) => took(l, t)).catch(() => {}); }, 400);
     return () => clearTimeout(timer);
   }, [live, rows, own, voice]);
   // the step heard now
@@ -451,6 +464,24 @@ function BeatBench({ voice }: { voice: VoiceDesign }) {
         <Slider label="Human" value={humanize} min={0} max={1} step={0.05} onChange={setHumanize} format={(v) => v.toFixed(2)} hint="hits a few milliseconds early or late, a little louder or softer, as a person plays" />
         <Toggle label="One mouth" value={oneMouth} onChange={setOneMouth} hint="one sound at a time, each cut by the next, as a beatboxer makes them (a hum goes on under the clicks); off: every hit rings out, as a drum machine" />
       </div>
+      {faces.length > 0 && (
+        <div className="beat-faces">
+          {faces.map((names, m) => (
+            <figure key={m} className="beat-face ds-card" title="Click to enlarge" onClick={() => setBig(m)}>
+              <HeadView mouth={m} />
+              <figcaption>{faces.length > 1 ? `Mouth ${m + 1}: ` : ''}{names.join(', ')}</figcaption>
+            </figure>
+          ))}
+        </div>
+      )}
+      {big !== null && big < faces.length && (
+        <div className="beat-face-big" role="dialog" aria-label={`Mouth ${big + 1}, enlarged`} onClick={() => setBig(null)}>
+          <figure className="ds-card">
+            <HeadView mouth={big} />
+            <figcaption>{faces.length > 1 ? `Mouth ${big + 1} of ${faces.length}: ` : ''}{faces[big].join(', ')} · a click or Esc closes it</figcaption>
+          </figure>
+        </div>
+      )}
       <div className="music-row">
         <Seg value={view} options={[['grid', 'Grid'], ['text', 'Text']]} onChange={setView} />
         <span className="muted small">{view === 'grid' ? 'Click a step: a hit, an accent, a soft one, nothing.' : 'A step to a word: b kick · pf snare · ts hi-hat · ^k inward snare · . nothing · b+ts together · pf! accent · t? soft · m:C2 a hum on C2 · [kʼ] any sound · a line starting with > is a layer.'}</span>

@@ -5,7 +5,7 @@
 import { arrange, downmix, type Performance, type Placed, type Stereo, type MixOptions } from '../../dsp/music/mix';
 import { encodeWavStereo } from '../../dsp/util/wav';
 import type { MusicRequest, MusicReply, LoopRequest, LoopReply } from './music.worker';
-import type { BeatTrack } from '../../dsp/music/beat';
+import type { BeatTrack, Motion } from '../../dsp/music/beat';
 import type { BeatLoopOptions } from '../../library';
 import type { Melody } from '../../dsp/music/transcribe';
 import type { Imitation } from '../../dsp/music/imitate';
@@ -112,8 +112,8 @@ export function imitateSound(voice: VoiceDesign, r: { samples: Float32Array; fs:
 
 // ------------------------------------------------------------- a beat played live
 
-/** A beat made as a loop: one round of its samples, how many times round the pattern it holds, the steps of the pattern. */
-export interface MadeLoop { samples: Float32Array; passes: number; steps: number }
+/** A beat made as a loop: one round of its samples, how many times round the pattern it holds, the steps of the pattern, the posture of each of its mouths through the round and the mouth of each track. */
+export interface MadeLoop { samples: Float32Array; passes: number; steps: number; mouths: Motion[]; trackMouths: number[] }
 
 /** the worker that makes loops lives on, keeping the sounds already said: a changed beat is made again at once */
 let loopWorker: Worker | null = null;
@@ -135,15 +135,15 @@ export function makeLoop(v: VoiceDesign, tracks: BeatTrack[], opts: BeatLoopOpti
   }
   const id = ++loopId, w = loopWorker;
   return new Promise((res, rej) => {
-    loopWaiting.set(id, (r) => (r.ok && r.samples ? res({ samples: r.samples, passes: r.passes ?? 1, steps: r.steps ?? 16 }) : rej(new Error(r.reason ?? 'failed'))));
+    loopWaiting.set(id, (r) => (r.ok && r.samples ? res({ samples: r.samples, passes: r.passes ?? 1, steps: r.steps ?? 16, mouths: r.mouths ?? [], trackMouths: r.trackMouths ?? [] }) : rej(new Error(r.reason ?? 'failed'))));
     w.postMessage({ kind: 'loop', id, voice: v, tracks, opts } satisfies LoopRequest);
   });
 }
 
 /** Plays a loop round and round until stopped (see VoiceController.playLoop). */
-export const playLoop = (samples: Float32Array, label: string, from = 0): Promise<unknown> => voice.playLoop(samples, label, from);
+export const playLoop = (samples: Float32Array, label: string, from = 0, mouths: Motion[] = []): Promise<unknown> => voice.playLoop(samples, label, from, mouths);
 /** New samples for the loop playing, heard from the same point of it; false if none plays. */
-export const swapLoop = (samples: Float32Array): boolean => voice.swapLoop(samples);
+export const swapLoop = (samples: Float32Array, mouths?: Motion[]): boolean => voice.swapLoop(samples, mouths);
 /** Where the loop playing is, s into one round, as heard now. */
 export const loopPlace = (): { at: number; length: number } | null => voice.loopPlace();
 

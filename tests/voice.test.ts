@@ -276,5 +276,27 @@ describe('the voice controller', () => {
     expect(v.swapLoop(new Float32Array(10))).toBe(false);
     expect(v.loopPlace()).toBeNull();
   });
+
+  it('moves the head with each mouth of a beat that plays round', async () => {
+    const pose = (lipOpen: number) => ({ ...v.manual.articulators, lipOpen });
+    // two mouths over a round of 1 s, frames every 0.5 s
+    const mouths = [{ hop: 0.5, frames: [pose(-0.4), pose(0.6)] }, { hop: 0.5, frames: [pose(0.1), pose(0.2)] }];
+    void v.playLoop(new Float32Array(48000), L, 0, mouths);
+    await settle();
+    const p = sink.programs().at(-1)!;
+    expect(v.loopMouthCount).toBe(2);
+    // before the audio says where it is: the first posture of each
+    expect(v.loopPosture(0)!.articulators.lipOpen).toBe(-0.4);
+    sink.onTelemetry(telemetryAt(0.5, 120), p.id, 0.6);
+    expect(v.loopPosture(0)!.articulators.lipOpen).toBe(0.6);
+    expect(v.loopPosture(1)!.articulators.lipOpen).toBe(0.2);
+    expect(v.loopPosture(2)).toBeNull();
+    // any head shows the first mouth
+    expect(v.sounding().articulators.lipOpen).toBe(0.6);
+    v.stop();
+    expect(v.loopMouthCount).toBe(0);
+    expect(v.loopPosture(0)).toBeNull();
+    expect(v.sounding().articulators.lipOpen).not.toBe(0.6);
+  });
 });
 
