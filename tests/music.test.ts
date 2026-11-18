@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createVoice, speak, sing, beatbox, arrange, mix, toWav, parseNotes, noteNumber, sungPitch, BEATBOX_KIT, BEAT_PATTERNS, drumHit, drumSound, parseBeat, melodyOf, pitchTrack, imitate, beatLoop, singing, downmix } from '../src/library';
-import { beatHits, postureAt } from '../src/dsp/music/beat';
+import { beatHits, postureAt, airAt, type Motion } from '../src/dsp/music/beat';
 import { MixStream } from '../src/dsp/music/mix';
 import { textToPhones } from '../src/dsp/speech/g2p';
 import { utterance } from '../src/dsp/voice/utterance';
@@ -297,6 +297,14 @@ describe('beatbox', () => {
       expect(Math.max(...[-0.04, -0.02, 0].map((dt) => at(hat + dt).tipY))).toBeGreaterThan(0.5);
       expect(at(hat).lipOpen).toBeGreaterThan(0.1);
     }
+    // the air as it was made: the hiss of the hi-hat on the teeth, the hum through the nose, the second mouth silent between its sounds
+    const air = (mm: Motion, t: number) => airAt(mm, ((t % l.length) + l.length) % l.length);
+    expect(m.air!.length).toBe(m.frames.length);
+    for (const hat of [0.25, 0.75]) expect(Math.max(...[0.02, 0.03, 0.04, 0.05].map((dt) => air(m, hat + dt)?.levels.obstacle ?? 0))).toBeGreaterThan(10);
+    const hum = air(l.mouths[1], 0.57)!;
+    expect(hum.uNose).toBeGreaterThan(100);
+    expect(hum.voicingAmp).toBeGreaterThan(0.5);
+    expect(air(l.mouths[1], 0.35)).toBeNull();
   });
 });
 

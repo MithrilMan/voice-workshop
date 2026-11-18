@@ -11,7 +11,6 @@ import {
 } from '../../dsp/tract/geometry';
 import { Anatomy, Articulators, ARTICULATOR_RANGES, Teeth } from '../../dsp/tract/types';
 import { N_SECTIONS } from '../../dsp/tract/areaFunction';
-import type { Telemetry } from '../../dsp/engine/engine';
 import { HEAD_BACK, HEAD_FRONT_UP, CHIN, NASAL_CENTRE, NASAL_HALF, chinWeight } from '../head/outline';
 import { headScene, mul, Mat, HeadScene } from '../head/scene';
 import { getBackdrop, paintBackdrop, paintSoftParts, paintRim, paintGlow, fadeNeck } from '../head/painter';
@@ -32,17 +31,35 @@ interface Particle { s: number; off: number; nose: boolean; age: number }
 
 const clampArt = (k: keyof Articulators, v: number) => Math.max(ARTICULATOR_RANGES[k][0], Math.min(ARTICULATOR_RANGES[k][1], v));
 
+/** what the head draws of the sound: the engine's telemetry, or the air of a mouth of a beat as it was made */
+interface Heard {
+  pRms: ArrayLike<number>; uRms: ArrayLike<number>;
+  ug: number; uMouth: number; uNose: number; nasalPort: number; constrictionIndex: number;
+  voicingAmp: number; f0: number; glottalArea: number;
+  levels: { aspiration: number; wall: number; obstacle: number; user: number };
+  phone?: string;
+}
+
+/** What a head watching a mouth of a beat shows: the field in the airway (or none), the air flowing, the noise, the handles and their names. */
+export interface FaceShow { field: FieldMode | 'off'; flow: boolean; noise: boolean; handles: boolean; labels: boolean }
+
+export const FACE_SHOW: FaceShow = { field: 'air', flow: true, noise: true, handles: false, labels: false };
+
 /**
  * The head, its posture as it sounds; its handles drag the hands' posture. With
  * `mouth`, a head that only watches a mouth of the beat playing (see
- * VoiceController.loopPosture), with no handles and nothing over it.
+ * VoiceController.loopPosture and loopAir), its air as it was made, with
+ * nothing over it and only what `show` asks for.
  */
-export function HeadView({ guide, mouth }: { guide?: Guide; mouth?: number } = {}) {
+export function HeadView({ guide, mouth, show = FACE_SHOW }: { guide?: Guide; mouth?: number; show?: FaceShow } = {}) {
   const t = useT();
   const ui = useUi();
   const sound = useSoundOn();
   const postureLock = useVoice((v) => v.lock('posture'));
   const [labels, setLabels] = useState(mouth === undefined);
+  // what a watching head shows, read as it draws
+  const shown = useRef(show);
+  shown.current = show;
   // the hint that was followed: it stays hidden until another one comes
   const followed = useRef<string | null>(null);
   const drag = useRef<{ id: HandleId; x0: number; y0: number; a0: Articulators; t0: Teeth; ang0: number } | null>(null);
@@ -67,7 +84,9 @@ export function HeadView({ guide, mouth }: { guide?: Guide; mouth?: number } = {
     const a = p.articulators;
     // the geometry of the posture shown: the shared one, or its own for a mouth of a beat other than the first
     const geom = mouth ? geomOf(p) : store.derived().geom;
-    const tel = store.ui.audioOn ? store.telemetry : null;
+    // what the air does: as the engine plays it, or as the mouth of the beat made it where the beat is heard
+    const tel: Heard | null = mouth === undefined ? (store.ui.audioOn ? store.telemetry : null) : voice.loopAir(mouth);
+    const sh: FaceShow = mouth === undefined ? { field: store.ui.field, flow: true, noise: true, handles: true, labels } : shown.current;
     const s = an.scale * 0.9;
     // fixed frame (for scale 1) so a child's head looks smaller; a tall view shows the whole head
     const X0 = -5.4, X1 = 11.8, Y0 = -3.4;
@@ -135,11 +154,11 @@ export function HeadView({ guide, mouth }: { guide?: Guide; mouth?: number } = {
         ctx.fillStyle = fieldColor(0.12, 0.28);
         ctx.fill();
       }
-      drawChannel(ctx, geom, X, Y, store.ui.field, tel);
+      drawChannel(ctx, geom, X, Y, sh.field === 'off' ? 'air' : sh.field, sh.field === 'off' ? null : tel);
       paintRim(ctx, sc, world);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     } else {
-      paintFlat(ctx, geom, an, a, X, Y, path, k, s, tel, nc, port, nasalFlow);
+      paintFlat(ctx, geom, an, a, X, Y, path, k, s, sh.field === 'off' ? null : tel, nc, port, nasalFlow, sh.field === 'off' ? 'air' : sh.field);
     }
 
     // glottis pulse
@@ -169,10 +188,11 @@ export function HeadView({ guide, mouth }: { guide?: Guide; mouth?: number } = {
     }
 
     // airflow particles
-    drawParticles(ctx, geom, X, Y, s, tel, parts.current, dt, nc);
+    if (sh.flow) drawParticles(ctx, geom, X, Y, s, tel, parts.current, dt, nc);
+    else parts.current.length = 0;
 
     // turbulence sparkles
-    if (tel) emitSparks(geom, tel, sparks.current, s);
+    if (tel && sh.noise) emitSparks(geom, tel, sparks.current, s);
     const sp = sparks.current;
     for (let i = sp.length - 1; i >= 0; i--) {
       const q = sp[i];
@@ -209,24 +229,26 @@ export function HeadView({ guide, mouth }: { guide?: Guide; mouth?: number } = {
       const locked = !!voice.lock(HANDLE_CONTROL[id]);
       const active = !locked && (drag.current?.id === id || hover.current === id);
       const c = locked ? C.muted : col[id];
-      ctx.save();
-      if (!locked) { ctx.shadowColor = c; ctx.shadowBlur = active ? 16 : 9; }
-      ctx.beginPath();
-      ctx.arc(X(hx), Y(hy), active ? 9 : 6.5, 0, Math.PI * 2);
-      ctx.fillStyle = active ? c : locked ? 'rgba(11,14,20,0.2)' : 'rgba(8,20,24,0.7)';
-      ctx.fill();
-      ctx.lineWidth = locked ? 1.5 : 2.2;
-      if (locked) ctx.setLineDash([2.5, 2.5]);
-      ctx.strokeStyle = c;
-      ctx.stroke();
-      ctx.restore();
-      if ((labels || active) && guided?.handle !== id) {
+      if (sh.handles) {
+        ctx.save();
+        if (!locked) { ctx.shadowColor = c; ctx.shadowBlur = active ? 16 : 9; }
+        ctx.beginPath();
+        ctx.arc(X(hx), Y(hy), active ? 9 : 6.5, 0, Math.PI * 2);
+        ctx.fillStyle = active ? c : locked ? 'rgba(11,14,20,0.2)' : 'rgba(8,20,24,0.7)';
+        ctx.fill();
+        ctx.lineWidth = locked ? 1.5 : 2.2;
+        if (locked) ctx.setLineDash([2.5, 2.5]);
+        ctx.strokeStyle = c;
+        ctx.stroke();
+        ctx.restore();
+      }
+      if ((sh.labels || active) && guided?.handle !== id) {
         const dxl = id === 'larynx' ? 34 : id === 'lips' || id === 'jaw' ? 30 : 0;
         const dyl = id === 'larynx' || id === 'lips' || id === 'jaw' ? 0 : -16;
         label(ctx, names[id], X(hx) + dxl, Y(hy) + dyl, c);
       }
     }
-    if (id_larynxLine) {
+    if (id_larynxLine && sh.handles) {
       ctx.strokeStyle = 'rgba(246,168,35,0.45)';
       ctx.setLineDash([3, 3]);
       ctx.beginPath(); ctx.moveTo(X(gl[0]), Y(gl[1])); ctx.lineTo(X(H.larynx[0]), Y(H.larynx[1])); ctx.stroke();
@@ -405,7 +427,7 @@ function drawGuide(ctx: CanvasRenderingContext2D, text: string, hx: number, hy: 
 /** The plain drawing, while the painted head loads (or if it cannot). */
 function paintFlat(
   ctx: CanvasRenderingContext2D, geom: TractGeometry, an: Anatomy, a: Articulators, X: (x: number) => number, Y: (y: number) => number,
-  path: (pts: number[], close?: boolean) => void, k: number, s: number, tel: Telemetry | null, nc: number[], port: number, nasalFlow: number,
+  path: (pts: number[], close?: boolean) => void, k: number, s: number, tel: Heard | null, nc: number[], port: number, nasalFlow: number, mode: FieldMode = store.ui.field,
 ): void {
   // head silhouette
   const back = canonToWorld(HEAD_BACK, { ...an, pharynx: 1 }, { ...a, larynx: 0 });
@@ -476,7 +498,7 @@ function paintFlat(
   }
 
   // vocal tract air channel coloured by the sound field
-  drawChannel(ctx, geom, X, Y, store.ui.field, tel);
+  drawChannel(ctx, geom, X, Y, mode, tel);
 
   // solids (the soft tissue behind and below the tract is clipped to the head)
   for (const sol of geom.solids) {
@@ -522,7 +544,7 @@ function rayPoints(geom: TractGeometry, i: number): [number, number, number, num
   return [r.sx + r.nx * (r.t0 + h.tLow), r.sy + r.ny * (r.t0 + h.tLow), r.sx + r.nx * (r.t0 + h.tUp), r.sy + r.ny * (r.t0 + h.tUp)];
 }
 
-function drawChannel(ctx: CanvasRenderingContext2D, geom: TractGeometry, X: (x: number) => number, Y: (y: number) => number, mode: FieldMode, tel: Telemetry | null): void {
+function drawChannel(ctx: CanvasRenderingContext2D, geom: TractGeometry, X: (x: number) => number, Y: (y: number) => number, mode: FieldMode, tel: Heard | null): void {
   const n = geom.lastRay;
   // dark air first
   ctx.beginPath();
@@ -560,7 +582,7 @@ function drawChannel(ctx: CanvasRenderingContext2D, geom: TractGeometry, X: (x: 
 
 function drawParticles(
   ctx: CanvasRenderingContext2D, geom: TractGeometry, X: (x: number) => number, Y: (y: number) => number, s: number,
-  tel: Telemetry | null, parts: Particle[], dt: number, nc: number[],
+  tel: Heard | null, parts: Particle[], dt: number, nc: number[],
 ): void {
   const n = geom.lastRay;
   const L = geom.length;
@@ -626,7 +648,7 @@ function drawParticles(
   }
 }
 
-function emitSparks(geom: TractGeometry, tel: Telemetry, out: { x: number; y: number; vx: number; vy: number; life: number; c: string }[], s: number): void {
+function emitSparks(geom: TractGeometry, tel: Heard, out: { x: number; y: number; vx: number; vy: number; life: number; c: string }[], s: number): void {
   if (out.length > 400) return;
   const L = geom.length;
   const at = (sv: number) => {

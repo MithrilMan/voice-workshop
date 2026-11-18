@@ -189,8 +189,11 @@ Four modes, switchable in the header and remembered in the browser:
   the tempo, the swing) heard from the same step as it plays (the
   sounds of a beat are said once, in a worker that keeps them, and a
   changed beat is mixed again in milliseconds), with a face for each
-  mouth that makes it moving as the beat is heard (sounds struck on the
-  same step take a mouth each; a click enlarges a face); and sounds of your own:
+  mouth that makes it moving as the beat is heard, its air as the
+  engine made it (the field in the airway, the air flowing, the noise;
+  sounds struck on the same step take a mouth each; a click enlarges a
+  face, which chooses what it shows: the field or none, the flow, the
+  noise, the handles, the names); and sounds of your own:
   make a noise into the microphone and the voice's mouth finds the
   nearest sound it can make, to keep in the kit. Ensemble: several voices at once,
   each part sung or beatboxed by a voice of its own (a starting voice or
@@ -1758,8 +1761,11 @@ writeFileSync('hello.wav', toWav(s));
   round, the second kept). Away from its seam a round is the beatbox
   played on, sample for sample. `mouths` holds the posture of each mouth
   through the round (the sound it began last, getting ready for it, its
-  last posture held until the next), which the studio's faces show where
-  the round is heard. `takes`, kept between calls for one
+  last posture held until the next) and what its air does (`Motion.air`:
+  a part of the engine's telemetry as the sound was made, every 5 ms,
+  the field along the airway, the flows, the opening to the nose, the
+  noises and the folds; none while the mouth is silent), which the
+  studio's faces show where the round is heard. `takes`, kept between calls for one
   voice at one rate, holds the sounds already said. The studio plays it
   through the audio thread as samples that go round (a `loop` program),
   swapped as the beat changes at the same share of the round (crossfaded

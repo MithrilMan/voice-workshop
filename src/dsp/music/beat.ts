@@ -19,7 +19,7 @@
  * mouth each, as few as the beat needs; `layered` lets every hit ring
  * out, as a drum machine would.
  */
-import { renderOffline } from '../engine/engine';
+import { renderOffline, type Telemetry } from '../engine/engine';
 import type { Articulators } from '../tract/types';
 import { textToPhones } from '../speech/g2p';
 import { VoiceDesign, cloneVoice, withField } from '../voice/design';
@@ -146,7 +146,43 @@ export interface DrumHit {
  * start of the sound it goes with (`start` 0 or less: the mouth gets ready
  * before the sound is heard).
  */
-export interface Motion { hop: number; frames: Articulators[]; start?: number }
+export interface Motion {
+  hop: number;
+  frames: Articulators[];
+  start?: number;
+  /** what the air does at each frame, as the engine made it (null: the mouth silent) */
+  air?: (Air | null)[];
+}
+
+/**
+ * What the air does in a mouth at a moment, as a head draws it: a part of
+ * the engine's telemetry (the field along the airway, the flows, the
+ * opening to the nose, the noises, the folds).
+ */
+export interface Air {
+  /** rms pressure and volume velocity of each section, brought to 0..1 */
+  pRms: Float32Array;
+  uRms: Float32Array;
+  ug: number;
+  uMouth: number;
+  uNose: number;
+  nasalPort: number;
+  constrictionIndex: number;
+  voicingAmp: number;
+  f0: number;
+  glottalArea: number;
+  levels: { aspiration: number; wall: number; obstacle: number; user: number };
+}
+
+/** the air of a telemetry snapshot */
+export function airOf(t: Telemetry): Air {
+  const l = t.levels;
+  return {
+    pRms: Float32Array.from(t.pRms), uRms: Float32Array.from(t.uRms), ug: t.ug, uMouth: t.uMouth, uNose: t.uNose, nasalPort: t.nasalPort,
+    constrictionIndex: t.constrictionIndex, voicingAmp: t.voicingAmp, f0: t.f0, glottalArea: t.glottalArea,
+    levels: { aspiration: l.aspiration, wall: l.wall, obstacle: l.obstacle, user: l.user },
+  };
+}
 
 /** how often a motion holds a posture, s */
 export const MOTION_HOP = 0.005;
@@ -156,6 +192,13 @@ export const MOTION_LEAD = 0.08;
 /** the posture at time t (s from the start of the sound; held at the ends of the motion) */
 export function postureAt(m: Motion, t: number): Articulators {
   return m.frames[Math.max(0, Math.min(m.frames.length - 1, Math.round((t - (m.start ?? 0)) / m.hop)))];
+}
+
+/** the air at time t (s from the start of the sound), null outside the motion or where the mouth is silent */
+export function airAt(m: Motion, t: number): Air | null {
+  if (!m.air) return null;
+  const k = Math.round((t - (m.start ?? 0)) / m.hop);
+  return k >= 0 && k < m.air.length ? m.air[k] : null;
 }
 
 /** the level of each millisecond, dB */
@@ -253,9 +296,9 @@ export function drumHit(d: Readonly<VoiceDesign>, sound: string | Readonly<DrumS
     }
   }
   const params = { ...u.params, source: { ...u.params.source, ps: 0 } };
-  // the posture of the mouth after every block of 128 samples
-  const poses: Articulators[] = [];
-  const { out } = renderOffline(params, score.duration + 0.2, fs, score, (e) => poses.push({ ...e.art }));
+  // the posture of the mouth and what its air does after every block of 128 samples
+  const poses: Articulators[] = [], airs: Air[] = [];
+  const { out } = renderOffline(params, score.duration + 0.2, fs, score, (e) => { poses.push({ ...e.art }); airs.push(airOf(e.telemetry())); });
   const env = envelope(out, fs);
   const { hit, end } = strikeOf(env, Math.max(0, Math.floor((score.phones[0]?.t0 ?? 0) * 1000) - 5));
   const ms = fs / 1000, pre = 12;
@@ -270,11 +313,15 @@ export function drumHit(d: Readonly<VoiceDesign>, sound: string | Readonly<DrumS
   }
   const from = a / fs;
   // its motion from a little before it is heard: the mouth getting ready
-  const frames: Articulators[] = [], lead = -Math.min(MOTION_LEAD, from);
-  for (let t = lead; t < s.length / fs; t += MOTION_HOP) frames.push(poses[Math.max(0, Math.min(poses.length - 1, Math.round(((from + t) * fs) / 128) - 1))]);
+  const frames: Articulators[] = [], air: Air[] = [], lead = -Math.min(MOTION_LEAD, from);
+  for (let t = lead; t < s.length / fs; t += MOTION_HOP) {
+    const j = Math.max(0, Math.min(poses.length - 1, Math.round(((from + t) * fs) / 128) - 1));
+    frames.push(poses[j]);
+    air.push(airs[j]);
+  }
   return {
     samples: s, fs, hit: (hit * ms - a) / fs, phones: score.phones.filter((p) => p.ipa !== '_').map((p) => ({ ipa: p.ipa, t0: p.t0 - from, t1: p.t1 - from })),
-    motion: { hop: MOTION_HOP, frames, start: lead },
+    motion: { hop: MOTION_HOP, frames, start: lead, air },
   };
 }
 
@@ -303,13 +350,13 @@ function partsHit(d: Readonly<VoiceDesign>, all: readonly DrumPart[], fs: number
     if (Number.isFinite(g)) for (let i = 0; i < out.length; i++) out[i] *= g;
   }
   // one mouth: the posture of the part begun last (each getting ready before it is heard)
-  const lead = hits[0].motion?.start ?? 0, frames: Articulators[] = [];
+  const lead = hits[0].motion?.start ?? 0, frames: Articulators[] = [], air: (Air | null)[] = [];
   for (let t = lead, k = 0; t < out.length / fs; t += MOTION_HOP) {
     while (k + 1 < parts.length && starts[k + 1] + (hits[k + 1].motion?.start ?? 0) <= t) k++;
     const m = hits[k].motion;
-    if (m) frames.push(postureAt(m, t - starts[k]));
+    if (m) { frames.push(postureAt(m, t - starts[k])); air.push(t < ends[k] ? airAt(m, t - starts[k]) : null); }
   }
-  return { samples: out, fs, hit: pre, phones, ...(frames.length ? { motion: { hop: MOTION_HOP, frames, start: lead } } : {}) };
+  return { samples: out, fs, hit: pre, phones, ...(frames.length ? { motion: { hop: MOTION_HOP, frames, start: lead, air } } : {}) };
 }
 
 export interface BeatTrack {
@@ -511,15 +558,19 @@ export function mouthsOf(b: Readonly<BeatHits>, length: number): Motion[] {
   const out: Motion[] = [];
   for (let m = 0; m < b.mouths; m++) {
     const mine = b.moves.filter((x) => x.mouth === m && x.motion);
-    const frames: Articulators[] = [];
+    const frames: Articulators[] = [], air: (Air | null)[] = [];
     for (let k = 0; k < n; k++) {
       const t = k * MOTION_HOP;
       // the move begun last (getting ready for its sound), going round
       let best: (typeof mine)[number] | undefined, since = Infinity;
       for (const x of mine) { const d = (((t - x.at - (x.motion?.start ?? 0)) % length) + length) % length; if (d < since) { since = d; best = x; } }
-      if (best?.motion) frames.push(postureAt(best.motion, since + (best.motion.start ?? 0)));
+      if (!best?.motion) continue;
+      // its air while its sound lasts (as cut), then silence
+      const u = since + (best.motion.start ?? 0);
+      frames.push(postureAt(best.motion, u));
+      air.push(u <= best.end - best.at ? airAt(best.motion, u) : null);
     }
-    if (frames.length === n) out.push({ hop: MOTION_HOP, frames });
+    if (frames.length === n) out.push({ hop: MOTION_HOP, frames, ...(air.some((x) => x) ? { air } : {}) });
   }
   return out;
 }

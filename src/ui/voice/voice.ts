@@ -36,7 +36,7 @@ import { loadDeliveryModel, planSpeech } from '../../dsp/voice/interpret';
 import { ControlId, touched, cloneParams, DeepReadonly } from './controls';
 import { Filter, Lanes, Lock, lockOf, Performer } from './drivers';
 import type { VoiceSink, StreamBlock, EndReason } from './sink';
-import { postureAt, type Motion } from '../../dsp/music/beat';
+import { postureAt, airAt, type Motion, type Air } from '../../dsp/music/beat';
 
 export type Result = 'done' | 'stopped';
 
@@ -447,6 +447,12 @@ export class VoiceController {
     if (!m) return null;
     const pl = this.loopPlace();
     return { ...this.effective(), articulators: { ...postureAt(m, pl ? pl.at : 0) } };
+  }
+
+  /** What the air does in a mouth of the loop playing where the loop is heard now, as its sounds were made; null when the mouth is silent or nothing plays. */
+  loopAir(mouth: number): Air | null {
+    const m = this.loopMouths[mouth], pl = this.loopPlace();
+    return m && pl ? airAt(m, pl.at) : null;
   }
 
   /** Glides the pitch from one value to another (a demonstration); the pitch stays at the end value. */

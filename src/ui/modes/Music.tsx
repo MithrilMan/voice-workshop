@@ -6,7 +6,7 @@ import { LanguagePick } from '../components/LanguagePick';
 import { makeParts, musicRate, arrangeParts, playMix, stopPlaying, saveWav, wakeSound, findMelody, imitateSound, recordMicrophone, decodeRecording, playRecording, makeLoop, playLoop, swapLoop, loopPlace, performLive, type MusicRequest, type PartOutcome, type Recording, type MadeLoop } from '../voice/music';
 import type { Melody } from '../../dsp/music/transcribe';
 import { useLanes } from '../voice/hooks';
-import { HeadView } from '../components/HeadView';
+import { HeadView, FACE_SHOW, type FaceShow } from '../components/HeadView';
 import { SONGS, ENSEMBLES, type PartPreset } from '../songs';
 import { BEATBOX_KIT, DRUM_FAMILIES, drumSound, parseBeat, type BeatTrack, type DrumSound } from '../../dsp/music/beat';
 import type { Imitation } from '../../dsp/music/imitate';
@@ -285,6 +285,9 @@ function BeatBench({ voice }: { voice: VoiceDesign }) {
   // the faces: a mouth each, with the sounds it makes; one enlarged over the page
   const [faces, setFaces] = useState<string[][]>([]);
   const [big, setBig] = useState<number | null>(null);
+  // what the faces show (the same for every face), kept in this browser
+  const [show, setShow] = useState<FaceShow>(() => { try { return { ...FACE_SHOW, ...JSON.parse(localStorage.getItem('voice-workshop.faceShow') ?? '{}') }; } catch { return FACE_SHOW; } });
+  const setShown = (o: Partial<FaceShow>) => setShow((s) => { const n = { ...s, ...o }; try { localStorage.setItem('voice-workshop.faceShow', JSON.stringify(n)); } catch { /* not kept */ } return n; });
   const took = (l: MadeLoop, t: BeatTrack[]) => setFaces(l.mouths.map((_, m) => t.filter((_, i) => l.trackMouths[i] === m).map((x) => drumSound(x.sound, own)?.name ?? `[${x.sound}]`)));
   useEffect(() => {
     if (big === null) return;
@@ -471,7 +474,7 @@ function BeatBench({ voice }: { voice: VoiceDesign }) {
         <div className="beat-faces">
           {faces.map((names, m) => (
             <figure key={m} className="beat-face ds-card" title="Click to enlarge" onClick={() => setBig(m)}>
-              <HeadView mouth={m} />
+              <HeadView mouth={m} show={show} />
               <figcaption>{faces.length > 1 ? `Mouth ${m + 1}: ` : ''}{names.join(', ')}</figcaption>
             </figure>
           ))}
@@ -480,7 +483,13 @@ function BeatBench({ voice }: { voice: VoiceDesign }) {
       {big !== null && big < faces.length && (
         <div className="beat-face-big" role="dialog" aria-label={`Mouth ${big + 1}, enlarged`} onClick={() => setBig(null)}>
           <figure className="ds-card">
-            <HeadView mouth={big} />
+            <div className="beat-face-tools" onClick={(e) => e.stopPropagation()}>
+              <Seg value={show.field} options={[['off', 'No field'], ['pressure', 'Pressure'], ['velocity', 'Velocity'], ['air', 'Airflow']]} onChange={(v) => setShown({ field: v })} />
+              {([['flow', 'Flow', 'the air flowing, as dots'], ['noise', 'Noise', 'sparks where the air hisses'], ['handles', 'Handles', 'the points that move the head in the Lab'], ['labels', 'Names', 'the name of each part']] as const).map(([k, name, hint]) => (
+                <button key={k} className={show[k] ? 'chip on' : 'chip'} title={hint} onClick={() => setShown({ [k]: !show[k] })}>{name}</button>
+              ))}
+            </div>
+            <HeadView mouth={big} show={show} />
             <figcaption>{faces.length > 1 ? `Mouth ${big + 1} of ${faces.length}: ` : ''}{faces[big].join(', ')} · a click or Esc closes it</figcaption>
           </figure>
         </div>
