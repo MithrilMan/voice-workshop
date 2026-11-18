@@ -145,6 +145,8 @@ export function performLive(parts: readonly LivePart[], o: { tempo: number; room
   const workers = new Set<Worker>();
   // of each part made in a worker: when it was asked for, where it starts in the mix, how much of it is made, whether it is over
   const asked = parts.map(() => 0), s0 = parts.map(() => 0), got = parts.map(() => 0), over = parts.map(() => false);
+  // and when its first piece came, and how long that was
+  const firstAt = parts.map(() => 0), firstGot = parts.map(() => 0);
   let started = false, stopped = false, gain = 1;
   const waiting: Float32Array[] = [];
   let finish: (r: { parts: PartOutcome[]; mix: Stereo | null }) => void = () => {};
@@ -165,16 +167,19 @@ export function performLive(parts: readonly LivePart[], o: { tempo: number; room
     const piece = mixer.take(), last = mixer.done;
     if (!started) {
       if (piece.length) waiting.push(piece);
-      // all parts placed, and each part still coming, at the pace it has kept since it was asked for, made to its end before the sound gets there
+      // all parts placed, and each part still coming, at the pace it has kept since its first piece, made to its end before the sound gets there;
+      // a part not yet begun as if it began after as long again as it has waited, at the pace of the slowest
       const known = ends.every((x) => !Number.isNaN(x));
       if (!last && (!known || buffered() < AHEAD)) return;
       const now = performance.now();
+      const pace = parts.map((_, i) => { const t = (now - firstAt[i]) / 1000; return firstAt[i] && t > 0.3 ? (got[i] - firstGot[i]) / fs / t : 0; });
+      const slowest = Math.min(...pace.filter((p, i) => !over[i] && p > 0));
       let late = 0;
       parts.forEach((_, i) => {
         if (over[i]) return;
-        const took = (now - asked[i]) / 1000, made = got[i] / fs, pace = took > 0.2 ? made / took : 0;
-        const left = Math.max(0, ends[i] - s0[i] - made);
-        late = Math.max(late, pace > 0 ? 1.1 * (left / pace) + 0.4 - ends[i] : Infinity);
+        const left = Math.max(0, ends[i] - s0[i] - got[i] / fs);
+        const p = pace[i] || (firstAt[i] ? 0 : slowest), wait = pace[i] ? 0 : (now - asked[i]) / 1000;
+        late = Math.max(late, p > 0 && Number.isFinite(p) ? wait + 1.1 * (left / p) + 0.4 - ends[i] : Infinity);
       });
       if (!last && late > 0) return;
       // and half a second of sound past the silence before it, to set the level from
@@ -233,6 +238,7 @@ export function performLive(parts: readonly LivePart[], o: { tempo: number; room
         ends[i] = s0[i] + m.duration;
         o.onInfo?.(i, m);
       } else if (m.type === 'piece') {
+        if (!firstAt[i]) { firstAt[i] = performance.now(); firstGot[i] = m.samples.length; }
         got[i] += m.samples.length;
         pieces.push(m.samples);
         mixer.feed(i, m.samples);

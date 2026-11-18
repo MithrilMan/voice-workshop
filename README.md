@@ -198,11 +198,11 @@ Four modes, switchable in the header and remembered in the browser:
   room: a round of "Frère Jacques" in four languages, four voices on a
   chord progression, a band of mouths. The parts are made in workers,
   all at once, mixed over the room as they come and heard as they are
-  made: the sound starts once every part, at the pace it has kept, will
-  be made before the sound gets to its end (four voices singing at once
-  are made slower than they are heard: then the start waits that long,
-  some 14 s for the round, against 35 s for all of it), its level set
-  from what is made by then; level, place and room change without making
+  made: the sound starts once every part, at the pace it has kept since
+  its first piece, will be made before the sound gets to its end (the
+  round, all four parts made again, after some 3 s, the time to plan
+  them, against 38 s for all of it), its level set from what is made by
+  then; level, place and room change without making
   the parts again; the result saves as a stereo WAV.
 
 Who drives the voice is always shown under the header. Your hands (the
@@ -1697,8 +1697,9 @@ writeFileSync('hello.wav', toWav(s));
   own, each note measured as soon as it is sung, and the heard take
   takes every correction known before its note begins (its score
   swapped, the engine running on: `VoiceEngine.swapScore`). The notes,
-  syllables and length are known before the first piece. About 1.5
-  times as fast as it is heard, in a browser.
+  syllables and length are known before the first piece. About twice
+  as fast as it is heard (the gestures are planned once: a correction
+  plans only the pitch again, `Sung.retuned`).
 - `melodyOf(samples, fs)`: the melody of a recording of someone singing,
   humming or whistling (src/dsp/music/transcribe.ts): the pitch every
   10 ms (YIN on the sound brought to 16 kHz, octave slips taken back),

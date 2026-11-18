@@ -301,7 +301,7 @@ export function singing(voice: Readonly<VoiceDesign>, song: Song, opts: Omit<Spe
       known++;
     }
   };
-  const corrected = () => (changed ? singScore(d, notes, words, lang, { ...how, fix: [...fix] }) : s0);
+  const corrected = () => (changed ? s0.retuned(fix) : s0);
   return {
     fs, beat0: s0.beat0, duration: total / fs, syllables: s0.syllables, notes: s0.notes, warnings: s0.warnings,
     next(seconds = 0.1) {

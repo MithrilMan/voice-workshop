@@ -117,6 +117,12 @@ export interface Sung {
   notes: SungNote[];
   /** for every note, the time from which a change of its pitch (`fix`) changes the score, s */
   fixFrom: number[];
+  /**
+   * the same song with other corrections of the ear (`fix`): only the pitch
+   * planned again (the gestures and their times do not depend on it), the
+   * same as singScore with that `fix`
+   */
+  retuned: (fix: readonly number[]) => { params: EngineParams; score: Score };
   /** time of the first beat, s, and length of a beat, s */
   beat0: number;
   beat: number;
@@ -127,7 +133,7 @@ export interface Sung {
 const FRAME = 0.005;
 
 /** a stretch of the song: a syllable (or part of one) on a note, or a rest */
-interface Event { syl: number; midi: number | null; t0: number; t1: number; velocity: number; fix?: number }
+interface Event { syl: number; midi: number | null; t0: number; t1: number; velocity: number }
 
 /**
  * the nucleus of a syllable: a vowel (not one marked non-syllabic, the i̯ of a diphthong), or a consonant marked
@@ -195,7 +201,6 @@ export function singScore(d: Readonly<VoiceDesign>, notesIn: readonly Note[], ph
     for (let k = 0; k <= extra; k++) parts.push({ ...last, syl: last.syl + k, t0: last.t0 + k * part, t1: last.t0 + (k + 1) * part });
     events.splice(li, 1, ...parts);
   }
-  if (o.fix) { let k = 0; for (const e of events) if (e.midi !== null) e.fix = o.fix[k++] ?? 0; }
   // each syllable's span: from the start of its first note to the end of its last
   const T = new Array<number>(S).fill(0), E = new Array<number>(S).fill(0);
   for (const e of events) if (e.syl >= 0) { if (!T[e.syl] && !E[e.syl]) T[e.syl] = e.t0; E[e.syl] = e.t1; }
@@ -269,6 +274,7 @@ export function singScore(d: Readonly<VoiceDesign>, notesIn: readonly Note[], ph
     for (let i = from; i < to; i++) if (phones[i].wordStart) return i;
     return phones[to].wordStart ? to : Math.max(from, to - 1);
   };
+  // one mark for each sung note (in the order of `fix`): where its pitch starts
   const marks: { t: number; midi: number; e: Event }[] = [];
   let lastSyl = -1;
   for (const e of events) {
@@ -276,7 +282,7 @@ export function singScore(d: Readonly<VoiceDesign>, notesIn: readonly Note[], ph
     const startOfSyl = e.syl !== lastSyl;
     const firstCons = e.syl === 0 ? 0 : onsetOf(e.syl);
     const t = startOfSyl && nuclei[e.syl] > firstCons ? Math.min(e.t0, placed[firstCons].t0) : e.t0;
-    marks.push({ t, midi: e.midi + (e.fix ?? 0), e });
+    marks.push({ t, midi: e.midi, e });
     lastSyl = e.syl;
   }
   // a pitch given as it is: semitones at every point, the gaps without voice bridged in a straight line
@@ -300,43 +306,49 @@ export function singScore(d: Readonly<VoiceDesign>, notesIn: readonly Note[], ph
     while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (g[mid].t <= t) lo = mid; else hi = mid; }
     return g[lo].m + ((g[hi].m - g[lo].m) * (t - g[lo].t)) / Math.max(1e-6, g[hi].t - g[lo].t);
   };
-  const semis = (t: number) => {
-    if (given) {
-      // the given pitch, with what the singer's ear corrects on the note sung there
-      const e = events.find((x) => x.midi !== null && t >= x.t0 && t < x.t1);
-      return givenAt(t) + (e?.fix ?? 0);
-    }
-    let k = 0;
-    while (k + 1 < marks.length && marks[k + 1].t <= t) k++;
-    let m = marks[k].midi;
-    // a raised-cosine glide centred on each change
-    for (const j of [k, k + 1]) {
-      if (j <= 0 || j >= marks.length) continue;
-      const u = (t - marks[j].t) / glide;
-      if (u > -0.5 && u < 0.5) { const w = 0.5 - 0.5 * Math.cos(Math.PI * (u + 0.5)); m = marks[j - 1].midi + (marks[j].midi - marks[j - 1].midi) * w; }
-    }
-    // vibrato, after a moment on a held note
-    const mk = marks[k], held = t - Math.max(mk.t, mk.e.t0);
-    if (vib > 0 && held > 0.15) m += vib * Math.min(1, (held - 0.15) / 0.3) * Math.sin(2 * Math.PI * vibRate * held);
-    return m;
-  };
   const velocityAt = (t: number) => { const e = events.find((x) => x.midi !== null && t >= x.t0 && t < x.t1); return e ? e.velocity : 1; };
   const voiceMidi = 69 + 12 * Math.log2(d.speaking.f0 / 440);
   const base = d.speaking.ps, loud = o.loudness ?? 1.15;
   const ahead = 3 * 0.012;
-  const frames = sc.frames.map((f) => {
-    const m = semis(f.t + ahead);
-    const lift = Math.min(1.5, 1 + 0.02 * Math.max(0, m - voiceMidi));
-    const g = Math.max(0, Math.min(1, f.ps / (0.8 * base)));
-    return { ...f, f0: midiHz(m), ps: g * base * loud * lift * velocityAt(f.t), rd: 0, creak: 0 };
-  });
-  sc = { ...sc, frames, f0Tau: 0.012, flutter: 6 };
+  const planned = sc;
+  // the pitch on the planned gestures, each note moved by what the singer's ear corrects on it
+  const pitched = (fix: readonly number[]) => {
+    const at = marks.map((m, k) => ({ ...m, midi: m.midi + (fix[k] ?? 0) }));
+    const semis = (t: number) => {
+      if (given) {
+        // the given pitch, with what the singer's ear corrects on the note sung there
+        const k = marks.findIndex((x) => t >= x.e.t0 && t < x.e.t1);
+        return givenAt(t) + (k >= 0 ? (fix[k] ?? 0) : 0);
+      }
+      let k = 0;
+      while (k + 1 < at.length && at[k + 1].t <= t) k++;
+      let m = at[k].midi;
+      // a raised-cosine glide centred on each change
+      for (const j of [k, k + 1]) {
+        if (j <= 0 || j >= at.length) continue;
+        const u = (t - at[j].t) / glide;
+        if (u > -0.5 && u < 0.5) { const w = 0.5 - 0.5 * Math.cos(Math.PI * (u + 0.5)); m = at[j - 1].midi + (at[j].midi - at[j - 1].midi) * w; }
+      }
+      // vibrato, after a moment on a held note
+      const mk = at[k], held = t - Math.max(mk.t, mk.e.t0);
+      if (vib > 0 && held > 0.15) m += vib * Math.min(1, (held - 0.15) / 0.3) * Math.sin(2 * Math.PI * vibRate * held);
+      return m;
+    };
+    const frames = planned.frames.map((f) => {
+      const m = semis(f.t + ahead);
+      const lift = Math.min(1.5, 1 + 0.02 * Math.max(0, m - voiceMidi));
+      const g = Math.max(0, Math.min(1, f.ps / (0.8 * base)));
+      return { ...f, f0: midiHz(m), ps: g * base * loud * lift * velocityAt(f.t), rd: 0, creak: 0 };
+    });
+    const params = defaultParams();
+    applyDesign(params, d);
+    params.phonate = true;
+    params.source.ps = 0;
+    params.source.f0 = midiHz(at[0].midi);
+    return { params, score: { ...planned, frames, f0Tau: 0.012, flutter: 6 } as Score };
+  };
+  const { params, score } = pitched(o.fix ?? []);
 
-  const params = defaultParams();
-  applyDesign(params, d);
-  params.phonate = true;
-  params.source.ps = 0;
-  params.source.f0 = midiHz(marks[0].midi);
   const syllables: SungSyllable[] = nuclei.map((n, j) => ({
     ipa: phones[n].ipa, t0: T[j], t1: E[j],
     midi: events.filter((e) => e.syl === j && e.midi !== null).map((e) => e.midi as number),
@@ -347,5 +359,5 @@ export function singScore(d: Readonly<VoiceDesign>, notesIn: readonly Note[], ph
   });
   // a note's pitch reaches back to the start of its glide (and of its syllable's consonants), and the frames look ahead
   const fixFrom = marks.map((m) => Math.min(m.t, m.e.t0) - glide / 2 - ahead - 0.01);
-  return { params, score: sc, syllables, notes: asSung, fixFrom, beat0: lead, beat: spb, warnings };
+  return { params, score, syllables, notes: asSung, fixFrom, retuned: pitched, beat0: lead, beat: spb, warnings };
 }
