@@ -25,8 +25,9 @@ import { resolve, PhonemizerSources } from '../dsp/speech/phonemizer';
 import { speechLanguage } from '../dsp/speech/languages';
 import { encodeWav, encodeWavStereo, decodeWav } from '../dsp/util/wav';
 import { Note, parseNotes } from '../dsp/music/notes';
-import { singScore, sungPitch, SingOptions, SungSyllable, SungNote } from '../dsp/music/sing';
-import { beatHits, BeatTrack, BeatOptions } from '../dsp/music/beat';
+import { singScore, sungPitch, meantNotes, SingOptions, SungSyllable, SungNote } from '../dsp/music/sing';
+import { melodyOf, pitchTrack, Melody, MelodyNote, MelodyOptions } from '../dsp/music/transcribe';
+import { beatHits, parseBeat, BeatTrack, BeatOptions } from '../dsp/music/beat';
 import { mixTracks, MixOptions, Stereo, Track, downmix, arrange, Performance, Placed } from '../dsp/music/mix';
 import { voicePrint, VoicePrint, Clip } from '../dsp/analysis/voiceprint';
 import { VoiceDesign, VOICE_FIELDS, Field, cloneVoice, fieldValue, withField, sanitizeVoice } from '../dsp/voice/design';
@@ -38,10 +39,15 @@ import { learntFor } from '../dsp/voice/interpret';
 
 export type { VoiceDesign, Field, Phone, Emotion, VoicePrint, Clip, FitProgress, FitResult };
 export type { Note, SingOptions, SungSyllable, SungNote, BeatTrack, BeatOptions, MixOptions, Stereo, Track };
-export { sungPitch };
+export { sungPitch, melodyOf, pitchTrack };
+export type { Melody, MelodyNote, MelodyOptions };
 export { parseNotes, noteNumber, noteName, midiHz, transpose } from '../dsp/music/notes';
-export { BEATBOX_KIT, parsePattern, drumHit } from '../dsp/music/beat';
-export type { DrumSound, DrumHit } from '../dsp/music/beat';
+export { BEATBOX_KIT, DRUM_FAMILIES, drumSound, parsePattern, parseBeat, drumHit } from '../dsp/music/beat';
+export type { DrumSound, DrumFamily, DrumHit, DrumHitOptions } from '../dsp/music/beat';
+export { BEAT_PATTERNS } from '../dsp/music/patterns';
+export { imitate } from '../dsp/music/imitate';
+export type { Imitation, ImitateOptions } from '../dsp/music/imitate';
+export type { BeatPattern } from '../dsp/music/patterns';
 export { mixTracks as mix, downmix, arrange };
 export type { Performance, Placed };
 export { EMOTIONS, withEmotion, withField, sanitizeVoice, decodeWav };
@@ -227,7 +233,7 @@ export function sing(voice: Readonly<VoiceDesign>, song: Song, opts: Omit<SpeakO
   let out = render(s.params, s.score, fs, opts.tail ?? 0.4);
   // the singer's ear: a first take, each note measured, the notes off by more than a few cents sung again corrected
   if (song.tune !== false) {
-    const off = sungPitch(out, fs, s.notes);
+    const off = sungPitch(out, fs, song.contour?.length ? meantNotes(s.notes, song.contour, s.beat0, song.transpose ?? 0) : s.notes);
     const fix = off.map((c) => (Number.isFinite(c) && Math.abs(c) > 6 ? Math.max(-1.5, Math.min(1.5, -c / 100)) : 0));
     if (fix.some((x) => x !== 0)) {
       s = singScore(d, notes, words, lang, { ...how, fix });
@@ -243,12 +249,15 @@ export function sing(voice: Readonly<VoiceDesign>, song: Song, opts: Omit<SpeakO
 }
 
 /**
- * A voice beatboxes: each track a sound of its mouth (IPA: see BEATBOX_KIT)
- * on a pattern of steps (x a hit, X an accent, o a soft one, . nothing), all
- * in one recording, dry.
+ * A voice beatboxes a beat written as text (see parseBeat: "b . ts . pf . ts
+ * ^k") or as tracks, each a sound of its mouth (a sound of BEATBOX_KIT, or
+ * any IPA) on a pattern of steps (x a hit, X an accent, o a soft one, .
+ * nothing), all in one recording, dry. One mouth makes one sound at a time
+ * unless `layered`.
  */
-export function beatbox(voice: Readonly<VoiceDesign>, tracks: readonly BeatTrack[], opts: BeatOptions = {}): Performance {
+export function beatbox(voice: Readonly<VoiceDesign>, beat: string | readonly BeatTrack[], opts: BeatOptions = {}): Performance {
   const fs = opts.fs ?? 48000, pre = 0.1;
+  const tracks = typeof beat === 'string' ? parseBeat(beat, opts.sounds) : beat;
   const { hits, length } = beatHits(voice, tracks, { ...opts, fs });
   if (!hits.length) throw new Error('no hit in the pattern');
   // the whole pattern lasts its steps, even when its last ones are empty
@@ -261,19 +270,20 @@ export function beatbox(voice: Readonly<VoiceDesign>, tracks: readonly BeatTrack
 export interface Part {
   voice: Readonly<VoiceDesign>;
   song?: Song;
-  beat?: BeatTrack[];
+  /** a beat as text (see parseBeat) or as tracks */
+  beat?: string | BeatTrack[];
   startBeat?: number;
   gain?: number;
   pan?: number;
 }
 
 /** Several voices at once, at one tempo (sung, beatboxed, then arranged): see `arrange`. */
-export function ensemble(parts: readonly Part[], opts: MixOptions & { tempo?: number; fs?: number; seed?: number; repeat?: number; swing?: number } = {}): Stereo {
+export function ensemble(parts: readonly Part[], opts: MixOptions & { tempo?: number; fs?: number; seed?: number; repeat?: number; swing?: number; humanize?: number } = {}): Stereo {
   const tempo = opts.tempo ?? 100, fs = opts.fs ?? 48000;
   return arrange(parts.map((p, i) => ({
     performance: p.song
       ? sing(p.voice, { ...p.song, tempo }, { fs, seed: opts.seed === undefined ? undefined : opts.seed + i })
-      : beatbox(p.voice, p.beat ?? [], { tempo, fs, repeat: opts.repeat, swing: opts.swing, seed: opts.seed }),
+      : beatbox(p.voice, p.beat ?? [], { tempo, fs, repeat: opts.repeat, swing: opts.swing, humanize: opts.humanize, seed: opts.seed }),
     startBeat: p.startBeat, gain: p.gain, pan: p.pan,
   })), { ...opts, tempo });
 }

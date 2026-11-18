@@ -529,6 +529,8 @@ function applyCommonMods(ph: Phoneme, mods: Modifier[], place?: Place): Phoneme 
       case 'glottalized': if (ph.manner === 'stop') ph.unreleased = true; else ph.phonation = 'creaky'; break;
       // an ejective raises the closed larynx through its closure, like a piston
       case 'ejective': ph.airstream = 'ejective'; ph.voiced = false; ph.abduction = 0; a.larynx = 1.2; break;
+      // the lungs draw the air in through an open glottis (the folds do not vibrate on air going in, in this model)
+      case 'ingressive': ph.airstream = 'ingressive'; ph.voiced = false; ph.aspirated = false; ph.abduction = Math.max(0.6, ph.abduction); break;
       case 'noRelease': ph.unreleased = true; break;
       case 'nasalized': a.velum = vowel ? 0.3 : NASAL_VELUM; break;
       case 'labialized': if (!labial) { a.lipRound = 1; a.lipProtrude = 0.8; if (vowel) break; a.lipOpen = Math.min(a.lipOpen ?? 0.3, 0.1); } break;

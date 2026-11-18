@@ -106,7 +106,7 @@ export type Modifier =
   | 'dental' | 'apical' | 'laminal' | 'advanced' | 'retracted' | 'centralized' | 'midCentralized'
   | 'moreRounded' | 'lessRounded' | 'atr' | 'rtr' | 'halfLong' | 'extraShort'
   | 'syllabic' | 'nonSyllabic' | 'noRelease' | 'ejective' | 'glottalized' | 'nasalRelease' | 'lateralRelease'
-  | 'fortis' | 'compressed';
+  | 'fortis' | 'compressed' | 'ingressive';
 
 /** Combining diacritics (after a symbol), with what they change. */
 export const IPA_DIACRITICS: Record<string, Modifier> = {
@@ -128,6 +128,8 @@ export const IPA_MODIFIER_LETTERS: Record<string, Modifier[]> = {
   'ᶣ': ['labialized', 'palatalized'],
   // compressed lips (the Japanese u: ɯᵝ), rounded without protrusion
   'ᵝ': ['compressed'],
+  // extIPA's ingressive airflow: the lungs draw the air in through the sound (the inward snare of beatboxers: k↓)
+  '↓': ['ingressive'],
 };
 
 /** Superscript nasals before a consonant: a prenasalized stop (ᵐb, ⁿd, ᵑg). */

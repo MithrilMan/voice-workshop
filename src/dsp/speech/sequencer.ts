@@ -468,6 +468,13 @@ const KLATT: Record<string, [number, number]> = {
  */
 const BREATH = { after: 0.03, before: 0.07, edge: 0.06, least: 0.12 };
 
+/**
+ * An ingressive sound: the lungs draw the air in through it, pulling with a
+ * share of the speaking pressure, from `lead` s before its first part to its
+ * end, the pull rising and falling over `edge` s; the glottis held open.
+ */
+const INGRESS = { pull: 0.8, lead: 0.04, edge: 0.03, abd: 0.6 };
+
 /** the share of a sound that cannot be shortened, where no table gives its minimum duration */
 const NEUTRAL_FLOOR = { vowel: 0.45, consonant: 0.65 };
 
@@ -1583,6 +1590,9 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
   const glottalHold = units.map((u, i) => ({ u, own: segs.filter((s) => s.unit === i) }))
     .filter(({ u, own }) => (u.ph.airstream === 'ejective' || (u.ph.airstream === 'implosive' && !u.ph.voiced)) && own.length)
     .map(({ own }) => ({ t0: own[0].t0, t1: own[own.length - 1].t1 + 0.03 }));
+  const ingress = units.map((u, i) => ({ u, own: segs.filter((s) => s.unit === i) }))
+    .filter(({ u, own }) => u.ph.airstream === 'ingressive' && own.length)
+    .map(({ own }) => ({ t0: own[0].t0 - INGRESS.lead, t1: own[own.length - 1].t1 }));
   // an implosive lets the walls of its pharynx and its cheeks go through the
   // closure, drawn outward with the falling larynx, so that the vibrating
   // glottis can keep filling the cavity without the pressure rising behind it
@@ -1679,6 +1689,7 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
     // and tenses the walls of the pharynx, so that the rising larynx compresses the air instead of stretching them
     let tense = 0;
     for (const w of glottalHold) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) { abd = 0; gate = 0; tense = 1; }
+    for (const w of ingress) if (time + 0.01 >= w.t0 && time + 0.01 < w.t1) abd = Math.max(abd, INGRESS.abd);
     for (const w of slack) if (time >= w.t0 && time < w.t1) tense = -w.by;
     for (const w of expand) if (time >= w.t0 && time < w.t1) tense = -1;
     const roomy = slack.some((w) => !w.tap && time >= w.t0 && time < w.t1);
@@ -1732,6 +1743,13 @@ export function buildScore(phones: Phone[], opts: ScoreOptions = {}): Score {
       // ... or pull, where a breath is taken
       const pull = inhaling(segAt(time), time);
       if (pull > 0) ps = ps * (1 - pull) - st.breath * pull;
+      // ... or draw the air in through an ingressive sound
+      for (const w of ingress) {
+        const x = Math.min((time - w.t0) / INGRESS.edge, (w.t1 + INGRESS.edge - time) / INGRESS.edge);
+        if (x <= 0) continue;
+        const e = 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, x));
+        ps = ps * (1 - e) - INGRESS.pull * o.ps * e;
+      }
     }
     const tip = flickAt('tipY', time), lips = flickAt('lipOpen', time), dorsum = flickAt('tongueX', time);
     const tr = trills.find((w) => time >= w.t0 && time < w.t1);

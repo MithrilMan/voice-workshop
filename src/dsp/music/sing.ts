@@ -33,6 +33,20 @@ import { Note, midiHz } from './notes';
 import { yin } from '../analysis/pitch';
 
 /**
+ * The notes of a take with the pitch they were meant to have when a pitch
+ * was given as it is (`contour`, t from the first beat at `beat0`): the
+ * median of the given pitch over the steady part of each vowel, so that
+ * the ear corrects toward the singer's own pitch and not the piano's.
+ */
+export function meantNotes(notes: readonly SungNote[], contour: readonly { t: number; f0: number }[], beat0: number, transpose = 0): SungNote[] {
+  return notes.map((n) => {
+    const L = n.v1 - n.v0, a = n.v0 + 0.25 * L - beat0, b = n.v1 - 0.15 * L - beat0;
+    const m = contour.filter((c) => c.t >= a && c.t <= b && c.f0 > 0).map((c) => 69 + 12 * Math.log2(c.f0 / 440) + transpose).sort((x, y) => x - y);
+    return m.length ? { ...n, midi: m[m.length >> 1] } : n;
+  });
+}
+
+/**
  * How far each note of a take is from its pitch, cents (NaN where it
  * cannot be told): the median of the pitch over the steady part of its
  * vowel (from a quarter in to 15 % before its end), where the pitch is
@@ -80,6 +94,13 @@ export interface SingOptions {
    * counting once for each part), measured on a first take (see `sungPitch`)
    */
   fix?: number[];
+  /**
+   * a pitch to sing as it is, in place of the notes' steps (with its own
+   * slides and vibrato): Hz every few milliseconds, 0 where there is no
+   * voice, t from the first beat (a recording's: see melodyOf), moved by
+   * `transpose` like the notes
+   */
+  contour?: { t: number; f0: number }[];
 }
 
 /** a note as sung: its span (s), its pitch, and the span of the vowel that holds it */
@@ -239,18 +260,50 @@ export function singScore(d: Readonly<VoiceDesign>, notesIn: readonly Note[], ph
   sc = shift(sc, T[0] - sounds()[nuclei[0]].t0);
   const placed = sounds();
 
-  // the pitch: each note from the start of its syllable's consonants (or from its beat in a melisma), gliding
+  // the pitch: each note from the start of its syllable's own consonants (or from its beat in a melisma), gliding;
+  // the end of the word before (or, inside a word, all but the last consonant) keeps the note before
+  const onsetOf = (j: number) => {
+    const from = nuclei[j - 1] + 1, to = nuclei[j];
+    for (let i = from; i < to; i++) if (phones[i].wordStart) return i;
+    return phones[to].wordStart ? to : Math.max(from, to - 1);
+  };
   const marks: { t: number; midi: number; e: Event }[] = [];
   let lastSyl = -1;
   for (const e of events) {
     if (e.midi === null) continue;
     const startOfSyl = e.syl !== lastSyl;
-    const firstCons = e.syl === 0 ? 0 : nuclei[e.syl - 1] + 1;
+    const firstCons = e.syl === 0 ? 0 : onsetOf(e.syl);
     const t = startOfSyl && nuclei[e.syl] > firstCons ? Math.min(e.t0, placed[firstCons].t0) : e.t0;
     marks.push({ t, midi: e.midi + (e.fix ?? 0), e });
     lastSyl = e.syl;
   }
+  // a pitch given as it is: semitones at every point, the gaps without voice bridged in a straight line
+  const given = o.contour?.length ? o.contour.map((c) => ({ t: c.t + lead, m: c.f0 > 0 ? 69 + 12 * Math.log2(c.f0 / 440) + (o.transpose ?? 0) : NaN })) : null;
+  if (given) {
+    const known = given.map((g, i) => (Number.isNaN(g.m) ? -1 : i)).filter((i) => i >= 0);
+    if (!known.length) throw new Error('the pitch given has no voice in it');
+    let k = 0;
+    for (let i = 0; i < given.length; i++) {
+      while (k + 1 < known.length && known[k + 1] <= i) k++;
+      if (!Number.isNaN(given[i].m)) continue;
+      const a = known[k], b = known[Math.min(known.length - 1, k + 1)];
+      given[i].m = i <= a || a === b ? given[a].m : given[a].m + ((given[b].m - given[a].m) * (i - a)) / (b - a);
+    }
+  }
+  const givenAt = (t: number) => {
+    const g = given!;
+    if (t <= g[0].t) return g[0].m;
+    if (t >= g[g.length - 1].t) return g[g.length - 1].m;
+    let lo = 0, hi = g.length - 1;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (g[mid].t <= t) lo = mid; else hi = mid; }
+    return g[lo].m + ((g[hi].m - g[lo].m) * (t - g[lo].t)) / Math.max(1e-6, g[hi].t - g[lo].t);
+  };
   const semis = (t: number) => {
+    if (given) {
+      // the given pitch, with what the singer's ear corrects on the note sung there
+      const e = events.find((x) => x.midi !== null && t >= x.t0 && t < x.t1);
+      return givenAt(t) + (e?.fix ?? 0);
+    }
     let k = 0;
     while (k + 1 < marks.length && marks[k + 1].t <= t) k++;
     let m = marks[k].midi;

@@ -532,6 +532,9 @@ export class VoiceEngine {
   private clickNow = 0;
   private clickSlow = 0;
   private wallJunction = 0;
+  private wallJunctionIn = 1;
+  /** the air goes in through the mouth (the lungs draw it, or a cavity is rarefied): its jet blows backward */
+  private inward = false;
   private aspJunction = 1;
 
   // resampler
@@ -1040,6 +1043,10 @@ export class VoiceEngine {
     const ac = Math.max(af.areas[ci], 1e-3);
     while (exit < n - 1 && af.areas[exit + 1] < 2.2 * ac) exit++;
     this.wallJunction = Math.min(n - 2, exit + Math.max(1, Math.round(0.5 / dx)));
+    // and upstream, where a jet drawn in by the lungs comes out of it (an ingressive sound)
+    let entry = ci;
+    while (entry > 1 && af.areas[entry - 1] < 2.2 * ac) entry--;
+    this.wallJunctionIn = Math.max(1, entry - Math.max(1, Math.round(0.5 / dx)));
     if (Number.isFinite(this.second.area)) {
       let e2 = Math.min(n - 1, Math.max(0, Math.floor(this.second.s / dx)));
       const a2 = Math.max(af.areas[e2], 1e-3);
@@ -1182,7 +1189,9 @@ export class VoiceEngine {
     let jetP = ps.perimeter, jetW = ps.width;
     if (leftW > 0) { jetW = Math.max(jetW, leftW); jetP = 2 * (jetW + oral / jetW); }
     else if (oral > ps.area && this.seal.flat) { jetW = Math.max(ps.width, this.seal.width * scale); jetP = 2 * (jetW + oral / jetW); }
-    this.aero.jet(oral, ps.toTeeth, ps.slitH, this.jet, jetP, jetW, share1, p.anatomy.scale);
+    // (drawn in, the jet blows back into the mouth, away from the teeth)
+    this.inward = this.aero.po < 0 && this.psCur < 0;
+    this.aero.jet(oral, this.inward ? -1 : ps.toTeeth, ps.slitH, this.jet, jetP, jetW, share1, p.anatomy.scale);
     // the jets lose their kinetic pressure where they expand: flow resistances
     kineticResistances(this.af.areas, this.aero.uMouth, this.wg.resTarget, this.constrictionIndex, oral);
     const n = this.params.noise;
@@ -1392,7 +1401,7 @@ export class VoiceEngine {
 
     wg.srcCount = 0;
     if (asp !== 0) { wg.srcJunction[wg.srcCount] = this.aspJunction; wg.srcValue[wg.srcCount++] = asp; }
-    if (wall !== 0) { wg.srcJunction[wg.srcCount] = this.wallJunction; wg.srcValue[wg.srcCount++] = wall; }
+    if (wall !== 0) { wg.srcJunction[wg.srcCount] = this.inward ? this.wallJunctionIn : this.wallJunction; wg.srcValue[wg.srcCount++] = wall; }
     if (wall2 !== 0) { wg.srcJunction[wg.srcCount] = this.wallJunction2; wg.srcValue[wg.srcCount++] = wall2; }
     if (obs !== 0) { wg.srcJunction[wg.srcCount] = this.teethJunction; wg.srcValue[wg.srcCount++] = obs; }
     if (cjet !== 0) { wg.srcJunction[wg.srcCount] = this.clickJetJunction; wg.srcValue[wg.srcCount++] = cjet; }

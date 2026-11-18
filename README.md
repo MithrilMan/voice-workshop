@@ -169,10 +169,20 @@ Four modes, switchable in the header and remembered in the browser:
   try the voices on music. Sing: the voice being edited sings notes
   written as text (`C4 D4:2 r ~E4`) on words in any language, with tempo,
   transpose and vibrato, and a roll of the notes as sung with the vowel
-  of each. Beatbox: the drums of the voice's own mouth (a kick that is a
-  bilabial ejective, a snare [pf], a hi-hat [ts], a rimshot [kʼ], clicks,
-  a hum bass, each with other ways of making it, heard one at a time) on
-  a grid of sixteen steps, with swing. Ensemble: several voices at once,
+  of each; or a tune of your own, sung, hummed or whistled into the
+  microphone (or opened from a file): its notes, tempo and tuning are
+  found and put in the song, or the voice sings your own pitch and
+  timing, slides and vibrato included. Beatbox: the drums of the voice's
+  own mouth, a kit of 37 sounds in seven families (kicks, among them an
+  808 kick that rings on as a falling hum and an inward one; snares,
+  among them the inward K snare a beatboxer breathes on; hi-hats,
+  cymbals, rims and clicks, basses on any note, effects: lip and tongue
+  rolls, a scratch, a laser), each heard on its own; beats from a dozen
+  styles, written on a grid or as text (`b . ts . pf . ts ^k`), with
+  swing, a human's unevenness, and one mouth making one sound at a time
+  (or every hit ringing out, as a drum machine); and sounds of your own:
+  make a noise into the microphone and the voice's mouth finds the
+  nearest sound it can make, to keep in the kit. Ensemble: several voices at once,
   each part sung or beatboxed by a voice of its own (a starting voice or
   one of yours), coming in at its beat, at its level and place, over a
   room: a round of "Frère Jacques" in four languages, four voices on a
@@ -250,7 +260,7 @@ src/
     engine/engine.ts      the voice engine (one sample loop, telemetry)
     speech/               phonemes, the IPA chart (ipa.ts) and its reader, sounds from rules (derive.ts), G2P (it/en), the phonemizer of the other languages, sequencer, target approximation, prosodic style
     voice/                a voice as data: its fields (design.ts), the starting voices, the file and link codec, the articulatory setting, an utterance (a voice saying something)
-    music/                notes as text, singing on the speech planner, the beatbox kit and its steps, a stereo mix over a room
+    music/                notes as text, singing on the speech planner, the melody of a recording, the beatbox kit, its beats and styles, a noise imitated by the mouth, a stereo mix over a room
     analysis/             LPC formants, YIN pitch, mel filterbank
     data/vowels.ts        reference vowel formants
     data/mri.ts           vowel area functions measured by MRI (Story 2008)
@@ -259,7 +269,7 @@ src/
   audio/audioEngine.ts    AudioContext, worklet node, microphone (the voice sink)
   ui/voice/               the voice controller, the only door to the sound: hands, performers, filter lanes, locks
   ui/modes/               Learn, Play, Lab and the voice studio (with its Sing, Beatbox and Ensemble benches), the view frame, the quick controls
-  ui/songs.ts             the songs, beats and ensembles to try them with (traditional or out of copyright)
+  ui/songs.ts             the songs and ensembles to try them with (traditional or out of copyright)
   ui/library.ts           your voices, kept in the browser, and a voice received with a link
   ui/ds/                  small design system: card, pills, icon button, value with unit
   ui/                     React 19 views, panels, store, i18n, guided tour
@@ -1616,7 +1626,7 @@ languages, and the copies of a recording, use the rules.
 
 `src/library/index.ts` is everything above without the interface, for
 Node or the browser (`npm run build:lib` makes it one ES module of
-340 KB in `dist-lib/`):
+371 KB in `dist-lib/`):
 
 ```ts
 import { createVoice, speak, dialogue, toWav, setDeliveryModel } from './src/library';
@@ -1664,12 +1674,82 @@ writeFileSync('hello.wav', toWav(s));
   with each note corrected, which brings every note within 6 cents
   (Frère Jacques by four voices: 41-50 cents at worst in one take). It
   returns the samples, the first beat, each syllable and note as sung.
-- `beatbox(voice, tracks, { tempo, swing, repeat })`: the drums of the
-  voice's mouth (`BEATBOX_KIT`: every sound is a sound of speech, as
-  real-time MRI of beatboxers shows, Proctor et al. 2013), each track a
-  sound on a pattern of steps (`x` a hit, `X` an accent, `o` a soft one).
-  Each sound is said three times, cut to itself, and the instant it
-  strikes is set on its step (within 4 ms).
+  With `contour` (Hz every few milliseconds) the voice sings that pitch
+  as it is in place of the notes' steps.
+- `melodyOf(samples, fs)`: the melody of a recording of someone singing,
+  humming or whistling (src/dsp/music/transcribe.ts): the pitch every
+  10 ms (YIN on the sound brought to 16 kHz, octave slips taken back),
+  cut into notes where it moves to another step and holds it 40 ms, or
+  where the level dips and rises again on the same step (a new
+  syllable); a short piece gliding between two notes goes to the nearer;
+  each note starts where its vowel does (the steepest rise of the level
+  near its start: a voiced consonant before it is sung on its pitch).
+  The singer's tuning (the circular mean of how far the notes sit from
+  the piano's, weighted by length) is taken out before the notes are
+  named; the tempo is the commonest spacing of the starts, then the one
+  nearby on whose grid of eighths they fall closest. It returns the
+  notes on a grid of sixteenths as text for `sing`, the same notes at
+  their own times, and the pitch itself (`contour`) to be sung as it is.
+  On our voices singing known tunes (four voices, legato and on words,
+  a third of a semitone off the piano, rests) it finds every note, rest
+  and tempo; on a whistle with scoops and vibrato too, and a voice sings
+  its pitch back within 7 cents (median).
+- `beatbox(voice, beat, { tempo, swing, repeat, humanize, layered, sounds })`:
+  the drums of the voice's mouth (src/dsp/music/beat.ts). `BEATBOX_KIT`
+  has 37 sounds in seven families, every one a sound of speech, as
+  real-time MRI of beatboxers shows (Proctor et al. 2013, de Torcy et al.
+  2014, Paroni et al. 2021): kicks (a bilabial ejective, an 808 kick that
+  rings on as a hum falling from 75 to 42 Hz, a throat kick, an
+  implosive pop, an inward kick), snares ([pf], [pʃ], [kʃ], [tʃ], the
+  inward K snare [k↓], a spit snare, a clap), hi-hats (closed, open, a
+  tick, [tk], an inward one, a shaker), cymbals (a crash whose hiss is
+  held, a ride), rims and clicks (five clicks of the tongue and lips, a
+  hummed one), basses (a hum, a lip bass, a creaky throat bass, a sub
+  drop, an inward lip trill, on any note) and effects (lip and tongue
+  rolls, a scratch and a laser swept in pitch, a zip). Each sound has a
+  level in the kit (its loudest 20 ms set against a kick's). A beat is
+  written as text (`parseBeat`: a step to a word, `b . ts+m:C2 . pf! ^k`;
+  `+` struck together, `!` an accent, `?` a soft one, `:C2` a pitch,
+  `[kʼ]` any sound in IPA, one layer to a line starting with `>`) or as
+  tracks on patterns of steps (`x` a hit, `X` an accent, `o` a soft
+  one); `BEAT_PATTERNS` holds a dozen to start from (boots and cats, a
+  breathing beat on inward snares, boom bap, trap, house, drum and bass,
+  dembow, funk, rock, half time, clicks, a bass line, tricks). Each
+  sound is said three times, cut to itself, and the instant it strikes
+  (its first moment within 12 dB of its loudest, after any tick of the
+  mouth closing 60 ms or more before) is set on its step (within 4 ms).
+  One mouth makes one sound at a time: each hit is cut where the next
+  strikes (a hum through the nose goes on under the clicks); `layered`
+  lets every hit ring out. `humanize` (0-1) moves hits by a few
+  milliseconds (8 ms rms at 1) and their level by 1.5 dB rms.
+- Inward sounds: `↓` after a sound (extIPA's ingressive airflow: `k↓`,
+  `s↓`, `ʙ̥↓`) has the lungs draw the air in through it: the planner
+  pulls with 80 % of the speaking pressure from 40 ms before the sound
+  to its end, the glottis held open, and the engine blows the jet of the
+  passage back into the mouth (its noise behind the passage, none on the
+  teeth). The folds do not vibrate on air going in, in this model. Inward
+  hisses come out weaker and duller than outward ones (an [s↓] some 15 dB
+  below an [s]): their noise reaches the lips through the passage that
+  makes it.
+- `imitate(voice, samples, fs)`: a recording of a noise (a click, a pop,
+  a hiss, a hum, a drum) made into the nearest sound of the voice's
+  mouth (src/dsp/music/imitate.ts), by analysis by synthesis: the
+  recording is cut to its sound as the kit's are; some 120 sounds of
+  speech (stops, ejectives, affricates, fricatives, clicks, trills,
+  inward sounds, the kit's; hums and vowels on the recording's own pitch
+  when it holds one for 60 ms or more) are said and cut the same way,
+  and the nearest wins: the rms difference of their spectra (24 mel
+  bands, each the power of 25 ms every 5 ms, floored at the recording's
+  background, loud moments counting most) along the best alignment in
+  time within 30 ms. The best three are refined on the size of the head
+  and the length of their last sound. It returns a sound for the kit
+  (`BeatOptions.sounds`, written by its code), the distance (dB) and
+  every sound tried. Checked on known answers: our own sounds said again
+  with another seed, another head or another voice come back as their
+  kind of sound (an ejective, a click, a sibilant, a hum on its pitch)
+  and a head 15 % larger as larger; the exact place (a [kʼ] heard as a
+  [pʼ]) is often missed, and a whistle, which a mouth here cannot make,
+  stays far (9 dB).
 - `ensemble(parts, { tempo, room })`, or `arrange(performances)` for parts
   already made: several voices at once, each coming in at its beat, at
   its level and place, over a room (eight combs and four all-passes a

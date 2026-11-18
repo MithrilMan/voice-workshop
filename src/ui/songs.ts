@@ -1,10 +1,9 @@
 /**
- * Songs, beats and ensembles to try the singing and the beatbox with: all
+ * Songs and ensembles to try the singing and the beatbox with: all
  * traditional or long out of copyright (the round "Frère Jacques" in four
  * of its languages, Beethoven's tune on Schiller's words, scales), and
- * beats and chords written here.
+ * chords written here (the beats are the library's BEAT_PATTERNS).
  */
-import type { BeatTrack } from '../dsp/music/beat';
 
 export interface SongPreset {
   id: string;
@@ -38,22 +37,7 @@ export const SONGS: readonly SongPreset[] = [
     lyrics: '' },
 ];
 
-export interface KitRow { id: string; name: string; sound: string; f0?: number }
-
-export interface BeatPreset { id: string; name: string; tempo: number; swing: number; tracks: Record<string, string>; hint: string }
-
-export const BEATS: readonly BeatPreset[] = [
-  { id: 'basic', name: 'Basic beat', tempo: 95, swing: 0, hint: 'kick, snare on two and four, hi-hat in eighths',
-    tracks: { kick: 'x.......x.x.....', snare: '....x.......x...', hat: 'x.x.x.x.x.x.x.xx' } },
-  { id: 'boots', name: 'Boots and cats', tempo: 100, swing: 0, hint: 'the first beat every beatboxer learns: kick, hat, snare, hat',
-    tracks: { kick: 'x.......x.......', hat: '..x...x...x...x.', snare: '....x.......x...' } },
-  { id: 'hiphop', name: 'Hip-hop', tempo: 88, swing: 0.35, hint: 'a swung groove with a rimshot and a hum bass',
-    tracks: { kick: 'x..x..x...x.....', snare: '....X.......X...', hat: 'x.x.x.x.x.x.x.x.', rim: '.......o......o.', bass: 'x.........x.....' } },
-  { id: 'clicks', name: 'Clicks', tempo: 104, swing: 0, hint: 'the clicks of the tongue as percussion',
-    tracks: { kick: 'x.......x.......', click: '..x..x....x..x..', openhat: '....x.......x...' } },
-];
-
-/** an ensemble part: a song (by preset, moved by semitones) or a beat, by a voice */
+/** an ensemble part: a song (by preset, moved by semitones) or a beat (one of the library's BEAT_PATTERNS), by a voice */
 export interface PartPreset {
   name: string;
   voice: string;
@@ -103,11 +87,6 @@ export const ENSEMBLES: readonly EnsemblePreset[] = [
       { name: 'Bass', voice: 'deep', notes: GROOVE.bass, lyrics: 'dum dum dum dum dum dum dum dum dum dum dum dum dum dum dum dum dum dum dum dum', lang: 'it', startBeat: 0, gain: 2, pan: 0 },
       { name: 'High', voice: 'woman', notes: GROOVE.hi, vowel: 'u', startBeat: 0, gain: -3, pan: -0.45 },
       { name: 'Middle', voice: 'man', notes: GROOVE.mid, vowel: 'u', startBeat: 0, gain: -3, pan: 0.45 },
-      { name: 'Beatbox', voice: 'man', beat: 'basic', startBeat: 0, gain: 0, pan: 0 },
+      { name: 'Beatbox', voice: 'man', beat: 'boombap', startBeat: 0, gain: 0, pan: 0 },
     ] },
 ];
-
-/** a beat preset as tracks of the kit (its rows, with the sounds chosen for them) */
-export function beatTracks(preset: BeatPreset, sounds: Record<string, { sound: string; f0?: number }>): BeatTrack[] {
-  return Object.entries(preset.tracks).filter(([id]) => sounds[id]).map(([id, pattern]) => ({ sound: sounds[id].sound, f0: sounds[id].f0, pattern }));
-}

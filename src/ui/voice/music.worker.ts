@@ -1,9 +1,10 @@
 /**
  * A part of a song made away from the page: a voice sings its notes (the
  * words already turned into phones on the page, where the dictionaries
- * are), or beatboxes its pattern. The samples come back as they are.
+ * are), or beatboxes its pattern. The samples come back as they are. Also
+ * the melody of a recording, found here.
  */
-import { sing, beatbox, type Song, type BeatTrack, type BeatOptions, type SungNote, type SungSyllable } from '../../library';
+import { sing, beatbox, melodyOf, imitate, type Song, type BeatTrack, type BeatOptions, type SungNote, type SungSyllable, type Melody, type Imitation } from '../../library';
 import type { VoiceDesign } from '../../dsp/voice/design';
 
 export type MusicRequest =
@@ -20,14 +21,35 @@ export interface MusicReply {
   /** a song's notes and syllables as sung */
   notes?: SungNote[];
   syllables?: SungSyllable[];
+  /** the melody found in a recording */
+  melody?: Melody;
+  /** the sound of the mouth nearest a recording, and how far the search is */
+  imitation?: Imitation;
+  progress?: { done: number; total: number; best: string };
 }
 
-const ctx = self as unknown as { onmessage: ((e: MessageEvent<MusicRequest>) => void) | null; postMessage(m: unknown, transfer?: Transferable[]): void };
+export type FindRequest =
+  | { kind: 'melody'; samples: Float32Array; fs: number }
+  | { kind: 'imitate'; voice: VoiceDesign; samples: Float32Array; fs: number };
+
+const ctx = self as unknown as { onmessage: ((e: MessageEvent<MusicRequest | FindRequest>) => void) | null; postMessage(m: unknown, transfer?: Transferable[]): void };
 
 ctx.onmessage = (e) => {
   const r = e.data;
   try {
     let reply: MusicReply;
+    if (r.kind === 'melody') {
+      ctx.postMessage({ ok: true, melody: melodyOf(r.samples, r.fs) } satisfies MusicReply);
+      return;
+    }
+    if (r.kind === 'imitate') {
+      let last = 0;
+      const imitation = imitate(r.voice, r.samples, r.fs, {
+        onProgress: (done, total, best) => { const now = Date.now(); if (now - last > 150) { last = now; ctx.postMessage({ ok: true, progress: { done, total, best } } satisfies MusicReply); } },
+      });
+      ctx.postMessage({ ok: true, imitation } satisfies MusicReply);
+      return;
+    }
     if (r.kind === 'sing') {
       const p = sing(r.voice, r.song, { fs: r.fs, seed: r.seed });
       reply = { ok: true, samples: p.samples, fs: p.fs, beat0: p.beat0, warnings: p.warnings, notes: p.notes, syllables: p.syllables };

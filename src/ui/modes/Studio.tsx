@@ -83,7 +83,7 @@ type Section = 'design' | MusicSection;
 const SECTIONS: [Section, string, string][] = [
   ['design', 'Design', 'the voice itself: body, folds, habits, melody'],
   ['sing', 'Sing', 'the voice sings notes and words'],
-  ['beat', 'Beatbox', 'the drums of its mouth on a grid'],
+  ['beat', 'Beatbox', 'the drums of its mouth: a kit, beats on a grid or as text, sounds of your own'],
   ['ensemble', 'Ensemble', 'several voices at once: a round, a choir, a band of mouths'],
 ];
 interface Prefs { hints: boolean; auto: boolean; section: Section }

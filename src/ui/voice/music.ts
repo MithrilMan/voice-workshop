@@ -5,6 +5,9 @@
 import { arrange, downmix, type Performance, type Placed, type Stereo, type MixOptions } from '../../dsp/music/mix';
 import { encodeWavStereo } from '../../dsp/util/wav';
 import type { MusicRequest, MusicReply } from './music.worker';
+import type { Melody } from '../../dsp/music/transcribe';
+import type { Imitation } from '../../dsp/music/imitate';
+import type { VoiceDesign } from '../../dsp/voice/design';
 import { voice } from './voice';
 
 export type { MusicRequest };
@@ -73,6 +76,39 @@ export function stopPlaying(): void { voice.stop(); }
 
 /** wakes the sound on a click, before the parts are made (a browser lets it start only on a gesture) */
 export function wakeSound(): void { void voice.ensureAudio(); }
+
+/** The melody of a recording (see melodyOf), found in a worker. */
+export function findMelody(r: { samples: Float32Array; fs: number }): Promise<Melody> {
+  return new Promise((res, rej) => {
+    const w = new Worker(new URL('./music.worker.ts', import.meta.url), { type: 'module' });
+    w.onmessage = (e: MessageEvent<MusicReply>) => { w.terminate(); if (e.data.ok && e.data.melody) res(e.data.melody); else rej(new Error(e.data.reason ?? 'failed')); };
+    w.onerror = (e) => { w.terminate(); rej(new Error(e.message || 'failed')); };
+    w.postMessage({ kind: 'melody', samples: r.samples, fs: r.fs });
+  });
+}
+
+/**
+ * The sound of a voice's mouth nearest a recording (see imitate), found in
+ * a worker; `onProgress` hears how far the search is. stop() ends it.
+ */
+export function imitateSound(voice: VoiceDesign, r: { samples: Float32Array; fs: number }, onProgress: (done: number, total: number, best: string) => void): { done: Promise<Imitation>; stop: () => void } {
+  const w = new Worker(new URL('./music.worker.ts', import.meta.url), { type: 'module' });
+  let fail: (e: Error) => void = () => {};
+  const done = new Promise<Imitation>((res, rej) => {
+    fail = rej;
+    w.onmessage = (e: MessageEvent<MusicReply>) => {
+      const m = e.data;
+      if (m.ok && m.progress) { onProgress(m.progress.done, m.progress.total, m.progress.best); return; }
+      w.terminate();
+      if (m.ok && m.imitation) res(m.imitation); else rej(new Error(m.reason ?? 'failed'));
+    };
+    w.onerror = (e) => { w.terminate(); rej(new Error(e.message || 'failed')); };
+  });
+  w.postMessage({ kind: 'imitate', voice, samples: r.samples, fs: r.fs });
+  return { done, stop: () => { w.terminate(); fail(new Error('stopped')); } };
+}
+
+export { recordMicrophone, decodeRecording, playRecording, type Recording } from './fitter';
 
 /** Saves a mix as a stereo WAV file. */
 export function saveWav(s: Stereo, name: string): void {
